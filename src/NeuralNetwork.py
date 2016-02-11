@@ -212,7 +212,7 @@ class NeuralNetwork(object):
             nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
-        # update TODO fijarse si es dividido por el tamaño del batch
+        # update TODO fijarse si es dividido por el tamanio del batch
         nabla_w = np.multiply(nabla_w, eta / len(mini_batch))
         nabla_b = np.multiply(nabla_b, eta / len(mini_batch))
 

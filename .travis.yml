@@ -1,0 +1,8 @@
+sudo: false
+language: python
+python:
+  - "3.5"
+script:
+  - python src/xor_demo.py
+after_success:
+  - coveralls
