@@ -6,6 +6,6 @@ install:
   - "pip install numpy"
   - "pip install matplotlib"
 script:
-  - python src/xor_demo.py
+  - python test/xor_demo.py
 #after_success:
 #  - coveralls
