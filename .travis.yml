@@ -3,7 +3,9 @@ language: python
 python:
   - "3.5"
 install:
-  - pip numpy scipy
+  - "pip install numpy"
+  - "pip install scipy"
+  - "pip install matplotlib"
 script:
   - python src/xor_demo.py
 #after_success:
