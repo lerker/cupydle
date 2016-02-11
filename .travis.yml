@@ -2,12 +2,6 @@ sudo: false
 language: python
 python:
   - "3.5"
-install:
-  - "pip install numpy"
-  - "pip install matplotlib"
-script:
-  - cd ..
-  - ls
-  - python cupydle/test/xor_demo.py
+script:  "python setup.py develop && nosetests -w tests/"
 #after_success:
 #  - coveralls
