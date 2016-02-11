@@ -2,7 +2,9 @@ sudo: false
 language: python
 python:
   - "3.5"
+install:
+  - pip numpy scipy
 script:
   - python src/xor_demo.py
-after_success:
-  - coveralls
+#after_success:
+#  - coveralls
