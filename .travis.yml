@@ -7,6 +7,7 @@ install:
   - "pip install matplotlib"
 script:
   - cd ..
+  - ls
   - python cupydle/test/xor_demo.py
 #after_success:
 #  - coveralls
