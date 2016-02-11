@@ -216,19 +216,11 @@ class NeuralNetwork(object):
         nabla_w = np.multiply(nabla_w, eta / len(mini_batch))
         nabla_b = np.multiply(nabla_b, eta / len(mini_batch))
 
-        # TODO
-        # termino de momento, se le suma a los pesos el multiplicativo de un estado anterior
-        """
-        nw = [w.get_weights() for w in self.list_layers]
-        nb = [w.get_bias() for w in self.list_layers]
-        nabla_w = np.multiply(nabla_w, momentum)
-        nabla_b = np.multiply(nabla_b, momentum)
-        self.__update__(nablaw=nw, nablab=nb)
-        """
-
-        # TODO todo bien hasta aca
         # Sumo el incremento de Ws y bs
         self.__update__(nablaw=nabla_w, nablab=nabla_b)
+
+        return nabla_w, nabla_b
+
 
     def sgd(self, training_data, epochs, mini_batch_size, eta, momentum, test_data=None):
         """Train the neural network using mini-batch stochastic
@@ -241,17 +233,44 @@ class NeuralNetwork(object):
         tracking progress, but slows things down substantially."""
 
         n = len(training_data)
+
         for j in range(epochs):
+
+            nabla_w_anterior = [w.get_weights() for w in self.list_layers]
+            nabla_b_anterior = [b.get_bias() for b in self.list_layers]
+            # no hay incremento de los pesos al tiempo t=0
+            nabla_w_anterior = np.multiply(nabla_w_anterior, 0.0)
+            nabla_b_anterior = np.multiply(nabla_b_anterior, 0.0)
+
+
             # TODO, aca hace una lista agrupada con las cantidades del mini_bach. posiblemente \
             # sea el algoritmo que tome un solo elemento de esa lista (deberia ser suffle) y evaluar
             mini_batches = [training_data[k:k + mini_batch_size] for k in range(0, n, mini_batch_size)]
 
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta, len(training_data), momentum)
+                nabla_w, nabla_b = self.update_mini_batch(mini_batch=mini_batch, eta=eta, momentum=momentum, n=len(training_data))
+
+
+                # TODO
+                # termino de momento, se le suma a los pesos el multiplicativo de un estado anterior
+                nabla_w_m = np.multiply(nabla_w_anterior, -1.0 * momentum) # multiplico por -1 porque el update tambien lo multiplica
+                nabla_b_m = np.multiply(nabla_b_anterior, -1.0 * momentum)
+                self.__update__(nablaw=nabla_w_m, nablab=nabla_b_m)
+                nabla_b_anterior = nabla_b
+                nabla_w_anterior = nabla_w
+
+                """
+                step_w = [w * momentum for w in nabla_w_anterior]
+                step_b = [b * momentum for b in nabla_b_anterior]
+                for l in range(self.num_layers):
+                    self.list_layers[l].update(step_w[l], step_b[l])
+                nabla_b_anterior = nabla_b
+                nabla_w_anterior = nabla_w
+                """
 
             hits = (self.evaluate(test_data) / len(test_data)) * 100.0
-
-            print("Epoch {} training complete - Hits: {}".format(j, hits))
+            hits = 100.0 - hits
+            print("Epoch {} training complete - Error: {}".format(j, round(hits, 2)))
 
     def fit(self, train, valid, test, epocas, tasa_apren, momentum, batch_size=1):
         """
