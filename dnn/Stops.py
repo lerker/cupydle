@@ -1,4 +1,4 @@
-__author__ = 'leeandro04'
+
 
 # Librerias de Python
 import signal

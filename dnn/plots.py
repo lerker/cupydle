@@ -1,4 +1,4 @@
-__author__ = 'leferrad'
+
 
 # Dependencias externas
 #import mpld3
