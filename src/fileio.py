@@ -1,7 +1,7 @@
 __author__ = 'lerker'
 
 # Dependencias externas
-from scipy.io import loadmat, savemat
+#from scipy.io import loadmat, savemat
 import numpy as np
 
 text_extensions = ['.dat', '.txt', '.csv']
@@ -27,7 +27,7 @@ def load_file(path, separador=";", varname=None):
     if is_text_file(path):
         dataset = np.loadtxt(path, delimiter=separador)
     elif is_mat_file(path):
-        dataset = loadmat(path)[varname]
+        #dataset = loadmat(path)[varname]
     else:
         assert(True, "Tipo de archivo no reconocido")
     return dataset
@@ -37,7 +37,7 @@ def save_file(data, path):
     if is_text_file(path):
         data.saveAsTextFile(path+'.txt')
     elif is_mat_file(path):
-        savemat(path, {'dataset': data.collect()})
+        #savemat(path, {'dataset': data.collect()})
     else:
         data.saveAsPickleFile(path)
     return
