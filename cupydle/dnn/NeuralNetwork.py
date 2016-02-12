@@ -14,19 +14,25 @@ class NeuralNetwork(object):
         self.list_layers = list_layers  # unidades 'neuronas por capa'
         self.num_layers = len(self.list_layers) - 1  # cantidad de capas
 
-        self.loss = loss.fun_loss["MSE"]  # funcion de costo de salida
-        self.loss_d = loss.fun_loss_prime["MSE"]  # funcion de costo de salida
+        self.clasificacion=False
+        self.funcion_error="MSE"
+
+        self.set_params()
+
+        #funcion_error = "CROSS_ENTROPY"
+        self.loss = loss.fun_loss[self.funcion_error]  # funcion de costo de salida
+        self.loss_d = loss.fun_loss_prime[self.funcion_error]  # funcion de costo de salida
         # self.loss = loss.fun_loss["CROSS_ENTROPY"]  # funcion de costo de salida
         # self.loss_d = loss.fun_loss_prime["CROSS_ENTROPY"]  # funcion de costo de salida
         self.evaluate_fun = loss.fun_loss['resta']
-
-        self.clasificacion = False
 
         # las capas contienen las neuronas, con sus respectivos pesos y bias
         self.__init_layers__()  # inicializo las capas, los pesos
 
         self.hits_train = 0.0
         self.hits_valid = 0.0
+
+
 
     def __init_layers__(self):
         """
@@ -60,8 +66,12 @@ class NeuralNetwork(object):
         else:
             self.list_layers = [NeuralLayer(n_in=x, n_out=y, activation=activacion) for x, y in
                                 zip(size[:-1], size[1:])]
-
     # FIN  __init_layers__
+
+    def set_params(self, funtion_error="MSE", clasification_type=False):
+        self.funcion_error = funtion_error
+        self.clasificacion = clasification_type
+    # FIN set_params
 
     def __feedforward__(self, x, full_intermedio=False, grad=False):
         """
@@ -113,13 +123,10 @@ class NeuralNetwork(object):
         network outputs the correct result. Note that the neural
         network's output is assumed to be the index of whichever
         neuron in the final layer has the highest activation."""
-
-        # TODO, este es el caso general, se debe tener varias salidas para los distintos posibles valores
-        # test_results = [(np.argmax(self.__feedforward__(x)), y) for (x, y) in test_data]
-        # return sum(int(x == y) for (x, y) in test_results)
-
-        # TODO, este es el caso especial para el OR
-        test_results = [(int(self.__feedforward__(x).matrix > 0.5), int(y > 0.0)) for (x, y) in test_data]
+        if self.clasificacion:
+            test_results = [(np.argmax(self.__feedforward__(x).matrix), np.argmax(y)) for (x, y) in test_data]
+        else: # regresion especial
+            test_results = [(int(self.__feedforward__(x).matrix > 0.5), int(y > 0.0)) for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
 
     # FIN evaluate
@@ -143,21 +150,19 @@ class NeuralNetwork(object):
         a = [None] * (self.num_layers + 1)  # Vector que contiene las activaciones de las salidas de cada NeuralLayer
         d_a = [None] * self.num_layers  # Vector que contiene las derivadas de las salidas activadas de cada NeuralLayer
 
+        y = Neurons(y, (len(y), 1))
+
         # 2 --------------------- Feed-forward
-        a[0] = x
+        a[0] = Neurons(x, (len(x), 1))
         for l in range(self.num_layers):
             (a[l + 1], d_a[l]) = self.list_layers[l].output(x=a[l], grad=True)
-        # TODO a = a[1:]
-        s = (len(x), 1)
-        a[0] = Neurons(x, s)
-        s = (len(y), 1)
-        y = Neurons(y, s)
 
         # 3 ---------------------- Output Error
         # error de salida, delta de la ultima salida
         # el error viene dado por el error instantaneo local de cada neurona, originado por el error cuadratico
-        # aca va el costo, (y_real - y_prediccion) # TODO ver el orden, antes esteba al revez. puede ser una cuestion de signos
-        d_cost = a[-1] - y
+        # aca va el costo, derivada de la funcion, en MSE => (y_prediccion - real)
+        # d_cost = a[-1] - y
+        d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), y.shape) # TODO segunda opcion
         delta = d_cost
 
         # 4 ---------------------- Backward pass
