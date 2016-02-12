@@ -2,6 +2,6 @@ sudo: false
 language: python
 python:
   - "3.5"
-script:  "python setup.py develop && nosetests -w cupydle/test/"
+script:  "python setup.py develop && nosetests -v cupydle/test/*"
 #after_success:
 #  - coveralls
