@@ -1,6 +1,6 @@
 import nose
 
-def test_xor_demo():
+def test_xor_regresion_demo():
     # Dependencias Internas
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
@@ -8,6 +8,7 @@ def test_xor_demo():
     # Dependencias Externas
     from cupydle.dnn.NeuralNetwork import NeuralNetwork
     from cupydle.dnn.data import LabeledDataSet as dataSet
+
 
     # Seteo de los parametros
     capa_entrada = 2
@@ -47,7 +48,8 @@ def test_xor_demo():
     datos_tst = [(x, y) for x, y in zip(entrada_tst, salida_tst)]
 
     # --------------------------------  PLOTS  --------------------------------------------#
-    if __name__ == '__main__':
+    if not __name__ == '__main__':
+
         fig = plt.figure()
         plt.clf()
         plt1 = fig.add_subplot(2, 1, 1, projection='3d')
@@ -116,9 +118,6 @@ def test_xor_demo():
 
 
     net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
-
-    return 0
-
 
 
 if __name__ == '__main__':
