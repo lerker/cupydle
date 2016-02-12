@@ -47,61 +47,61 @@ def test_xor_demo():
     datos_tst = [(x, y) for x, y in zip(entrada_tst, salida_tst)]
 
     # --------------------------------  PLOTS  --------------------------------------------#
+    if __name__ == '__main__':
+        fig = plt.figure()
+        plt.clf()
+        plt1 = fig.add_subplot(2, 1, 1, projection='3d')
+        plt2 = fig.add_subplot(2, 1, 2, projection='3d')
 
-    fig = plt.figure()
-    plt.clf()
-    plt1 = fig.add_subplot(2, 1, 1, projection='3d')
-    plt2 = fig.add_subplot(2, 1, 2, projection='3d')
 
+        scat1_x, scat1_y, scat1_z = [], [], []
+        scat2_x, scat2_y, scat2_z = [], [], []
 
-    scat1_x, scat1_y, scat1_z = [], [], []
-    scat2_x, scat2_y, scat2_z = [], [], []
+        for l in range(0, len(entrada_trn)):
+            if salida_trn[l] == 1.0:
+                scat1_x.append(entrada_trn[l, 0])
+                scat1_y.append(entrada_trn[l, 1])
+                scat1_z.append(salida_trn[l])
+            else:
+                scat2_x.append(entrada_trn[l, 0])
+                scat2_y.append(entrada_trn[l, 1])
+                scat2_z.append(salida_trn[l])
 
-    for l in range(0, len(entrada_trn)):
-        if salida_trn[l] == 1.0:
-            scat1_x.append(entrada_trn[l, 0])
-            scat1_y.append(entrada_trn[l, 1])
-            scat1_z.append(salida_trn[l])
-        else:
-            scat2_x.append(entrada_trn[l, 0])
-            scat2_y.append(entrada_trn[l, 1])
-            scat2_z.append(salida_trn[l])
+        c1 = ['r'] * len(scat1_z)
+        c2 = ['b'] * len(scat2_z)
 
-    c1 = ['r'] * len(scat1_z)
-    c2 = ['b'] * len(scat2_z)
+        plt1.scatter(xs=scat1_x, ys=scat1_y, zs=scat1_z, c=c1, s=5.0, marker='+')
+        plt1.scatter(xs=scat2_x, ys=scat2_y, zs=scat2_z, c=c2, s=5.0, marker='o')
 
-    plt1.scatter(xs=scat1_x, ys=scat1_y, zs=scat1_z, c=c1, s=5.0, marker='+')
-    plt1.scatter(xs=scat2_x, ys=scat2_y, zs=scat2_z, c=c2, s=5.0, marker='o')
+        plt1.set_xlabel('X')
+        plt1.set_ylabel('Y')
+        plt1.set_zlabel('Label')
+        plt1.set_title("Conjunto de Entrenamiento")
 
-    plt1.set_xlabel('X')
-    plt1.set_ylabel('Y')
-    plt1.set_zlabel('Label')
-    plt1.set_title("Conjunto de Entrenamiento")
+        scat1_x, scat1_y, scat1_z = [], [], []
+        scat2_x, scat2_y, scat2_z = [], [], []
 
-    scat1_x, scat1_y, scat1_z = [], [], []
-    scat2_x, scat2_y, scat2_z = [], [], []
+        for l in range(0, len(entrada_tst)):
+            if salida_tst[l] == 1.0:
+                scat1_x.append(entrada_tst[l, 0])
+                scat1_y.append(entrada_tst[l, 1])
+                scat1_z.append(salida_tst[l])
+            else:
+                scat2_x.append(entrada_tst[l, 0])
+                scat2_y.append(entrada_tst[l, 1])
+                scat2_z.append(salida_tst[l])
 
-    for l in range(0, len(entrada_tst)):
-        if salida_tst[l] == 1.0:
-            scat1_x.append(entrada_tst[l, 0])
-            scat1_y.append(entrada_tst[l, 1])
-            scat1_z.append(salida_tst[l])
-        else:
-            scat2_x.append(entrada_tst[l, 0])
-            scat2_y.append(entrada_tst[l, 1])
-            scat2_z.append(salida_tst[l])
+        c1 = ['r'] * len(scat1_z)
+        c2 = ['b'] * len(scat2_z)
 
-    c1 = ['r'] * len(scat1_z)
-    c2 = ['b'] * len(scat2_z)
+        plt2.scatter(xs=scat1_x, ys=scat1_y, zs=scat1_z, c=c1, s=5.0, marker='+')
+        plt2.scatter(xs=scat2_x, ys=scat2_y, zs=scat2_z, c=c2, s=5.0, marker='o')
 
-    plt2.scatter(xs=scat1_x, ys=scat1_y, zs=scat1_z, c=c1, s=5.0, marker='+')
-    plt2.scatter(xs=scat2_x, ys=scat2_y, zs=scat2_z, c=c2, s=5.0, marker='o')
-
-    plt2.set_xlabel('X')
-    plt2.set_ylabel('Y')
-    plt2.set_zlabel('Label')
-    plt2.set_title("Conjunto de Testeo")
-    plt.show()
+        plt2.set_xlabel('X')
+        plt2.set_ylabel('Y')
+        plt2.set_zlabel('Label')
+        plt2.set_title("Conjunto de Testeo")
+        plt.show()
 
     # --------------------------------  ENTRENAMIENTO --------------------------------------------#
 
