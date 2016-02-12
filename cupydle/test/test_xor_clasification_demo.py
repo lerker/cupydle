@@ -58,7 +58,7 @@ def test_xor_clasification_demo():
     datos_tst = [(x, y) for x, y in zip(entrada_tst, salida_tst_tmp.transpose())]
 
     # --------------------------------  PLOTS  --------------------------------------------#
-    if not __name__ == '__main__':
+    if False:
 
         fig = plt.figure()
         plt.clf()

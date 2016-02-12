@@ -48,7 +48,7 @@ def test_xor_regresion_demo():
     datos_tst = [(x, y) for x, y in zip(entrada_tst, salida_tst)]
 
     # --------------------------------  PLOTS  --------------------------------------------#
-    if not __name__ == '__main__':
+    if False:
 
         fig = plt.figure()
         plt.clf()
