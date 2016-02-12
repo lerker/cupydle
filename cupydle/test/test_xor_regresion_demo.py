@@ -1,5 +1,6 @@
 import nose
 
+
 def test_xor_regresion_demo():
     # Dependencias Internas
     from mpl_toolkits.mplot3d import Axes3D
@@ -9,7 +10,6 @@ def test_xor_regresion_demo():
     from cupydle.dnn.NeuralNetwork import NeuralNetwork
     from cupydle.dnn.data import LabeledDataSet as dataSet
 
-
     # Seteo de los parametros
     capa_entrada = 2
     capa_oculta_1 = 3
@@ -17,7 +17,6 @@ def test_xor_regresion_demo():
     capas = [capa_entrada, capa_oculta_1, capa_salida]
 
     net = NeuralNetwork(list_layers=capas)
-
 
     # --------------------------------  DATASET  --------------------------------------------#
     print("Cargando la base de datos...")
@@ -54,7 +53,6 @@ def test_xor_regresion_demo():
         plt.clf()
         plt1 = fig.add_subplot(2, 1, 1, projection='3d')
         plt2 = fig.add_subplot(2, 1, 2, projection='3d')
-
 
         scat1_x, scat1_y, scat1_z = [], [], []
         scat2_x, scat2_y, scat2_z = [], [], []
@@ -116,9 +114,7 @@ def test_xor_regresion_demo():
     print("Validating Data size: " + str(len(datos_vld)))
     print("Testing Data size: " + str(len(datos_tst)))
 
-
     net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
-
 
 if __name__ == '__main__':
     nose.run(defaultTest=__name__)

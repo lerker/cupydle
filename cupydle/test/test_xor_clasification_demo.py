@@ -1,5 +1,6 @@
 import nose
 
+
 def test_xor_clasification_demo():
     # Dependencias Internas
     from mpl_toolkits.mplot3d import Axes3D
@@ -10,7 +11,6 @@ def test_xor_clasification_demo():
     from cupydle.dnn.NeuralNetwork import NeuralNetwork
     from cupydle.dnn.data import LabeledDataSet as dataSet
 
-
     # Seteo de los parametros
     capa_entrada = 2
     capa_oculta_1 = 3
@@ -19,9 +19,8 @@ def test_xor_clasification_demo():
 
     net = NeuralNetwork(list_layers=capas)
 
-    #net.set_params(funtion_error="MSE", clasification_type="True")
+    # net.set_params(funtion_error="MSE", clasification_type="True")
     net.set_params(funtion_error="CROSS_ENTROPY", clasification_type="True")
-
 
     # --------------------------------  DATASET  --------------------------------------------#
     print("Cargando la base de datos...")
@@ -64,7 +63,6 @@ def test_xor_clasification_demo():
         plt.clf()
         plt1 = fig.add_subplot(2, 1, 1, projection='3d')
         plt2 = fig.add_subplot(2, 1, 2, projection='3d')
-
 
         scat1_x, scat1_y, scat1_z = [], [], []
         scat2_x, scat2_y, scat2_z = [], [], []
@@ -126,10 +124,8 @@ def test_xor_clasification_demo():
     print("Validating Data size: " + str(len(datos_vld)))
     print("Testing Data size: " + str(len(datos_tst)))
 
-
     net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
-    #net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=20, tasa_apren=2, momentum=0.3)
-
+    # net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=20, tasa_apren=2, momentum=0.3)
 
 if __name__ == '__main__':
     nose.run(defaultTest=__name__)
