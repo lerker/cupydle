@@ -1,8 +1,11 @@
+# Libreria Internas
 import numpy as np
-
 import time
 import json
+import copy
+import pickle as pickle
 
+# Librerias Externas
 from cupydle.dnn.NeuralLayer import NeuralLayer
 from cupydle.dnn.NeuralLayer import ClassificationLayer
 from cupydle.dnn.Neurons import Neurons
@@ -10,67 +13,65 @@ import cupydle.dnn.loss as loss
 
 
 class NeuralNetwork(object):
-    def __init__(self, list_layers):
+    def __init__(self, list_layers, w=None, b=None):
         self.list_layers = list_layers  # unidades 'neuronas por capa'
         self.num_layers = len(self.list_layers) - 1  # cantidad de capas
 
-        self.clasificacion=False
-        self.funcion_error="MSE"
+        # esto debe setearse
+        self.clasificacion = False
+        self.funcion_error = "MSE"
+        self.funcion_activacion = ["Sigmoid"] * self.num_layers
 
-        self.set_params()
+        self.set_params(funtion_error="MSE", clasification_type=False, activacion="Sigmoid")
 
-        #funcion_error = "CROSS_ENTROPY"
-        self.loss = loss.fun_loss[self.funcion_error]  # funcion de costo de salida
-        self.loss_d = loss.fun_loss_prime[self.funcion_error]  # funcion de costo de salida
-        # self.loss = loss.fun_loss["CROSS_ENTROPY"]  # funcion de costo de salida
-        # self.loss_d = loss.fun_loss_prime["CROSS_ENTROPY"]  # funcion de costo de salida
-        self.evaluate_fun = loss.fun_loss['resta']
+        self.loss = loss.fun_loss[self.funcion_error]
+        self.loss_d = loss.fun_loss_prime[self.funcion_error]
 
         # las capas contienen las neuronas, con sus respectivos pesos y bias
-        self.__init_layers__()  # inicializo las capas, los pesos
+        self.__init_layers__(w, b)  # inicializo las capas, los pesos
 
         self.hits_train = 0.0
         self.hits_valid = 0.0
+    # FIN __init__
 
-
-
-    def __init_layers__(self):
+    def __init_layers__(self, w, b):
         """
         Inicializacion de los pesos W y los biases b.
         Dada la lista de 'layers', el primer elemento de la misma es la entrada o capa de entrada y basicamente indica
         cuantos son los valores de entrada de la red
-        # http://neuralnetworksanddeeplearning.com/chap1.html#implementing_our_network_to_classify_digits
         :return:
         """
-
-        activacion = "Sigmoid"
-        #activacion = "Tanh"
-
         # se borra el contenido de list_layers para almacenar una lista de objetos del tipo 'NeuralLayer'
         size = self.list_layers
         self.list_layers = []
 
-        """
-        for i in range(0, self.num_layers-1):
-            self.list_layers.append(
-                                    NeuralLayer(n_in=size[i],
-                                                n_out=size[i+1],
-                                                activation=activacion))
-        """
-
         if self.clasificacion:
-            self.list_layers = [NeuralLayer(n_in=x, n_out=y, activation=activacion) for x, y in
-                                zip(size[:-2], size[1:-1])]
+            # TODO aca la activacion deberia variar con la capa, cada una puede tener distintas activaciones
+            self.list_layers = [NeuralLayer(n_in=x,
+                                            n_out=y,
+                                            activation=self.funcion_activacion[0]) for x, y in zip(size[:-2], size[1:-1])]
             # la ultima capa es de clasificacion, osea un softmax en vez de activacion comun
-            self.list_layers.append(ClassificationLayer(n_in=size[-2], n_out=size[-1], activation=activacion))
+            self.list_layers.append(ClassificationLayer(n_in=size[-2],
+                                                        n_out=size[-1],
+                                                        activation=self.funcion_activacion[0]))
         else:
-            self.list_layers = [NeuralLayer(n_in=x, n_out=y, activation=activacion) for x, y in
-                                zip(size[:-1], size[1:])]
+            self.list_layers = [NeuralLayer(n_in=x,
+                                            n_out=y,
+                                            activation=self.funcion_activacion[0]) for x, y in zip(size[:-1], size[1:])]
+
+        del size
+
+        # si quiero cargar los w y b
+        if w is not None or b is not None:
+            for idx, val in enumerate(self.list_layers):
+                val.set_weights(w[idx])
+                val.set_bias(b[idx])
     # FIN  __init_layers__
 
-    def set_params(self, funtion_error="MSE", clasification_type=False):
+    def set_params(self, funtion_error="MSE", clasification_type=False, activacion="Sigmoid"):
         self.funcion_error = funtion_error
         self.clasificacion = clasification_type
+        self.funcion_activacion = [activacion] * self.num_layers
     # FIN set_params
 
     def __feedforward__(self, x, full_intermedio=False, grad=False):
@@ -81,12 +82,9 @@ class NeuralNetwork(object):
         :param grad: para retornar los gradientes de cada salida por capa
         :return: lista de salidas de cada capa de la red si full_intermedio o sino la ultima
         """
-
         if full_intermedio:
-            a = [None] * (
-            self.num_layers + 1)  # Vector que contiene las activaciones de las salidas de cada NeuralLayer
-
-            # a[0] = np.array(x)  # en la posicion 0 se encuentra la entrada
+            # Vector que contiene las activaciones de las salidas de cada NeuralLayer
+            a = [None] * (self.num_layers + 1)
             a[0] = x
 
             for l in range(self.num_layers):
@@ -99,13 +97,12 @@ class NeuralNetwork(object):
                 x = self.list_layers[l].output(x)
 
         return x
-
     # FIN  __feedforward__
 
     def predict(self, x):
         """
-        predice la salida de una red, en el caso de ser varias salidas retorna el indice donde la misma tuvo una activacion
-        mas fuerte.
+        predice la salida de una red, en el caso de ser varias salidas
+        retorna el indice donde la misma tuvo una activacion mas fuerte.
         :param x:
         :return:
         """
@@ -264,15 +261,6 @@ class NeuralNetwork(object):
                 nabla_b_anterior = nabla_b
                 nabla_w_anterior = nabla_w
 
-                """
-                step_w = [w * momentum for w in nabla_w_anterior]
-                step_b = [b * momentum for b in nabla_b_anterior]
-                for l in range(self.num_layers):
-                    self.list_layers[l].update(step_w[l], step_b[l])
-                nabla_b_anterior = nabla_b
-                nabla_w_anterior = nabla_w
-                """
-
             hits = (self.evaluate(test_data) / len(test_data)) * 100.0
             hits = 100.0 - hits
             print("Epoch {} training complete - Error: {}".format(j, round(hits, 2)))
@@ -297,17 +285,30 @@ class NeuralNetwork(object):
         hits = (self.evaluate(test) / len(test)) * 100.0
         print("Final Score {} ".format(hits))
 
-    def save(self, filename):
+    def save(self, filename, path=''):
         """Save the neural network to the file ``filename``."""
-        data = {"layers": self.num_layers,
-                # "weights": [w.tolist() for w in self.list_layers],
-                # "biases": [b.tolist() for b in self.biases],
+        data = {"layers": [(l.n_out, l.n_in) for l in self.list_layers],
+                "weights": [w.get_weights().matrix.tolist() for w in self.list_layers],
+                "biases": [b.get_bias().matrix.tolist() for b in self.list_layers],
                 # "cost": str(self.cost.__name__)}
-                "cost":   "MSE"
+                "cost":   str(self.funcion_error)
                 }
-        f = open(filename, "w")
+        f = open(path + filename + '.cupydle', "w")
         json.dump(data, f)
         f.close()
+
+    def save_weights(self, filename, path):
+        """
+        Save de Network Weights to 'filename'
+        :param filename:
+        :param path:
+        :return:
+        """
+        file = open(path+filename+'.cupydle', 'w')
+        pickler = pickle.Pickler(file, -1)
+        pickler.dump(self)
+        file.close()
+        return
 
 
 #### Loading a Network
@@ -318,10 +319,10 @@ def load(filename):
     f = open(filename, "r")
     data = json.load(f)
     f.close()
-    # cost = getattr(sys.modules[__name__], data["cost"])
-    net = NeuralNetwork(data["layers"])
-    # net.weights = [np.array(w) for w in data["weights"]]
-    # net.biases = [np.array(b) for b in data["biases"]]
+    capas = [data["layers"][0][1]]  # entrada de la red, se duplica en la lista para mantener consistencia
+    capas_tmp = [l[0] for l in data["layers"]]
+    capas.extend(capas_tmp)
+    net = NeuralNetwork(list_layers=capas, w=data["weights"], b=data["biases"])
     return net
 
 

@@ -69,6 +69,18 @@ class NeuralLayer(object):
     def get_bias(self):
         return self.bias
 
+    def set_weights(self, w):
+        if isinstance(w, Neurons):
+            self.weights = w
+        else:
+            self.weights = Neurons(w, self.shape_w)
+
+    def set_bias(self, b):
+        if isinstance(b, Neurons):
+            self.bias = b
+        else:
+            self.bias = Neurons(b, self.shape_b)
+
     def output(self, x, grad=False):
         """
         Activacion de una capa con una entrada, si pido el gradiente lo retorno como una tupla
