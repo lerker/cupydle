@@ -13,16 +13,14 @@ import cupydle.dnn.loss as loss
 
 
 class NeuralNetwork(object):
-    def __init__(self, list_layers, w=None, b=None):
+    def __init__(self, list_layers, clasificacion=False, funcion_error="MSE", funcion_activacion="Sigmoid", w=None, b=None):
         self.list_layers = list_layers  # unidades 'neuronas por capa'
         self.num_layers = len(self.list_layers) - 1  # cantidad de capas
 
         # esto debe setearse
-        self.clasificacion = False
-        self.funcion_error = "MSE"
-        self.funcion_activacion = ["Sigmoid"] * self.num_layers
-
-        self.set_params(funtion_error="MSE", clasification_type=False, activacion="Sigmoid")
+        self.clasificacion = clasificacion
+        self.funcion_error = funcion_error
+        self.funcion_activacion = [funcion_activacion] * self.num_layers
 
         self.loss = loss.fun_loss[self.funcion_error]
         self.loss_d = loss.fun_loss_prime[self.funcion_error]
@@ -67,12 +65,6 @@ class NeuralNetwork(object):
                 val.set_weights(w[idx])
                 val.set_bias(b[idx])
     # FIN  __init_layers__
-
-    def set_params(self, funtion_error="MSE", clasification_type=False, activacion="Sigmoid"):
-        self.funcion_error = funtion_error
-        self.clasificacion = clasification_type
-        self.funcion_activacion = [activacion] * self.num_layers
-    # FIN set_params
 
     def __feedforward__(self, x, full_intermedio=False, grad=False):
         """
@@ -121,7 +113,7 @@ class NeuralNetwork(object):
         network's output is assumed to be the index of whichever
         neuron in the final layer has the highest activation."""
         if self.clasificacion:
-            test_results = [(np.argmax(self.__feedforward__(x).matrix), np.argmax(y)) for (x, y) in test_data]
+            test_results = [(np.argmax(self.__feedforward__(x).matrix), y) for (x, y) in test_data]
         else: # regresion especial
             test_results = [(int(self.__feedforward__(x).matrix > 0.5), int(y > 0.0)) for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
@@ -166,7 +158,9 @@ class NeuralNetwork(object):
         # desde la ultima capa hasta la primera, la ultima capa es especial el delta, lo calculo afuera
         # la formula de actualizacion siempre es la misma
         # delta_w = eta * delta * entrada_anterior
-        delta = delta.mul_elemwise(d_a[-1])
+        # en problemas de clasificacion no se debe multiplicar por la derivada
+        if not self.clasificacion:
+            delta = delta.mul_elemwise(d_a[-1])
         nabla_w[-1] = delta.outer(a[-2])
         nabla_b[-1] = delta
 
@@ -198,7 +192,6 @@ class NeuralNetwork(object):
 
         nabla_b = []
         nabla_w = []
-
         # preparo el lugar donde se almacenan los valores temporales
         for layer in self.list_layers:
             shape_w = layer.get_weights().shape
@@ -280,7 +273,7 @@ class NeuralNetwork(object):
         """
 
         self.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum,
-                 test_data=valid)
+                 test_data=test)
 
         hits = (self.evaluate(test) / len(test)) * 100.0
         print("Final Score {} ".format(hits))

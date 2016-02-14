@@ -17,10 +17,8 @@ def test_xor_clasification_demo():
     capa_salida = 2
     capas = [capa_entrada, capa_oculta_1, capa_salida]
 
-    net = NeuralNetwork(list_layers=capas)
-
-    # net.set_params(funtion_error="MSE", clasification_type="True")
-    net.set_params(funtion_error="CROSS_ENTROPY", clasification_type="True")
+    net = NeuralNetwork(list_layers=capas, clasificacion=True, funcion_error="CROSS_ENTROPY",
+                        funcion_activacion="Sigmoid", w=None, b=None)
 
     # --------------------------------  DATASET  --------------------------------------------#
     print("Cargando la base de datos...")
@@ -45,14 +43,12 @@ def test_xor_clasification_demo():
     entrada_tst, salida_tst = data_tst.split_data(3)
 
     # corregir los valores de los labels, deben estar entre 0 y 1 "clases"
-    salida_tst_tmp = np.zeros((2, len(salida_tst)))
+    salida_tst_tmp = np.zeros((1, len(salida_tst)))
     for l in range(0, len(salida_tst)):
         if salida_tst[l] < 0.0:
-            salida_tst_tmp[0][l] = 1.0
-            salida_tst_tmp[1][l] = 0.0
-        else:
             salida_tst_tmp[0][l] = 0.0
-            salida_tst_tmp[1][l] = 1.0
+        else:
+            salida_tst_tmp[0][l] = 1.0
 
     datos_tst = [(x, y) for x, y in zip(entrada_tst, salida_tst_tmp.transpose())]
 
@@ -125,7 +121,6 @@ def test_xor_clasification_demo():
     print("Testing Data size: " + str(len(datos_tst)))
 
     net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
-    # net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=20, tasa_apren=2, momentum=0.3)
 
 if __name__ == '__main__':
     nose.run(defaultTest=__name__)

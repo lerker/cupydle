@@ -13,6 +13,7 @@ __status__ = "Production"
 Neurons class, this is abstraction of various neurons, a pack of neurons, that compose a neural layer
 """
 
+
 class Neurons(object):
     def __init__(self, mat, shape):
         if len(shape) == 1:
@@ -38,7 +39,6 @@ class Neurons(object):
         return str(self.matrix)
 
     def __mul__(self, other):
-        # TODO esta linea puede que este al pedo
         if isinstance(other, Neurons):
             other = other.matrix
         return Neurons(self.matrix * other, self.shape)
@@ -58,7 +58,7 @@ class Neurons(object):
             other = other.matrix
         return Neurons(self.matrix + other, self.shape)
 
-    def __pow__(self, power, modulo=None):
+    def __pow__(self, power):
         return Neurons(self.matrix ** power, self.shape)
 
     # opraciones basicas
@@ -94,19 +94,6 @@ class Neurons(object):
     def transpose(self):
         return Neurons(self.matrix.transpose(), self.shape[::-1])
 
-    def mse(self, y):
-        n = self.count
-        error = (y - self.matrix) ** 2
-        sum_error = sum(error)
-        return sum_error / (1.0 * n)
-
-    def resta(self, y):
-        n = self.count
-        error = (y - self.matrix)
-        sum_error = sum(error)
-        return sum_error / (1.0 * n)
-
-
     def loss(self, fun, y):
         return fun(self.matrix, y)
 
@@ -121,6 +108,7 @@ class Neurons(object):
     def softmax(self):
         # Uso de tip de implementacion (http://ufldl.stanford.edu/wiki/index.php/Exercise:Softmax_Regression)
         x = self.matrix
-        x = x - max(x)  # Se previene valores muy grandes del exp con valores altos de x
+        # instead: first shift the values of f so that the highest number is 0:
+        x = x - max(x)
         softmat = np.exp(x) / (sum(np.exp(x)))
         return Neurons(softmat, self.shape)

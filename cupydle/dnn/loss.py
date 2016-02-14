@@ -32,16 +32,22 @@ def resta(self, y):
     sum_error = sum(error)
     return sum_error / (1.0 * n)
 
-def cross_entropy(y, t):
-    num_classes = len(y)
-    t = label_to_vector(t, num_classes)
-    return -sum(t * np.log(y))[0]
+
+def cross_entropy(a, y):
+    """Return the cost associated with an output ``a`` and desired output
+        ``y``.  Note that np.nan_to_num is used to ensure numerical
+        stability.  In particular, if both ``a`` and ``y`` have a 1.0
+        in the same slot, then the expression (1-y)*np.log(1-a)
+        returns nan.  The np.nan_to_num ensures that that is converted
+        to the correct value (0.0).
+
+        """
+    return np.sum(np.nan_to_num(-1.0 * y * np.log(a) - (1 - y) * np.log(1 - a)))
 
 
-def cross_entropy_d(y, t):
-    num_classes = len(y)
-    t = label_to_vector(t, num_classes)
-    return y - t
+def cross_entropy_d(value, target):
+    # http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
+    return target - value
 
 
 def label_to_vector(label, n_classes):
@@ -50,5 +56,6 @@ def label_to_vector(label, n_classes):
     lab[label] = 1
     return np.array(lab)
 
-fun_loss = {'MSE': mse, 'resta': resta, 'CROSS_ENTROPY': cross_entropy}
+
+fun_loss = {'MSE': mse, 'CROSS_ENTROPY': cross_entropy}
 fun_loss_prime = {'MSE': mse_prime, 'CROSS_ENTROPY': cross_entropy_d}
