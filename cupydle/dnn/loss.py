@@ -13,6 +13,8 @@ __status__ = "Production"
 Loss funtions to evaluate de error, difference of real to expected value
 """
 
+from cupydle.dnn.utils import vectorize_label
+
 
 def mse(value, target):
     err = target - value
@@ -24,13 +26,6 @@ def mse_prime(value, target):
     err = target - value
     n = err.size
     return 2 * err / (1.0 * n)
-
-
-def resta(self, y):
-    n = self.count
-    error = (y - self.matrix)
-    sum_error = sum(error)
-    return sum_error / (1.0 * n)
 
 
 def cross_entropy(a, y):
@@ -47,6 +42,8 @@ def cross_entropy(a, y):
 
 def cross_entropy_d(value, target):
     # http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
+    # value<->target: deberia ser al reves me parece
+    value = vectorize_label(label=value[0], n_classes=len(target))
     return target - value
 
 
@@ -55,7 +52,6 @@ def label_to_vector(label, n_classes):
     label = int(label)
     lab[label] = 1
     return np.array(lab)
-
 
 fun_loss = {'MSE': mse, 'CROSS_ENTROPY': cross_entropy}
 fun_loss_prime = {'MSE': mse_prime, 'CROSS_ENTROPY': cross_entropy_d}

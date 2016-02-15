@@ -10,6 +10,7 @@ from cupydle.dnn.NeuralLayer import NeuralLayer
 from cupydle.dnn.NeuralLayer import ClassificationLayer
 from cupydle.dnn.Neurons import Neurons
 import cupydle.dnn.loss as loss
+from cupydle.dnn.optimization import GradientDescendent
 
 
 class NeuralNetwork(object):
@@ -151,16 +152,21 @@ class NeuralNetwork(object):
         # el error viene dado por el error instantaneo local de cada neurona, originado por el error cuadratico
         # aca va el costo, derivada de la funcion, en MSE => (y_prediccion - real)
         # d_cost = a[-1] - y
-        d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), y.shape) # TODO segunda opcion
+        #d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), y.shape) # TODO segunda opcion
+        d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), a[-1].shape) # TODO segunda opcion
         delta = d_cost
 
         # 4 ---------------------- Backward pass
         # desde la ultima capa hasta la primera, la ultima capa es especial el delta, lo calculo afuera
         # la formula de actualizacion siempre es la misma
         # delta_w = eta * delta * entrada_anterior
-        # en problemas de clasificacion no se debe multiplicar por la derivada
-        if not self.clasificacion:
+        # cuando el problema es de clasificacion, en la ultima capa se usa un 'softmax', y si la salida del error es de
+        # 'cross_entropy', no se debe mltiplicar el delta por la derivada de la funcion de activacion. SOLO en el caso de
+        # REGRESION
+        #if not self.clasificacion:
+        if not self.clasificacion and self.funcion_error == "CROSS_ENTROPY":
             delta = delta.mul_elemwise(d_a[-1])
+
         nabla_w[-1] = delta.outer(a[-2])
         nabla_b[-1] = delta
 
@@ -176,87 +182,6 @@ class NeuralNetwork(object):
 
         return nabla_w, nabla_b
 
-    def __update__(self, nablaw, nablab):
-        #  Tener en cuenta que las correcciones son restas, por lo cual se cambia el signo
-        step_w = [w * -1.0 for w in nablaw]
-        step_b = [b * -1.0 for b in nablab]
-        for l in range(self.num_layers):
-            self.list_layers[l].update(step_w[l], step_b[l])
-
-    def update_mini_batch(self, mini_batch, eta, momentum, n):
-        """Update the network's weights and biases by applying
-        gradient descent using backpropagation to a single mini batch.
-        The ``mini_batch`` is a list of tuples ``(x, y)``, and ``eta``
-        is the learning rate , and ``n`` is the total size of the
-        training data set."""
-
-        nabla_b = []
-        nabla_w = []
-        # preparo el lugar donde se almacenan los valores temporales
-        for layer in self.list_layers:
-            shape_w = layer.get_weights().shape
-            shape_b = layer.get_bias().shape
-            nabla_b.append(Neurons(np.zeros(shape_b), shape_b))
-            nabla_w.append(Neurons(np.zeros(shape_w), shape_w))
-
-        # primer paso, por cada patron y su salida
-        for x, y in mini_batch:
-            delta_nabla_w, delta_nabla_b = self.__backprop__(x, y)
-
-            # suma los delta de nabla a los nabla que ya habia.
-            nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
-
-        # update TODO fijarse si es dividido por el tamanio del batch
-        nabla_w = np.multiply(nabla_w, eta / len(mini_batch))
-        nabla_b = np.multiply(nabla_b, eta / len(mini_batch))
-
-        # Sumo el incremento de Ws y bs
-        self.__update__(nablaw=nabla_w, nablab=nabla_b)
-
-        return nabla_w, nabla_b
-
-
-    def sgd(self, training_data, epochs, mini_batch_size, eta, momentum, test_data=None):
-        """Train the neural network using mini-batch stochastic
-        gradient descent.  The ``training_data`` is a list of tuples
-        ``(x, y)`` representing the training inputs and the desired
-        outputs.  The other non-optional parameters are
-        self-explanatory.  If ``test_data`` is provided then the
-        network will be evaluated against the test data after each
-        epoch, and partial progress printed out.  This is useful for
-        tracking progress, but slows things down substantially."""
-
-        n = len(training_data)
-
-        for j in range(epochs):
-
-            nabla_w_anterior = [w.get_weights() for w in self.list_layers]
-            nabla_b_anterior = [b.get_bias() for b in self.list_layers]
-            # no hay incremento de los pesos al tiempo t=0
-            nabla_w_anterior = np.multiply(nabla_w_anterior, 0.0)
-            nabla_b_anterior = np.multiply(nabla_b_anterior, 0.0)
-
-
-            # TODO, aca hace una lista agrupada con las cantidades del mini_bach. posiblemente \
-            # sea el algoritmo que tome un solo elemento de esa lista (deberia ser suffle) y evaluar
-            mini_batches = [training_data[k:k + mini_batch_size] for k in range(0, n, mini_batch_size)]
-
-            for mini_batch in mini_batches:
-                nabla_w, nabla_b = self.update_mini_batch(mini_batch=mini_batch, eta=eta, momentum=momentum, n=len(training_data))
-
-
-                # TODO
-                # termino de momento, se le suma a los pesos el multiplicativo de un estado anterior
-                nabla_w_m = np.multiply(nabla_w_anterior, -1.0 * momentum) # multiplico por -1 porque el update tambien lo multiplica
-                nabla_b_m = np.multiply(nabla_b_anterior, -1.0 * momentum)
-                self.__update__(nablaw=nabla_w_m, nablab=nabla_b_m)
-                nabla_b_anterior = nabla_b
-                nabla_w_anterior = nabla_w
-
-            hits = (self.evaluate(test_data) / len(test_data)) * 100.0
-            hits = 100.0 - hits
-            print("Epoch {} training complete - Error: {}".format(j, round(hits, 2)))
 
     def fit(self, train, valid, test, epocas, tasa_apren, momentum, batch_size=1):
         """
@@ -271,9 +196,13 @@ class NeuralNetwork(object):
             se calcula el error ejemplo a ejemplo
             se propaga hacia atras el error
         """
+        start = time.time()
 
-        self.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum,
-                 test_data=test)
+        G = GradientDescendent(self)
+        G.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum, valid_data=valid)
+
+        end = time.time()
+        print("Tiempo total requerido: {} [s]".format(round(float(end - start), 4)))
 
         hits = (self.evaluate(test) / len(test)) * 100.0
         print("Final Score {} ".format(hits))

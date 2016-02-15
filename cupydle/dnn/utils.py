@@ -41,3 +41,28 @@ def split_data(data, fractions, seed=123):
     training, validation, test = data[training_idx, :], data[validation_idx, :], data[test_idx, :]
 
     return training, validation, test
+
+
+def vectorize_label(label, n_classes):
+    """
+    Dada una etiqueta genera un vector de dimension (n_classes, 1) de 0 y un 1 en la posicion de la label
+    e.g: si label es '5', n_classes es '8':
+    return:
+     v[0]=0
+     v[1]=0
+     v[2]=0
+     v[3]=0
+     v[4]=1
+     v[5]=0
+     v[6]=0
+     v[7]=0
+
+
+    :param label:
+    :param n_classes:
+    :return:
+    """
+    lab = np.zeros((n_classes, 1), dtype=np.int8)
+    label = int(label)
+    lab[label] = 1
+    return np.array(lab)

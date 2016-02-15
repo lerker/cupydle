@@ -18,3 +18,10 @@ Thus, if the number of training samples are large, in fact very large, then usin
 SGD often converges much faster compared to GD but the error function is not as well minimized as in the case of GD. Often in most cases, the close approximation that you get in SGD for the parameter values are enough because they reach the optimal values and keep oscillating there.
 
 If you need an example of this with a practical case, check Andrew NG's notes here where he clearly shows you the steps involved in both the cases. http://cs229.stanford.edu/notes/...
+
+
+http://stackoverflow.com/questions/231767/what-does-the-yield-keyword-do-in-python
+
+# TODO
+-> visualizar el costo de la red como disminuye
+
