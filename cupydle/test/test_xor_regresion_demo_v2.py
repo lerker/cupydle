@@ -55,4 +55,16 @@ print("Training Data size: " + str(len(datos_trn)))
 print("Validating Data size: " + str(len(datos_vld)))
 print("Testing Data size: " + str(len(datos_tst)))
 
-net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=1000, tasa_apren=0.2, momentum=0.1)
+loss = net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=1000, tasa_apren=0.2, momentum=0.1)
+
+fig2 = plt.figure()
+plt.clf()
+plt3 = fig2.add_subplot(1, 1, 1)
+
+plt3.plot(range(0, len(loss)), loss)
+
+plt3.set_xlabel('EPOCH')
+plt3.set_ylabel('COSTO')
+plt3.set_title("COSTO vs. EPOCA")
+plt.show()
+

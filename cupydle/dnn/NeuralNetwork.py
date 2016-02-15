@@ -148,6 +148,9 @@ class NeuralNetwork(object):
             (a[l + 1], d_a[l]) = self.list_layers[l].output(x=a[l], grad=True)
 
         # 3 ---------------------- Output Error
+        # costo de la red
+        costo = self.loss(a[-1], y)
+
         # error de salida, delta de la ultima salida
         # el error viene dado por el error instantaneo local de cada neurona, originado por el error cuadratico
         # aca va el costo, derivada de la funcion, en MSE => (y_prediccion - real)
@@ -180,7 +183,7 @@ class NeuralNetwork(object):
             nabla_b[-l] = delta
             nabla_w[-l] = delta.outer(a[-l-1])
 
-        return nabla_w, nabla_b
+        return nabla_w, nabla_b, costo
 
 
     def fit(self, train, valid, test, epocas, tasa_apren, momentum, batch_size=1):
@@ -199,13 +202,15 @@ class NeuralNetwork(object):
         start = time.time()
 
         G = GradientDescendent(self)
-        G.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum, valid_data=valid)
+        loss = G.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum, valid_data=valid)
 
         end = time.time()
         print("Tiempo total requerido: {} [s]".format(round(float(end - start), 4)))
 
         hits = (self.evaluate(test) / len(test)) * 100.0
         print("Final Score {} ".format(hits))
+
+        return loss
 
     def save(self, filename, path=''):
         """Save the neural network to the file ``filename``."""

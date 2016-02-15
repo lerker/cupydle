@@ -46,6 +46,8 @@ class GradientDescendent(object):
 
         nabla_b = []
         nabla_w = []
+        loss_mini_batch = 0.0
+
         # preparo el lugar donde se almacenan los valores temporales
         for layer in self.model.list_layers:
             shape_w = layer.get_weights().shape
@@ -55,20 +57,26 @@ class GradientDescendent(object):
 
         # primer paso, por cada patron y su salida
         for x, y in mini_batch:
-            delta_nabla_w, delta_nabla_b = self.model.__backprop__(x, y)
+            delta_nabla_w, delta_nabla_b, delta_loss = self.model.__backprop__(x, y)
 
             # suma los delta de nabla a los nabla que ya habia.
             nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
+            # el costo de la red para el conjunto evaluado es promedio de los costos
+            loss_mini_batch += delta_loss
+
         # update TODO fijarse si es dividido por el tamanio del batch
         nabla_w = np.multiply(nabla_w, eta / len(mini_batch))
         nabla_b = np.multiply(nabla_b, eta / len(mini_batch))
 
+        # el promedio del batch
+        loss_mini_batch /= len(mini_batch)
+
         # Sumo el incremento de Ws y bs
         self.__update__(nablaw=nabla_w, nablab=nabla_b)
 
-        return nabla_w, nabla_b
+        return nabla_w, nabla_b, loss_mini_batch
 
     def sgd(self, training_data, epochs, mini_batch_size, eta, momentum, valid_data=None):
         """Train the neural network using mini-batch stochastic
@@ -91,6 +99,9 @@ class GradientDescendent(object):
         # no hay incremento de los pesos al tiempo t=0
         nabla_w_anterior = np.multiply(nabla_w_anterior, 0.0)
         nabla_b_anterior = np.multiply(nabla_b_anterior, 0.0)
+
+        # para almacenar la evolucion del costo de la red
+        loss = []
 
         for j in range(epochs):
             start = time.time()
@@ -118,7 +129,7 @@ class GradientDescendent(object):
             # TODO en este aproach voy a tomar al azar un conjunto de datos del dataset, de tamanio 'mini_bach'
             # puede que en algun momento toque los mismos
             mini_batch = [training_data[k] for k in np.random.randint(low=0, high=n, size=mini_batch_size)]
-            nabla_w, nabla_b = self.update_mini_batch(mini_batch=mini_batch, eta=eta, momentum=momentum, n=len(training_data))
+            nabla_w, nabla_b, costo = self.update_mini_batch(mini_batch=mini_batch, eta=eta, momentum=momentum, n=len(training_data))
 
             # TODO
             # termino de momento, se le suma a los pesos el multiplicativo de un estado anterior
@@ -128,10 +139,12 @@ class GradientDescendent(object):
             nabla_b_anterior = nabla_b
             nabla_w_anterior = nabla_w
 
-
-
             hits = (self.model.evaluate(valid_data) / len(valid_data)) * 100.0
             hits = 100.0 - hits
 
             end = time.time()
             print("Epoch {} training complete - Error: {} [%]- Tiempo: {} [s]".format(j, round(hits, 2), round(float(end - start), 4)))
+
+            loss.append(costo)
+
+        return loss

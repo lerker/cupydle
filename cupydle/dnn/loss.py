@@ -17,7 +17,7 @@ from cupydle.dnn.utils import vectorize_label
 
 
 def mse(value, target):
-    err = target - value
+    err = (target - value).matrix
     n = err.size
     return np.sum(np.square(err)) / (1.0 * n)
 
@@ -36,8 +36,11 @@ def cross_entropy(a, y):
         returns nan.  The np.nan_to_num ensures that that is converted
         to the correct value (0.0).
 
+        http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
         """
-    return np.sum(np.nan_to_num(-1.0 * y * np.log(a) - (1 - y) * np.log(1 - a)))
+    t = vectorize_label(label=y.matrix, n_classes=a.count)
+    return -sum(t * np.log(a.matrix))[0]
+    #return np.sum(np.nan_to_num(-1.0 * y * np.log(a) - (1 - y) * np.log(1 - a)))
 
 
 def cross_entropy_d(value, target):
@@ -45,13 +48,6 @@ def cross_entropy_d(value, target):
     # value<->target: deberia ser al reves me parece
     value = vectorize_label(label=value[0], n_classes=len(target))
     return target - value
-
-
-def label_to_vector(label, n_classes):
-    lab = np.zeros((n_classes, 1), dtype=np.int8)
-    label = int(label)
-    lab[label] = 1
-    return np.array(lab)
 
 fun_loss = {'MSE': mse, 'CROSS_ENTROPY': cross_entropy}
 fun_loss_prime = {'MSE': mse_prime, 'CROSS_ENTROPY': cross_entropy_d}

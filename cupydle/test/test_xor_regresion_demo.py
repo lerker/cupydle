@@ -114,7 +114,7 @@ def test_xor_regresion_demo():
     print("Validating Data size: " + str(len(datos_vld)))
     print("Testing Data size: " + str(len(datos_tst)))
 
-    net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
+    net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=1000, tasa_apren=0.2, momentum=0.1)
 
 if __name__ == '__main__':
     nose.run(defaultTest=__name__)

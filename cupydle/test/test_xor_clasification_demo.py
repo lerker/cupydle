@@ -27,14 +27,12 @@ def test_xor_clasification_demo():
     entrada_trn, salida_trn = data_trn.split_data(3)
 
     # corregir los valores de los labels, deben estar entre 0 y 1 "clases"
-    salida_trn_tmp = np.zeros((2, len(salida_trn)))
+    salida_trn_tmp = np.zeros((1, len(salida_trn)))
     for l in range(0, len(salida_trn)):
         if salida_trn[l] < 0.0:
-            salida_trn_tmp[0][l] = 1.0
-            salida_trn_tmp[1][l] = 0.0
-        else:
             salida_trn_tmp[0][l] = 0.0
-            salida_trn_tmp[1][l] = 1.0
+        else:
+            salida_trn_tmp[0][l] = 1.0
 
     datos_trn = [(x, y) for x, y in zip(entrada_trn, salida_trn_tmp.transpose())]
 
@@ -120,7 +118,7 @@ def test_xor_clasification_demo():
     print("Validating Data size: " + str(len(datos_vld)))
     print("Testing Data size: " + str(len(datos_tst)))
 
-    net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=1, epocas=20, tasa_apren=0.2, momentum=0.1)
+    net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=1000, tasa_apren=0.2, momentum=0.1)
 
 if __name__ == '__main__':
     nose.run(defaultTest=__name__)
