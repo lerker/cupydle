@@ -202,7 +202,7 @@ class NeuralNetwork(object):
         start = time.time()
 
         G = GradientDescendent(self)
-        loss = G.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum, valid_data=valid)
+        loss, error = G.sgd(training_data=train, epochs=epocas, mini_batch_size=batch_size, eta=tasa_apren, momentum=momentum, valid_data=valid)
 
         end = time.time()
         print("Tiempo total requerido: {} [s]".format(round(float(end - start), 4)))
@@ -210,7 +210,7 @@ class NeuralNetwork(object):
         hits = (self.evaluate(test) / len(test)) * 100.0
         print("Final Score {} ".format(hits))
 
-        return loss
+        return loss, error
 
     def save(self, filename, path=''):
         """Save the neural network to the file ``filename``."""

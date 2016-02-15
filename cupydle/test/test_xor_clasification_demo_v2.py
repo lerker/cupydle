@@ -56,13 +56,18 @@ print("Training Data size: " + str(len(datos_trn)))
 print("Validating Data size: " + str(len(datos_vld)))
 print("Testing Data size: " + str(len(datos_tst)))
 
-loss = net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=1000, tasa_apren=0.2, momentum=0.1)
+loss, error = net.fit(train=datos_trn, valid=datos_vld, test=datos_tst, batch_size=10, epocas=100, tasa_apren=0.2, momentum=0.1)
 
 fig2 = plt.figure()
 plt.clf()
 plt3 = fig2.add_subplot(1, 1, 1)
 
-plt3.plot(range(0, len(loss)), loss)
+m_l = max(loss)
+m_e = max(error)
+loss = [x/m_l for x in loss]
+error = [x/m_e for x in error]
+plt3.plot(range(0, len(loss)), loss, c='b', marker='.')
+plt3.plot(range(0, len(loss)), error, c='r', marker='o')
 
 plt3.set_xlabel('EPOCH')
 plt3.set_ylabel('COSTO')

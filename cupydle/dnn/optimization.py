@@ -102,6 +102,7 @@ class GradientDescendent(object):
 
         # para almacenar la evolucion del costo de la red
         loss = []
+        error = []
 
         for j in range(epochs):
             start = time.time()
@@ -146,5 +147,6 @@ class GradientDescendent(object):
             print("Epoch {} training complete - Error: {} [%]- Tiempo: {} [s]".format(j, round(hits, 2), round(float(end - start), 4)))
 
             loss.append(costo)
+            error.append(hits)
 
-        return loss
+        return loss, error
