@@ -25,3 +25,5 @@ http://stackoverflow.com/questions/231767/what-does-the-yield-keyword-do-in-pyth
 # TODO
 -> visualizar el costo de la red como disminuye
 
+https://wiki.python.org/moin/PythonSpeed/PerformanceTips
+
