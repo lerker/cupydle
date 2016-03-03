@@ -82,8 +82,8 @@ class rbm(object):
         self.vbias = vbias
 
         # Todo debe ser un parametro externo
-        self.maxepoch = 1
-        self.numcases = 60000  # los numeros de casos son la cantidad de patrones en el bacth (filas)
+        self.maxepoch = 10
+        self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
 
     # END INIT
 
@@ -121,46 +121,50 @@ class rbm(object):
             # TODO hacer un for para cada bach, ahora supongo que tengo uno solo
             # for batch in range(size(databaches)):
             # data = databach(n)
+            (tam, self.n_visible) = input.shape
+            idx = range(0, tam+1, self.numcases)
+            list_idx = list (zip (idx[0:-1] , idx[1:]) )
+            for batch_idx in range(0, len(list_idx)):
 
-            # comienzo fase positiva
-            positive_probabilidad_oculta_dada_visible, \
-            positive_prods, \
-            positive_oculta_activaciones, \
-            positive_visible_activaciones = self.positive(data=input)
-            # fin fase positiva
+                # comienzo fase positiva
+                positive_probabilidad_oculta_dada_visible, \
+                positive_prods, \
+                positive_oculta_activaciones, \
+                positive_visible_activaciones = self.positive(data=input[list_idx[batch_idx][0] : list_idx[batch_idx][1]])
+                # fin fase positiva
 
-            positive_ocultas_estados = positive_probabilidad_oculta_dada_visible > numpy.random.rand(self.numcases,
-                                                                                            self.n_hidden)
+                positive_ocultas_estados = positive_probabilidad_oculta_dada_visible > numpy.random.rand(self.numcases,
+                                                                                                self.n_hidden)
 
-            # comienzo fase negativa
-            negative_data, \
-            negative_probabilidad_visible_dada_oculta, \
-            negative_prods, \
-            negative_oculta_activaciones, \
-            negative_visible_activaciones = self.negative(positive_hide_states=positive_ocultas_estados)
-            # fin fase negativa
+                # comienzo fase negativa
+                negative_data, \
+                negative_probabilidad_visible_dada_oculta, \
+                negative_prods, \
+                negative_oculta_activaciones, \
+                negative_visible_activaciones = self.negative(positive_hide_states=positive_ocultas_estados)
+                # fin fase negativa
 
-            err = numpy.sum(a=(numpy.sum(a=numpy.power( (input - negative_data), 2), dtype=numpy.float32)), dtype=numpy.float32)
-            errorSum = err + errorSum
+                err = numpy.sum(a=(numpy.sum(a=numpy.power( (input[list_idx[batch_idx][0] : list_idx[batch_idx][1]] - negative_data), 2), dtype=numpy.float32)), dtype=numpy.float32)
+                errorSum = err + errorSum
 
-            # TODO lo copio de hinton
-            if epoch > self.maxepoch/2:
-                momentum = self.finalmomentum
-            else:
-                momentum = self.initialmomentum
-            ##
+                # TODO lo copio de hinton
+                if epoch > self.maxepoch/2:
+                    momentum = self.finalmomentum
+                else:
+                    momentum = self.initialmomentum
+                ##
 
 
-            # %%%%%%%%% UPDATE WEIGHTS AND BIASES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            vishidinc = momentum * vishidinc + self.epsilonw*( (positive_prods - negative_prods)/self.numcases - self.weightcost * self.w)
+                # %%%%%%%%% UPDATE WEIGHTS AND BIASES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                vishidinc = momentum * vishidinc + self.epsilonw*( (positive_prods - negative_prods)/self.numcases - self.weightcost * self.w)
 
-            visbiasinc = momentum * visbiasinc + (self.epsilonvb/self.numcases) * (positive_visible_activaciones - negative_visible_activaciones)
+                visbiasinc = momentum * visbiasinc + (self.epsilonvb/self.numcases) * (positive_visible_activaciones - negative_visible_activaciones)
 
-            hidbiasinc = momentum * hidbiasinc + (self.epsilonhb/self.numcases) * (positive_oculta_activaciones - negative_oculta_activaciones)
+                hidbiasinc = momentum * hidbiasinc + (self.epsilonhb/self.numcases) * (positive_oculta_activaciones - negative_oculta_activaciones)
 
-            self.w = self.w + vishidinc
-            self.vbias = self.vbias + visbiasinc
-            self.hbias = self.hbias + hidbiasinc
+                self.w = self.w + vishidinc
+                self.vbias = self.vbias + visbiasinc
+                self.hbias = self.hbias + hidbiasinc
 
             print("Epoch {} - Error {}".format(epoch, errorSum))
 
