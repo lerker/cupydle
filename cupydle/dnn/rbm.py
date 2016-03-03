@@ -82,7 +82,7 @@ class rbm(object):
         self.vbias = vbias
 
         # Todo debe ser un parametro externo
-        self.maxepoch = 10
+        self.maxepoch = 1
         self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
 
     # END INIT
@@ -115,8 +115,19 @@ class rbm(object):
         hidbiasinc = numpy.zeros(shape=(1, self.n_hidden), dtype=numpy.float32)
         visbiasinc = numpy.zeros(shape=(1, self.n_visible), dtype=numpy.float32)
 
+        ##
+        ## print data information
+
+        print("Training Dataset size: \t{}".format(input.shape[0]))
+        print("Visible units # -> \t{}".format(self.n_visible))
+        print("Hidden units # -> \t{}".format(self.n_hidden))
+        print("Batch size # -> \t{}".format(self.numcases))
+        print("Maxinium Epoch # -> \t{}".format(self.maxepoch))
+        print("-------------------------------------------------------")
+        ##
+
         for epoch in range(self.maxepoch):
-            print("Epoch {}/{}".format(epoch + 1, self.maxepoch))
+            print('Starting Epoch {} of {}'.format(epoch, self.maxepoch))
             errorSum = 0.0
             # TODO hacer un for para cada bach, ahora supongo que tengo uno solo
             # for batch in range(size(databaches)):
@@ -125,7 +136,7 @@ class rbm(object):
             idx = range(0, tam+1, self.numcases)
             list_idx = list (zip (idx[0:-1] , idx[1:]) )
             for batch_idx in range(0, len(list_idx)):
-
+                print('Epoch {} - batch {}'.format(epoch, batch_idx), end="\r")
                 # comienzo fase positiva
                 positive_probabilidad_oculta_dada_visible, \
                 positive_prods, \
@@ -170,7 +181,7 @@ class rbm(object):
 
 
 def test_rbm():
-    print("coso del cosito")
+    print("Testing RBM - MNIST!! 1-step Divergence Contrastive")
 
     ## cargar los datos
     from cupydle.test.mnist_loader import MNIST as mn
