@@ -82,14 +82,17 @@ class rbm(object):
         self.vbias = vbias
 
         # Todo debe ser un parametro externo
-        self.maxepoch = 10
-        self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
+        self.maxepoch = 1
+        self.numcases = 60000  # los numeros de casos son la cantidad de patrones en el bacth (filas)
 
     # END INIT
 
     def positive(self, data):
-        positive_probabilidad_oculta_dada_visible = 1.0 / (
-        1.0 + numpy.exp(numpy.dot(-data, self.w) - numpy.tile(self.hbias, (self.numcases, 1))))
+        positive_probabilidad_oculta_dada_visible = 1.0 / \
+                                                    (1.0 + numpy.exp(
+                                                        numpy.dot(-data, self.w) -
+                                                        numpy.tile(self.hbias, (self.numcases, 1))
+                                                    ))
         positive_prods = numpy.dot(data.T, positive_probabilidad_oculta_dada_visible)
         positive_oculta_activaciones = numpy.sum(a=positive_probabilidad_oculta_dada_visible, axis=0, dtype=numpy.float32)
         positive_visible_activaciones = numpy.sum(a=data, axis=0, dtype=numpy.float32)
@@ -107,7 +110,7 @@ class rbm(object):
         return negative_data, negative_probabilidad_visible_dada_oculta, negative_prods, negative_oculta_activaciones, negative_visible_activaciones
     # END NEGATIVE
 
-    def correr(self, datos):
+    def correr(self, input):
         vishidinc = numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=numpy.float32)
         hidbiasinc = numpy.zeros(shape=(1, self.n_hidden), dtype=numpy.float32)
         visbiasinc = numpy.zeros(shape=(1, self.n_visible), dtype=numpy.float32)
@@ -123,7 +126,7 @@ class rbm(object):
             positive_probabilidad_oculta_dada_visible, \
             positive_prods, \
             positive_oculta_activaciones, \
-            positive_visible_activaciones = self.positive(data=datos)
+            positive_visible_activaciones = self.positive(data=input)
             # fin fase positiva
 
             positive_ocultas_estados = positive_probabilidad_oculta_dada_visible > numpy.random.rand(self.numcases,
@@ -137,7 +140,7 @@ class rbm(object):
             negative_visible_activaciones = self.negative(positive_hide_states=positive_ocultas_estados)
             # fin fase negativa
 
-            err = numpy.sum(a=(numpy.sum(a=numpy.power( (datos - negative_data), 2), dtype=numpy.float32)), dtype=numpy.float32)
+            err = numpy.sum(a=(numpy.sum(a=numpy.power( (input - negative_data), 2), dtype=numpy.float32)), dtype=numpy.float32)
             errorSum = err + errorSum
 
             # TODO lo copio de hinton
@@ -164,15 +167,29 @@ class rbm(object):
 
 def test_rbm():
     print("coso del cosito")
+
+    ## cargar los datos
+    from cupydle.test.mnist_loader import MNIST as mn
+    m = mn(path='cupydle/data/')
+    dataXtrn, dataYtrn = m.load_training()
+    dataXtst, dataYtst = m.load_testing()
+
+    dataXtrn = numpy.array(object=dataXtrn, dtype=numpy.float32)
+    dataYtrn = numpy.array(object=dataYtrn, dtype=numpy.float32)
+    dataXtst = numpy.array(object=dataXtst, dtype=numpy.float32)
+    dataYtst = numpy.array(object=dataYtst, dtype=numpy.float32)
+    ##
+
     r = rbm()
     n_hidden = 784
     n_visible = 100
     numpy_rng = numpy.random.RandomState(1234)
-    datos = numpy.asarray(numpy_rng.uniform(low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                                            high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                                            size=(n_visible, n_hidden)), dtype=numpy.float32)
+    #datos = numpy.asarray(numpy_rng.uniform(low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+    #                                        high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+    #                                        size=(n_visible, n_hidden)), dtype=numpy.float32)
+
     start = time.time()
-    r.correr(datos)
+    r.correr(input=dataXtrn)
     end = time.time()
 
     print("Tiempo total: {}".format(timer(start,end)))
