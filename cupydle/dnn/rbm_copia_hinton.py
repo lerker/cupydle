@@ -11,17 +11,7 @@ def timer(start,end):
 # END TIMER
 
 class rbm(object):
-    """Restricted Boltzmann Machine (RBM)
-    % This program trains Restricted Boltzmann Machine in which
-    % visible, binary, stochastic pixels are connected to
-    % hidden, binary, stochastic feature detectors using symmetrically
-    % weighted connections. Learning is done with 1-step Contrastive Divergence.
-    % The program assumes that the following variables are set externally:
-    % maxepoch  -- maximum number of epochs
-    % numhid    -- number of hidden units
-    % batchdata -- the data that is divided into batches (numcases numdims numbatches)
-    % restart   -- set to 1 if learning starts from beginning
-    """
+    """Restricted Boltzmann Machine (RBM)  """
 
     def __init__(
             self,
@@ -62,8 +52,6 @@ class rbm(object):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
 
-        self.evolution = []
-
         if numpy_rng is None:
             # create a number generator
             numpy_rng = numpy.random.RandomState(1234)
@@ -96,7 +84,7 @@ class rbm(object):
         self.vbias = vbias
 
         # Todo debe ser un parametro externo
-        self.maxepoch = 15
+        self.maxepoch = 1
         self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
 
     # END INIT
@@ -191,12 +179,7 @@ class rbm(object):
                 self.vbias = self.vbias + visbiasinc
                 self.hbias = self.hbias + hidbiasinc
 
-            print("Epoch {} - Error {}".format(str(epoch+1), errorSum))
-            self.evolution.append(errorSum) # append de error each epoch
-
-
-def binarize(d):
-    return list(map(lambda x: x>=128, d))
+            print("Epoch {} - Error {}".format(epoch, errorSum))
 
 
 def test_rbm():
@@ -208,33 +191,15 @@ def test_rbm():
     dataXtrn, dataYtrn = m.load_training()
     dataXtst, dataYtst = m.load_testing()
 
-    # aca se copia tal cual el contenido en un array... hay que binarizarlo segun se necesite
-    #dataXtrn = numpy.array(dataXtrn, dtype=numpy.float32)
-    #dataYtrn = numpy.array(dataYtrn, dtype=numpy.float32)
-    #dataXtst = numpy.array(dataXtst, dtype=numpy.float32)
-    #dataYtst = numpy.array(dataYtst, dtype=numpy.float32)
+    dataXtrn = numpy.array(object=dataXtrn, dtype=numpy.float32)
+    dataYtrn = numpy.array(object=dataYtrn, dtype=numpy.float32)
+    dataXtst = numpy.array(object=dataXtst, dtype=numpy.float32)
+    dataYtst = numpy.array(object=dataYtst, dtype=numpy.float32)
     ##
-    """ aca intente binarizar el contenido
-    dataXtrn = numpy.array(list(map(binarize, dataXtrn)), dtype=numpy.int8)
-    dataYtrn = numpy.array(list(map(binarize, dataYtrn)), dtype=numpy.int8)
-    dataXtst = numpy.array(list(map(binarize, dataXtst)), dtype=numpy.int8)
-    dataYtst = numpy.array(list(map(binarize, dataYtst)), dtype=numpy.int8)
-    """
-
-    aux = numpy.zeros_like(dataXtrn)
-
-    for x in range(len(aux)):
-        for i in range(len(dataXtrn[x])):
-            if dataXtrn[x][i] >= 128:
-                aux[x][i] = 1
-            else:
-                aux[x][i] = 0
-
-    dataXtrn = numpy.array(aux, dtype=numpy.int8)
 
     r = rbm()
     n_hidden = 784
-    n_visible = 1000
+    n_visible = 100
     numpy_rng = numpy.random.RandomState(1234)
     #datos = numpy.asarray(numpy_rng.uniform(low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
     #                                        high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
@@ -245,16 +210,6 @@ def test_rbm():
     end = time.time()
 
     print("Tiempo total: {}".format(timer(start,end)))
-
-    ###### plot
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
-    plt.plot(r.evolution, 'ro')
-    plt.ylabel('Error')
-    plt.xlabel('Epoch')
-    plt.title("Evolution" + " Hidden: " + str(n_hidden) + " Visible: " + str(n_visible) + " - Time: " + str(timer(start, end)))
-    plt.show()
-    fig.savefig("cupydle/data/rbm.png")
 
 
 if __name__ == '__main__':
