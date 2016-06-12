@@ -163,7 +163,7 @@ class MNIST(object):
         imprime por pantalla informacion relativa a la cantidad de cada tipo de datos en la bd
         """
         # entrenamiento
-        contador = numpy.zeros((10,1),dtype=numpy.int)
+        contador = numpy.zeros((10,1),dtype=numpy.int16)
 
         for i in range(0, len(self.train_labels)):
             contador[self.train_labels[i]] = contador[self.train_labels[i]] + 1
@@ -176,7 +176,7 @@ class MNIST(object):
 
 
         # testing
-        contador = numpy.zeros((10,1),dtype=numpy.int)
+        contador = numpy.zeros((10,1),dtype=numpy.int16)
 
         for i in range(0, len(self.test_labels)):
             contador[self.test_labels[i]] = contador[self.test_labels[i]] + 1
@@ -188,7 +188,7 @@ class MNIST(object):
             print("Imagenes '"+ str(idx) + "':\t", val, "\t %:" + str(numpy.round(val/total*100.0,2)) )
 
         # validacion
-        contador = numpy.zeros((10,1),dtype=numpy.int)
+        contador = numpy.zeros((10,1),dtype=numpy.int16)
 
         for i in range(0, len(self.validation_labels)):
             contador[self.validation_labels[i]] = contador[self.validation_labels[i]] + 1
@@ -232,11 +232,11 @@ class MNIST(object):
         #plt.title(label)
 
         if save == 'png' or save is True:
-            plt.savefig(label + ".png", format='png')
+            plt.savefig(self.path + label + ".png", format='png')
         elif save == 'eps':
-            plt.savefig(label + '.eps', format='eps', dpi=1000)
+            plt.savefig(self.path + label + '.eps', format='eps', dpi=1000)
         elif save == 'svg':
-            plt.savefig(label + '.svg', format='svg', dpi=1000)
+            plt.savefig(self.path + label + '.svg', format='svg', dpi=1000)
         else:
             pass
 
@@ -264,27 +264,27 @@ class MNIST(object):
         plt.yticks(numpy.array([]))
 
         if save == 'png' or save is True:
-            plt.savefig("tenDigits" + ".png", format='png')
+            plt.savefig(self.path + "tenDigits" + ".png", format='png')
         elif save == 'eps':
-            plt.savefig('tenDigits' + '.eps', format='eps', dpi=1000)
+            plt.savefig(self.path + 'tenDigits' + '.eps', format='eps', dpi=1000)
         elif save == 'svg':
-            plt.savefig('tenDigits' + '.svg', format='svg', dpi=1000)
+            plt.savefig(self.path + 'tenDigits' + '.svg', format='svg', dpi=1000)
         else:
             pass
 
         plt.show()
         return
 
-def save2disk(mnist, filename='mnist', compresion='gzip'):
-    if compresion is None:
+def save2disk(mnist, filename='mnist', compression='gzip'):
+    if compression is None:
         with open(filename + '.pkl','wb') as f:
             pickle.dump(mnist,f)
             f.close()
-    elif compresion == 'gzip':
+    elif compression == 'gzip':
         with gzip.GzipFile(filename + '.pgz', 'w') as f:
             pickle.dump(mnist,f)
             f.close()
-    elif compresion == 'bzip2':
+    elif compression == 'bzip2':
         with bz2.BZ2File(filename + '.pbz2', 'w') as f:
             pickle.dump(mnist,f)
             f.close()
@@ -292,16 +292,16 @@ def save2disk(mnist, filename='mnist', compresion='gzip'):
         sys.exit("Parametro de compresion no se reconoce")
     return
 
-def open4disk(filename='mnist', compresion='gzip'):
-    if compresion is None:
+def open4disk(filename='mnist', compression='gzip'):
+    if compression is None:
         with open(filename + '.pkl', "rb") as f:
             mnist = pickle.load(f)
             f.close()
-    elif compresion == 'gzip':
+    elif compression == 'gzip':
         with gzip.open(filename + '.pgz', "rb") as f:
             mnist = pickle.load(f)
             f.close()
-    elif compresion == 'bzip2':
+    elif compression == 'bzip2':
         with bz2.open(filename + '.pbz2', 'rb') as f:
             mnist = pickle.load(f)
             f.close()

@@ -32,9 +32,9 @@ if __name__ == "__main__":
 
     mn.info
 
-    save2disk(mn, compresion='bzip2')
+    save2disk(mn, compression='bzip2')
 
-    coso = open4disk(compresion='bzip2')
+    coso = open4disk(compression='bzip2')
     coso.info
 
     #print(mn.get_training()[0][0:10,:].shape)
