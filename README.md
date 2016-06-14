@@ -3,19 +3,22 @@
 **CU**da**PY**thon**D**eep**LE**arning Neural Networks
 
 :white_check_mark: finished
+
 :negative_squared_cross_mark: not done
+
 :interrobang: in progress or not finished
+
 :bangbang: very important and not done
 
-sound /play nyan
+
 
 Functionality:
 
 - Restricted Boltzmann Machine Training
-  - :white_check_mark: With n-step Contrastive Divergence
-  - With persistent Contrastive Divergence
-  - :interrobang: Weight decay, momentum, batch-learning
-  - :interrobang: Binary or gaussian visible nodes
+  - [x] This is a complete item With n-step Contrastive Divergence
+  - [ ] With persistent Contrastive Divergence
+  - [ ] Weight decay, momentum, batch-learning
+  - [ ] Binary or gaussian visible nodes
 
 - Restricted Boltzmann Machine Evaluation
   - Sampling from the model
