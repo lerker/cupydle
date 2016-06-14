@@ -1,6 +1,11 @@
 import numpy as np
 import random
 
+import sys
+import pickle
+import bz2 # bzip2
+import gzip # gzip
+
 __author__ = 'lerker'
 
 
@@ -207,3 +212,43 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
                         tile_col * (W + Ws): tile_col * (W + Ws) + W
                     ] = this_img * c
         return out_array
+
+def save(object, filename=None, compression='gzip'):
+    assert filename is not None, "Nombre del archivo a guardar NO VALIDO"
+
+    if compression is None:
+        with open(filename + '.pkl','wb') as f:
+            pickle.dump(object, f)
+            f.close()
+    elif compression == 'gzip':
+        with gzip.GzipFile(filename + '.pgz', 'w') as f:
+            pickle.dump(object, f)
+            f.close()
+    elif compression == 'bzip2':
+        with bz2.BZ2File(filename + '.pbz2', 'w') as f:
+            pickle.dump(object, f)
+            f.close()
+    else:
+        sys.exit("Parametro de compresion no se reconoce")
+    return
+
+def load(filename=None, compression='gzip'):
+    assert filename is not None, "Nombre del archivo NO VALIDO"
+    object = None
+
+    if compression is None:
+        with open(filename + '.pkl', "rb") as f:
+            object = pickle.load(f)
+            f.close()
+    elif compression == 'gzip':
+        with gzip.open(filename + '.pgz', "rb") as f:
+            object = pickle.load(f)
+            f.close()
+    elif compression == 'bzip2':
+        with bz2.open(filename + '.pbz2', 'rb') as f:
+            object = pickle.load(f)
+            f.close()
+    else:
+        sys.exit("Parametro de compresion no se reconoce")
+
+    return object
