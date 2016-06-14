@@ -4,11 +4,11 @@ CUdaPYthonDeepLEarning Neural Networks
 
 Functionality:
 
-    - Restricted Boltzmann Machine Training
-        - [] With n-step Contrastive Divergence
-        - With persistent Contrastive Divergence
-        - Weight decay, momentum, batch-learning
-        - Binary or gaussian visible nodes
+- Restricted Boltzmann Machine Training
+  - With n-step Contrastive Divergence
+  - With persistent Contrastive Divergence
+  - Weight decay, momentum, batch-learning
+  - Binary or gaussian visible nodes
 
     - Restricted Boltzmann Machine Evaluation
         - Sampling from the model
