@@ -1,6 +1,6 @@
 # cupydle [![Build Status](https://travis-ci.org/lerker/cupydle.svg?branch=master)](https://travis-ci.org/lerker/cupydle) [![GitHub issues](https://img.shields.io/github/issues/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/issues) [![GitHub license](https://img.shields.io/badge/license-Apache%202-blue.svg?style=plastic)](https://raw.githubusercontent.com/lerker/cupydle/master/LICENSE) [![GitHub forks](https://img.shields.io/github/forks/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/network) [![todofy badge](https://todofy.org/b/lerker/cupydle)](https://todofy.org/r/lerker/cupydle)
 
-**CU**da**PY**thon**D**eep**LE**arning Neural Networks
+**CU**da**PY**thon**D**eep**LE**arning Machine Learning
 
 :white_check_mark: finished
 
@@ -15,7 +15,7 @@
 Functionality:
 
 - Restricted Boltzmann Machine Training
-  - [x] This is a complete item With n-step Contrastive Divergence
+  - [x] With n-step Contrastive Divergence
   - [ ] With persistent Contrastive Divergence
   - [ ] Weight decay, momentum, batch-learning
   - [ ] Binary or gaussian visible nodes
