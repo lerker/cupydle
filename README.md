@@ -2,13 +2,20 @@
 
 **CU**da**PY**thon**D**eep**LE**arning Neural Networks
 
+:white_check_mark: finished
+:negative_squared_cross_mark: not done
+:interrobang: in progress or not finished
+:bangbang: very important and not done
+
+sound /play nyan
+
 Functionality:
 
 - Restricted Boltzmann Machine Training
-  - With n-step Contrastive Divergence
+  - :white_check_mark: With n-step Contrastive Divergence
   - With persistent Contrastive Divergence
-  - Weight decay, momentum, batch-learning
-  - Binary or gaussian visible nodes
+  - :interrobang: Weight decay, momentum, batch-learning
+  - :interrobang: Binary or gaussian visible nodes
 
 - Restricted Boltzmann Machine Evaluation
   - Sampling from the model
@@ -18,7 +25,7 @@ Functionality:
   - Visualization and saving of hidden representations
 
 - Stacking RBMs to Deep Belief Networks
-  -  :negative_squared_cross_mark: Sampling from DBNs
+  - :negative_squared_cross_mark: Sampling from DBNs
 
 
 - Neural Network Traing
