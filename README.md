@@ -10,35 +10,28 @@ Functionality:
   - Weight decay, momentum, batch-learning
   - Binary or gaussian visible nodes
 
-    - Restricted Boltzmann Machine Evaluation
-        - Sampling from the model
-        - Visualizing Filters
-        - Annealed Importance Sampling for approximating the partition function
-        - Calculating the partition function exactly
-        - Visualization and saving of hidden representations
+- Restricted Boltzmann Machine Evaluation
+  - Sampling from the model
+  - Visualizing Filters
+  - Annealed Importance Sampling for approximating the partition function
+  - Calculating the partition function exactly
+  - Visualization and saving of hidden representations
 
-    - Stacking RBMs to Deep Belief Networks
-        - Sampling from DBNs
-
-    - Deep Boltzmann Machine Training
-        - With n-step Contrastive Divergence
-        - With persistent Contrastive Divergence
-
-    - Deep Boltzmann Machine Evaluation
-        - Sampling from the model
+- Stacking RBMs to Deep Belief Networks
+  - Sampling from DBNs
 
 
-    - Neural Network Traing
-        - Backpropagation of error
-        - RPROP
-        - Weight decay, momentum, batch-learning
-        - Variable number of layers
-        - Cross entropy training
+- Neural Network Traing
+  - Backpropagation of error
+  - RPROP
+  - Weight decay, momentum, batch-learning
+  - Variable number of layers
+  - Cross entropy training
 
-    - Finetuning
-        - Initalizing a Neural Network with an RBM and DBM
-        - All of the above functionality can be used
+- Finetuning
+  - Initalizing a Neural Network with an RBM
+  - All of the above functionality can be used
 
-    - Training on Image Data
-        - Visualization of input, filters and samples from the model
-        - on-the-fly modifications to trainingset via gaussian noise or translations
+- Training on Image Data
+  - Visualization of input, filters and samples from the model
+  - on-the-fly modifications to trainingset via gaussian noise or translations
