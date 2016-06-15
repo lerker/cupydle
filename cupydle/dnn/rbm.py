@@ -77,10 +77,10 @@ class rbm(object):
         self.visbiases  = numpy.zeros(shape=(1, self.n_visible), dtype=numpy.float32)
 
         # Todo debe ser un parametro externo
-        self.maxepoch = 15
+        self.maxepoch = 5
         self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
 
-        self.alEstiloHinton=True
+        self.alEstiloHinton=False
     # END INIT
 
     def contrastiveDivergence(self, conjunto):
@@ -104,7 +104,7 @@ class rbm(object):
         # incrementos de los bias visibles
         visbiasinc  = numpy.zeros(shape=(1,self.n_visible), dtype=numpy.float32) # (1,784)
 
-        maxEpoch = 10
+        maxEpoch = 5
 
         indices = range(0, conjunto.shape[0], 1)
         batchSize = 100
@@ -156,8 +156,8 @@ class rbm(object):
                     err = numpy.sum(a=numpy.sum(numpy.power((miniBatch-negdata),2), dtype=numpy.float32), dtype=numpy.float32)
                 else:
                     # es es como hace michaela y mepa que es asi
-                    #visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_1step(miniBatch)
-                    visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_kstep(miniBatch,3)
+                    visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_1step(miniBatch)
+                    #visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_kstep(miniBatch,1)
                     vishidinc, visbiasinc, hidbiasinc = self.updateParams(  visible=miniBatch,
                                                                             hidden=hiddenAct,
                                                                             visibleRec=visibleRec,
@@ -478,7 +478,7 @@ if __name__ == "__main__":
     patron_binario = numpy.concatenate((patron_binario1,patron_binario2), axis=0)
 
     n_visible = 784
-    red = rbm(n_visible)
+    red = rbm(n_visible,n_hidden=500)
 
     # mando a correr el algoritmo con un bach de 2 patrones de 784 datos cada uno
     #red.contrastiveDivergence(patron_binario)
@@ -487,12 +487,12 @@ if __name__ == "__main__":
     red.info
 
     start = time.time()
-    red.contrastiveDivergence((train_img[0:200]>threshold).astype(int))
+    red.contrastiveDivergence((train_img>threshold).astype(int))
     end = time.time()
 
-    red.save(filename="capa1", layerN=1, absolutName=True)
+    red.save(filename="capa2", layerN=2, absolutName=True)
 
-    red.load(filename="capa1")
+    red.load(filename="capa2")
 
     print("Tiempo total: {}".format(timer(start,end)))
     #http://imonad.com/rbm/restricted-boltzmann-machine/
