@@ -200,7 +200,8 @@ class MNIST(object):
             print("Imagenes '"+ str(idx) + "':\t", val, "\t %:" + str(numpy.round(val/total*100.0,2)) )
         return
 
-    def plot_one_digit(self, image, label=None, save=None):
+    @staticmethod
+    def plot_one_digit(image, label=None, save=None):
         """
         Plot a single MNIST image.
 
@@ -244,7 +245,8 @@ class MNIST(object):
 
         return 1
 
-    def plot_ten_digits(self, images, save=None, crop=0):
+    @staticmethod
+    def plot_ten_digits(images, save=None, crop=0):
         """
         Plot a single image containing all six MNIST images, one after
         the other.

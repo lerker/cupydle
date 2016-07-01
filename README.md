@@ -2,6 +2,16 @@
 
 **CU**da**PY**thon**D**eep**LE**arning Machine Learning
 
+Introduction
+============
+_cupydle_ is the fastest and easiest way to use Restricted Boltzmann
+Machines (RBMs). RBMs are a class of probabilistic models that can discover
+hidden patterns in your data. _cupydle_ provides all the necessary methods with
+a pythonic interface, and moreover, all methods call blazing fast C code. The
+code can also run transparently on GPU thanks to
+Theano (http://deeplearning.net/software/theano/).
+
+
 :white_check_mark: finished
 
 :negative_squared_cross_mark: not done
@@ -45,3 +55,12 @@ Functionality:
 - Training on Image Data
   - Visualization of input, filters and samples from the model
   - on-the-fly modifications to trainingset via gaussian noise or translations
+
+
+Authors and Contributors
+========================
+Ponzoni Cuadra, Nelson E. (@lerker)
+
+Support or Contact
+==================
+Having trouble? Mail me npcuadra@gmail.com
