@@ -213,42 +213,77 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
                     ] = this_img * c
         return out_array
 
-def save(object, filename=None, compression='gzip'):
+def save(objeto, filename=None, compression=None):
     assert filename is not None, "Nombre del archivo a guardar NO VALIDO"
 
+    # en el filename esta la compression... la detecto
     if compression is None:
-        with open(filename + '.pkl','wb') as f:
-            pickle.dump(object, f)
-            f.close()
+        if filename.find('.pkl') != -1: # quire decir que contiene la terminacion
+            with open(filename, "wb") as f:
+                pickle.dump(objeto, f)
+                f.close()
+        elif filename.find('.pgz') != -1: # quire decir que contiene la terminacion
+            with gzip.GzipFile(filename, "w") as f:
+                pickle.dump(objeto, f)
+                f.close()
+        elif filename.find('.pbz2') != -1:
+            with bz2.BZ2File(filename, 'w') as f:
+                pickle.dump(objeto, f)
+                f.close()
+        else:
+            try:
+                with open(filename + '.pkl', "wb") as f:
+                    pickle.dump(objeto, f)
+                    f.close()
+            except:
+                print("Archivo no encontrado", filename)
+                sys.exit(0)
     elif compression == 'gzip':
         with gzip.GzipFile(filename + '.pgz', 'w') as f:
-            pickle.dump(object, f)
+            pickle.dump(objeto, f)
             f.close()
     elif compression == 'bzip2':
         with bz2.BZ2File(filename + '.pbz2', 'w') as f:
-            pickle.dump(object, f)
+            pickle.dump(objeto, f)
             f.close()
     else:
         sys.exit("Parametro de compresion no se reconoce")
-    return
+    return objeto
 
-def load(filename=None, compression='gzip'):
+def load(filename=None, compression=None):
     assert filename is not None, "Nombre del archivo NO VALIDO"
-    object = None
+    objeto = None
 
     if compression is None:
-        with open(filename + '.pkl', "rb") as f:
-            object = pickle.load(f)
-            f.close()
+        if filename.find('.pkl') != -1: # quire decir que contiene la terminacion
+            with open(filename, "rb") as f:
+                objeto = pickle.load(f)
+                f.close()
+        elif filename.find('.pgz') != -1: # quire decir que contiene la terminacion
+            with gzip.open(filename, "rb") as f:
+                objeto = pickle.load(f)
+                f.close()
+        elif filename.find('.pbz2') != -1:
+            with bz2.open(filename, 'rb') as f:
+                objeto = pickle.load(f)
+                f.close()
+        else:
+            try:
+                with open(filename + '.pkl', "rb") as f:
+                    objeto = pickle.load(f)
+                    f.close()
+            except:
+                print("Archivo no encontrado", filename)
+                sys.exit(0)
     elif compression == 'gzip':
         with gzip.open(filename + '.pgz', "rb") as f:
-            object = pickle.load(f)
+            objeto = pickle.load(f)
             f.close()
     elif compression == 'bzip2':
         with bz2.open(filename + '.pbz2', 'rb') as f:
-            object = pickle.load(f)
+            objeto = pickle.load(f)
             f.close()
     else:
         sys.exit("Parametro de compresion no se reconoce")
 
-    return object
+    return objeto

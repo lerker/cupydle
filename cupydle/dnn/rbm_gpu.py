@@ -46,14 +46,27 @@ theanoFloat  = theano.config.floatX
 
 
 """
+def scale_to_unit_interval(ndar, eps=1e-8):
+    """ Scales all values in the ndarray ndar to be between 0 and 1 """
+    ndar = ndar.copy()
+    ndar -= ndar.min()
+    ndar *= 1.0 / (ndar.max() + eps)
+    return ndar
+
+
+"""
+
+
+"""
 
 
 class ActivationFunction(object):
     # TODO ver esto de generacion de randoms cada vez
+
     def __getstate__(self):
         odict = self.__dict__.copy() # copy the dict since we change it
-        if 'theanoGenerator' in odict:
-            del odict['theanoGenerator']
+        #if 'theanoGenerator' in odict:
+        #    del odict['theanoGenerator']
         return odict
 
     def __setstate__(self, dict):
@@ -141,10 +154,10 @@ class rbm_gpu(object):
         self.initialmomentum= theano.shared(numpy.asarray(0.5,   dtype=theanoFloat), name='momentum0') # Initial Mementum
         self.finalmomentum  = theano.shared(numpy.asarray(0.8,   dtype=theanoFloat), name='momentum1') # Las momentum change
         self.numcases       = theano.shared(numpy.asarray(0,     dtype=theanoFloat), name='numcases')  # Count cases per batch (buffer only for future)
-        self.maxEpoch       = 5 # Maximium epochs for the trainig, only buffer
+        self.maxEpoch       = 15 # Maximium epochs for the trainig, only buffer
 
-        # for allocate statics
-        self.evolution      = {'errorTraining':[], 'errorValidation': [], 'energia':[]}
+        # for allocate statistics
+        self.statistics      = {'errorTraining':[], 'errorValidation': [], 'energia':[]}
 
         # create a number generator (fixed) for test NUMPY
         if numpy_rng is None:
@@ -406,6 +419,21 @@ class rbm_gpu(object):
 
         return visibleReconstruction, errorReconstruction
 
+    def reconstructer3(self, vsamples, numcas):
+        """
+        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) one step
+        """
+        #positive
+        linearSum       = theano.dot(vsamples, self.w) + theano.tensor.tile(self.hidbiases, (numcas,1), ndim=None)
+        hiddenActData   = self.activationFunction.sample(linearSum)
+        #negative
+        linearSum       = theano.dot(hiddenActData, self.w.T) + theano.tensor.tile(self.visbiases, (numcas,1), ndim=None)
+        visibleReconstruction = self.activationFunction.sample(linearSum)
+
+        errorReconstruction = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleReconstruction - vsamples, 2),axis=0), axis=0)
+
+        return visibleReconstruction, hiddenActData, errorReconstruction
+
     def cost(self, conjunto='validation'):
         """
         Separo en miniBatch el conjunto de validacion, para no quedarme sin memoria
@@ -433,12 +461,127 @@ class rbm_gpu(object):
             outputs=error,
             givens={valsamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
 
+
         errores = [reconstructFunction(i) for i in range(nrMiniBatches)]
         errorTotal = 0.0
         for i in range(nrMiniBatches):
             errorTotal += errores[i]
-
         return errorTotal
+
+    def sample(self, data):
+        """
+        Separo en miniBatch la data
+        """
+        numeroCasos = data.shape[0]
+        visibleRec  = numpy.zeros(shape=(numeroCasos,self.n_visible))
+        hiddenAct   = numpy.zeros(shape=(numeroCasos,self.n_hidden))
+
+        data = theano.shared(numpy.asarray(data,dtype=theanoFloat), name='sampleData')
+
+        miniBatchSize = 1000
+
+        nrMiniBatches   = int(numeroCasos / miniBatchSize)    # cantidad de iteraciones enteras
+        restoCasos      = numeroCasos % miniBatchSize         # cantidad de casos por evaluar
+
+        # Symbolic variable for index
+        index = theano.tensor.iscalar('indiceSamples')
+        dataSamples = theano.tensor.fmatrix('dataSamples')
+
+        visibleReconstructions, hiddenActivations, error = self.reconstructer3(dataSamples, miniBatchSize)
+
+        reconstructFunction1 = theano.function(
+                            inputs  =[index],
+                            outputs =[visibleReconstructions, hiddenActivations, error],
+                            givens  ={dataSamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
+
+        tmp = [reconstructFunction1(i) for i in range(nrMiniBatches)]
+        errorTotal = 0.0
+        for i in range(nrMiniBatches):
+
+            visibleRec[i * miniBatchSize: (i + 1) * miniBatchSize] = tmp[i][0]
+            hiddenAct[i * miniBatchSize: (i + 1) * miniBatchSize]  = tmp[i][1]
+            errorTotal += tmp[i][2]
+
+        del tmp
+
+        if restoCasos != 0:
+            visibleReconstructions2, hiddenActivations2, error2 = self.reconstructer3(dataSamples, restoCasos)
+            reconstructFunction2 = theano.function(
+                            inputs  =[],
+                            outputs =[visibleReconstructions2, hiddenActivations2, error2],
+                            givens  ={dataSamples: data[nrMiniBatches * miniBatchSize:]})
+            tmp2 = reconstructFunction2()
+            visibleRec[nrMiniBatches * miniBatchSize:] = tmp2[0]
+            hiddenAct[nrMiniBatches * miniBatchSize:]  = tmp2[1]
+            errorTotal += tmp2[2]
+
+        return visibleRec, hiddenAct, errorTotal
+
+    def sample2(self, data):
+        """
+        Separo en miniBatch la data
+        """
+        numeroCasos = data.shape[0]
+        visibleRec  = numpy.zeros(shape=(numeroCasos,self.n_visible))
+        hiddenAct   = numpy.zeros(shape=(numeroCasos,self.n_hidden))
+
+        data = theano.shared(numpy.asarray(data,dtype=theanoFloat), name='sampleData')
+
+        miniBatchSize = 1000
+        #nrMiniBatches = int(int(data.get_value().shape[0]) / miniBatchSize)
+        nrMiniBatches = int(numeroCasos / miniBatchSize + 1)
+
+        resto = numeroCasos - nrMiniBatches*miniBatchSize
+
+        # Symbolic variable for index
+        index = theano.tensor.iscalar()
+        dataSamples = theano.tensor.fmatrix('dataSamples')
+
+        visRec, hiddenDataAct, error = self.reconstructer3(dataSamples, miniBatchSize)
+
+        reconstructFunction = theano.function(
+            inputs=[index],
+            outputs=[visRec, hiddenDataAct, error],
+            givens={dataSamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
+
+
+        tmp = [reconstructFunction(i) for i in range(nrMiniBatches)]
+        errorTotal = 0.0
+
+
+        for i in range(nrMiniBatches):
+            errorTotal += tmp[i][2]
+
+            #TODO visibleRec.append(tmp[i][0]) aca salta el errror
+            assert False
+            hiddenAct.append(tmp[i][1])
+
+        visibleRec = numpy.vstack(visibleRec)
+        hiddenAct = numpy.vstack(hiddenAct)
+
+        if resto != 0:
+            visibleRecResto, hiddenDataActResto, errorResto = self.reconstructer3(dataSamples, resto)
+
+            reconstructFunction2 = theano.function(
+                inputs=[],
+                outputs=[visibleRecResto, hiddenDataActResto, errorResto],
+                givens={dataSamples: data[nrMiniBatches*miniBatchSize:]})
+
+            tmp2 = reconstructFunction2()
+
+            erroresResto = tmp2[2]
+            errorTotal += erroresResto
+
+            visibleRecResto = tmp2[0]
+            hiddenDataActResto = tmp2[1]
+
+            visibleRec = numpy.vstack(visibleRecResto)
+            hiddenAct = numpy.vstack(hiddenDataActResto)
+
+
+
+
+        return errorTotal, visibleRec, hiddenAct
 
 
     def free_energy_tmp(self, v_sample):
@@ -595,16 +738,185 @@ class rbm_gpu(object):
             errorTraining.set_value(_errorTrn.get_value())
             errorValidation.set_value(self.cost(conjunto='validation'))
             # los agrego al diccionario de estadicticas
-            self.evolution['errorTraining'].append(errorTraining.get_value())
-            self.evolution['errorValidation'].append(errorValidation.get_value())
+            self.statistics['errorTraining'].append(errorTraining.get_value())
+            self.statistics['errorValidation'].append(errorValidation.get_value())
         # END epcoh
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
         print("FIN")
-        print("ERROR Entranamiento:",self.evolution['errorTraining'])
-        print("ERROR Validacion:",self.evolution['errorValidation'])
+        print("ERROR Entranamiento:",self.statistics['errorTraining'])
+        print("ERROR Validacion:",self.statistics['errorValidation'])
 
         return 1
 
+    def params(self):
+        parametros = [v for k, v in self.__dict__.items()]
+        print(parametros)
+
+        return parametros
+
+
+    def save(self, filename=None, method='simple', compression=None, layerN=0, absolutName=False):
+        """
+        guarda a disco la instancia de la RBM
+        method is simple, no guardo como theano
+        :param filename:
+        :param compression:
+        :param layerN: numero de capa a la cual pertence la rbm (DBN)
+        :param absolutName: si es true se omite los parametros a excepto el filename
+        :return:
+        """
+        #from cupydle.dnn.utils import save as saver
+
+        #if filename is not set
+        if absolutName is False:
+            if filename is None:
+                filename = "V_" + str(self.n_visible) + "H_" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M')
+            else:
+                filename = filename + "_" + time.strftime('%Y-%m-%d_%H%M')
+
+            if layerN != 0:
+                filename = "L_" + str(layerN) + filename
+        else:
+            filename = filename
+
+        if method != 'theano':
+            from cupydle.dnn.utils import save as saver
+            saver(objeto=self, filename=filename, compression=compression)
+        else:
+            with open(filename + '.zip','wb') as f:
+                # arreglar esto
+                from cupydle.dnn.utils_theano import save as saver
+                saver(objeto=self, filename=filename, compression=compression)
+
+        return
+    # END SAVE
+
+    @staticmethod
+    def load(filename=None, method='simple', compression=None):
+        """
+        funcion que importa desde disco una rbm, lo importante es que
+        si el parametro 'method' es 'simple', se levanta el archivo como cuarquier
+        clase guardada con pickle, comprimida o no.
+        Si el parametro 'method' es 'theano' levanta el archivo como si se hibiera
+        guardado con las funciones de theano. ver
+        # http://deeplearning.net/software/theano/tutorial/loading_and_saving.html
+        hay que hacer un par de modificaciones aun
+        # TODO
+        """
+        objeto = None
+        if method != 'theano':
+            from cupydle.dnn.utils import load
+            objeto = load(filename, compression)
+        else:
+            from cupydle.dnn.utils_theano import load
+            objeto = load(filename, compression)
+        return objeto
+    # END LOAD
+
+
+    def tile_raster_images(self, X, img_shape, tile_shape, tile_spacing=(0, 0),
+                       scale_rows_to_unit_interval=True,
+                       output_pixel_vals=True):
+        """
+        Transform an array with one flattened image per row, into an array in
+        which images are reshaped and layed out like tiles on a floor.
+
+        This function is useful for visualizing datasets whose rows are images,
+        and also columns of matrices for transforming those rows
+        (such as the first layer of a neural net).
+
+        :type X: a 2-D ndarray or a tuple of 4 channels, elements of which can
+        be 2-D ndarrays or None;
+        :param X: a 2-D array in which every row is a flattened image.
+
+        :type img_shape: tuple; (height, width)
+        :param img_shape: the original shape of each image
+
+        :type tile_shape: tuple; (rows, cols)
+        :param tile_shape: the number of images to tile (rows, cols)
+
+        :param output_pixel_vals: if output should be pixel values (i.e. int8
+        values) or floats
+
+        :param scale_rows_to_unit_interval: if the values need to be scaled before
+        being plotted to [0,1] or not
+
+
+        :returns: array suitable for viewing as an image.
+        (See:`Image.fromarray`.)
+        :rtype: a 2-d array with same dtype as X.
+
+        """
+
+        assert len(img_shape) == 2
+        assert len(tile_shape) == 2
+        assert len(tile_spacing) == 2
+
+        # The expression below can be re-written in a more C style as
+        # follows :
+        #
+        # out_shape = [0,0]
+        # out_shape[0] = (img_shape[0] + tile_spacing[0]) * tile_shape[0] -
+        #                tile_spacing[0]
+        # out_shape[1] = (img_shape[1] + tile_spacing[1]) * tile_shape[1] -
+        #                tile_spacing[1]
+        out_shape = [(ishp + tsp) * tshp - tsp for ishp, tshp, tsp
+                          in zip(img_shape, tile_shape, tile_spacing)]
+
+        if isinstance(X, tuple):
+          assert len(X) == 4
+          # Create an output numpy ndarray to store the image
+          if output_pixel_vals:
+              out_array = numpy.zeros((out_shape[0], out_shape[1], 4), dtype='uint8')
+          else:
+              out_array = numpy.zeros((out_shape[0], out_shape[1], 4), dtype=X.dtype)
+
+          #colors default to 0, alpha defaults to 1 (opaque)
+          if output_pixel_vals:
+              channel_defaults = [0, 0, 0, 255]
+          else:
+              channel_defaults = [0., 0., 0., 1.]
+
+          for i in range(4):
+              if X[i] is None:
+                  # if channel is None, fill it with zeros of the correct
+                  # dtype
+                  out_array[:, :, i] = numpy.zeros(out_shape,
+                          dtype='uint8' if output_pixel_vals else out_array.dtype
+                          ) + channel_defaults[i]
+              else:
+                  # use a recurrent call to compute the channel and store it
+                  # in the output
+                  out_array[:, :, i] = tile_raster_images(X[i], img_shape, tile_shape, tile_spacing, scale_rows_to_unit_interval, output_pixel_vals)
+          return out_array
+
+        else:
+          # if we are dealing with only one channel
+          H, W = img_shape
+          Hs, Ws = tile_spacing
+
+          # generate a matrix to store the output
+          out_array = numpy.zeros(out_shape, dtype='uint8' if output_pixel_vals else X.dtype)
+
+
+          for tile_row in range(tile_shape[0]):
+              for tile_col in range(tile_shape[1]):
+                  if tile_row * tile_shape[1] + tile_col < X.shape[0]:
+                      if scale_rows_to_unit_interval:
+                          # if we should scale values to be between 0 and 1
+                          # do this by calling the `scale_to_unit_interval`
+                          # function
+                          this_img = scale_to_unit_interval(X[tile_row * tile_shape[1] + tile_col].reshape(img_shape))
+                      else:
+                          this_img = X[tile_row * tile_shape[1] + tile_col].reshape(img_shape)
+                      # add the slice to the corresponding position in the
+                      # output array
+                      out_array[
+                          tile_row * (H+Hs): tile_row * (H + Hs) + H,
+                          tile_col * (W+Ws): tile_col * (W + Ws) + W
+                          ] \
+                          = this_img * (255 if output_pixel_vals else 1)
+          return out_array
 
 
 
@@ -616,41 +928,125 @@ def timer(start,end):
 # END TIMER
 
 if __name__ == "__main__":
-    # para la prueba...
+
+    import os
+    currentPath = os.getcwd()                               # directorio actual de ejecucion
+    testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
+    dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
+    testFolder  = 'test0/'                                   # carpeta a crear para los tests
+    fullPath    = testPath + testFolder
+
+    if not os.path.exists(fullPath):        # si no existe la crea
+        print('Creando la carpeta para el test en: ',fullPath)
+        os.makedirs(fullPath)
+
+    #if not os.path.exists(dataPath):
+        #print("Creando la base de datos en:", dataPath)
+        #os.makedirs(dataPath)
+
+    os.chdir(currentPath+'/cupydle/data/')                  # me muevo al directorio de los datos
+    import subprocess
+    subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
+    os.chdir(currentPath)                                   # vuelvo al directorio original
+
     from cupydle.test.mnist.mnist import MNIST
-    from cupydle.test.mnist.mnist import open4disk
-    from cupydle.test.mnist.mnist import save2disk
+    setName = "mnist"
+    MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
 
- # se leen de disco los datos
-    mn = open4disk(filename='cupydle/data/mnistDB/mnistSet', compression='bzip2')
+    import argparse
+    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
+    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
+    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
+    args = parser.parse_args()
 
-    # muestra alguna informacion de la base de datos
-    #mn.info
+    guardar = args.guardar
+    modelName = args.modelo
+    #modelName = 'capa1.pgz'
 
-    # obtengo todos los subconjuntos
-    train_img, train_labels = mn.get_training()
-    test_img, test_labels = mn.get_testing()
-    val_img, val_labels = mn.get_validation()
+    if guardar:
 
-    # umbral para la binarizacion
-    threshold = 128
-    n_visible = 784
+        # para la prueba...
+        from cupydle.test.mnist.mnist import MNIST
+        from cupydle.test.mnist.mnist import open4disk
+        from cupydle.test.mnist.mnist import save2disk
 
-    red = rbm_gpu(n_visible=n_visible,n_hidden=500)
+        # se leen de disco los datos
+        mn = open4disk(filename=dataPath + setName, compression='bzip2')
+        #mn.info                                        # muestra alguna informacion de la base de datos
 
-    start = time.time()
-    red.train(  data=(train_img>threshold).astype(numpy.float32),
-                miniBatchSize=100,
-                validationData=(val_img>threshold).astype(numpy.float32))
-    end = time.time()
+        # obtengo todos los subconjuntos
+        train_img,  train_labels= mn.get_training()
+        test_img,   test_labels = mn.get_testing()
+        val_img,    val_labels  = mn.get_validation()
 
-    print("Tiempo total: {}".format(timer(start,end)))
+        # umbral para la binarizacion
+        threshold = 128
 
-    red.plot_error(red.evolution['errorTraining'],show=False)
-    red.plot_error(red.evolution['errorValidation'],show=True)
-    red.plot_error(red.evolution['errorTraining'],tipo='training', show=False).show()
+        # parametros de la red
+        n_visible = 784
+        n_hidden  = 500
+        batchSize = 50
 
-    red.plot_error(red.evolution['errorTraining'],tipo='training', show=False, save=True).show()
+        # creo la red
+        red = rbm_gpu(n_visible=n_visible, n_hidden=n_hidden)
+
+        start = time.time() # inicia el temporizador
+
+        #entrena la red
+        red.train(  data=(train_img>threshold).astype(numpy.float32),   # los datos los binarizo y convierto a float
+                    miniBatchSize=batchSize,
+                    validationData=(val_img>threshold).astype(numpy.float32))
+
+        end = time.time()   # fin del temporizador
+        print("Tiempo total: {}".format(timer(start,end)))
+
+
+        print('Guardando el modelo en ...', fullPath + modelName)
+        start = time.time()
+        red.save(fullPath + modelName, absolutName=True)
+        end = time.time()
+        print("Tiempo total para guardar: {}".format(timer(start,end)))
+
+        red.plot_error(red.statistics['errorTraining'],show=False)
+        red.plot_error(red.statistics['errorValidation'],show=True)
+        red.plot_error(red.statistics['errorTraining'],tipo='training', show=False).show()
+
+        red.plot_error(red.statistics['errorTraining'],tipo='training', show=False, save=True).show()
+
+        red.plot_weigth()
+
+
+    else:
+        print("Abriendo el modelo desde...", fullPath + modelName)
+
+        start = time.time()
+        red2 = rbm_gpu.load(fullPath + modelName)
+
+        end = time.time()
+        print("Tiempo total para abrir: {}".format(timer(start,end)))
+
+
+        #red2.w.set_value(a)
+        red2.plot_error(red2.statistics['errorValidation'],tipo='validation', save=True, show=False, path=fullPath).show()
+        red2.plot_error(red2.statistics['errorTraining'],tipo='training', save=True, show=False, path=fullPath).show()
+        red2.plot_weigth(save=True)
+
+        #red2.tile_raster_images(X=red2.w.get_value(), img_shape=(28,28), tile_shape=(10,10))
+        from cupydle.test.mnist.mnist import MNIST
+
+        ejemplos = red2.sharedData.get_value()[0:10]
+        ejemplostotal = red2.sharedData.get_value()
+
+        vis, hid, err = red2.sample(ejemplos)
+        vis2, hid2, err2 = red2.sample(ejemplostotal)
+        print("errrrooooo2:",err)
+        print("errrrooooo22222:",err2)
+        print("")
+
+
+        MNIST.plot_ten_digits(ejemplos,crop=False)
+        MNIST.plot_ten_digits(vis, crop=False)
+        # como imprimo los acultos? MNIST.plot_ten_digits(hid, crop=False)
 
     """
     Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)

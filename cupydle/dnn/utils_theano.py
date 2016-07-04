@@ -11,6 +11,7 @@ __status__      = "Production"
 
 
 import theano
+import theano.misc.pkl_utils
 
 
 # colores para los grafos, puedo cambiar lo que quiera del diccionario y pasarlo
@@ -48,3 +49,27 @@ def plot_graph(graph, name=None, path=None):
                                 var_with_name_simple=True, #si la variable tiene nombre, solo imprime eso
                                 colorCodes=default_colorCodes) # codigo de colores
     return 1
+
+
+def load(filename=None, compression='gzip'):
+  objeto = None
+  with open(filename,'rb') as f:
+    objeto = theano.misc.pkl_utils.load(f)
+    f.close()
+  return objeto
+  # END LOAD
+
+def save(objeto, filename=None, compression='gzip'):
+  with open(filename + '.zip','wb') as f:
+    # arreglar esto
+    """
+        def params(self):
+        parametros = [v for k, v in self.__dict__.items()]
+        print(parametros)
+
+        return parametros
+    """
+    import theano.misc.pkl_utils
+    theano.misc.pkl_utils.dump(objeto.params(), f)
+    f.close()
+  return

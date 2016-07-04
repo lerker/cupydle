@@ -277,6 +277,67 @@ class MNIST(object):
         plt.show()
         return
 
+    @staticmethod
+    def plot_ten_digits2(images, save=None, crop=0):
+        """
+        Plot a single image containing all six MNIST images, one after
+        the other.
+        if crop is true, Note that we crop the sides of the images so that they
+        appear reasonably close together.
+        """
+        fig = plt.figure()
+        images = [numpy.reshape(f, (-1, 28)) for f in images]
+
+        if crop:
+            images = [image[:, 3:25] for image in images]
+
+        image = numpy.concatenate(images, axis=1)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.matshow(image, cmap = matplotlib.cm.binary)
+        plt.xticks(numpy.array([]))
+        plt.yticks(numpy.array([]))
+
+        if save == 'png' or save is True:
+            plt.savefig(self.path + "tenDigits" + ".png", format='png')
+        elif save == 'eps':
+            plt.savefig(self.path + 'tenDigits' + '.eps', format='eps', dpi=1000)
+        elif save == 'svg':
+            plt.savefig(self.path + 'tenDigits' + '.svg', format='svg', dpi=1000)
+        else:
+            pass
+
+        plt.show()
+        return
+
+    @staticmethod
+    def prepare(directorio, nombre='mnist', compresion='bzip2'):
+        """
+        :param path: ruta donde se encuentran los archivos desde internet
+        """
+        handler = MNIST(path=directorio)
+
+        # guardar el archivo en el directorio en un unico binario
+        dirr = os.getcwd()
+        os.chdir(directorio)
+        result = find(nombre+'*',dirr) # pregunto si existe un archivo igual para no recomprimir
+        if not result:
+            save2disk(handler, filename=nombre, compression=compresion)
+        else:
+            print('El archivo ' + nombre + ' en ' + directorio + ' ya existe, saliendo...')
+        os.chdir(dirr)
+        return 1
+
+def find(pattern, path):
+    import os, fnmatch
+    result = []
+    for root, dirs, files in os.walk(path):
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                result.append(os.path.join(root, name))
+    return result
+
+
+
 def save2disk(mnist, filename='mnist', compression='gzip'):
     if compression is None:
         with open(filename + '.pkl','wb') as f:
