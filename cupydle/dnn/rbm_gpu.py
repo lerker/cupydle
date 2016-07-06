@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# TODO
+# explota por falta de memoria, se ve que algo que hice del free energy
+
 """Implementation of restricted Boltzmann machine on GP-GPU."""
 
 
@@ -157,7 +160,7 @@ class rbm_gpu(object):
         self.maxEpoch       = 15 # Maximium epochs for the trainig, only buffer
 
         # for allocate statistics
-        self.statistics      = {'errorTraining':[], 'errorValidation': [], 'energia':[]}
+        self.statistics      = {'errorTraining':[], 'errorValidation': [], 'energyValidation':[]}
 
         # create a number generator (fixed) for test NUMPY
         if numpy_rng is None:
@@ -170,6 +173,7 @@ class rbm_gpu(object):
             # TODO cambiar a aleatorio
             theano_rng = RandomStreams(seed=1234)
 
+        # TODO agregar agregar el borrow
         if w is None:
             # w is initialized with `initial_W` which is uniformely
             # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
@@ -189,17 +193,23 @@ class rbm_gpu(object):
 
         # create shared variable for hidden units bias
         if hidbiases is None:
-            _hidbiases = numpy.zeros(shape=(1, self.n_hidden),
+            #_hidbiases = numpy.zeros(shape=(1, self.n_hidden),
+            #                         dtype=theanoFloat)
+            _hidbiases = numpy.zeros(shape=(self.n_hidden),
                                      dtype=theanoFloat)
             hidbiases = theano.shared(value=_hidbiases, name='hidbiases')
+            #hidbiases = theano.shared(value=_hidbiases, broadcastable=(True,False), name='hidbiases')
             del _hidbiases
 
 
         # create shared variable for visible units bias
         if visbiases is None:
-            _visbiases = numpy.zeros(shape=(1, self.n_visible),
+            #_visbiases = numpy.zeros(shape=(1, self.n_visible),
+            #                         dtype=theanoFloat)
+            _visbiases = numpy.zeros(shape=(self.n_visible),
                                      dtype=theanoFloat)
             visbiases = theano.shared(value=_visbiases, name='visbiases')
+            #visbiases = theano.shared(value=_visbiases, broadcastable=(True,False), name='visbiases')
             del _visbiases
 
         ########
@@ -215,8 +225,8 @@ class rbm_gpu(object):
         # buffers para el almacenamiento temporal de las variables
         # momento-> incrementos, historicos
         self.vishidinc   = theano.shared(value=numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=theanoFloat), name='vishidinc')
-        self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(1,self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
-        self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(1,self.n_visible), dtype=theanoFloat), name='visbiasinc')
+        self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
+        self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
     # END INIT
 
     def plot_weigth(self, weight=None, save=None, path=None):
@@ -363,10 +373,12 @@ class rbm_gpu(object):
         # un paso de CD es V->H->V
         def oneStep(vsample, wG, vbiasG, hbiasG):
             # positive
-            linearSum       = theano.dot(vsample, wG) + theano.tensor.tile(hbiasG, (int(self.numcases.get_value()),1), ndim=None)
+            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
+            # bias (dimension), ya que lo hace automaticamente
+            linearSum       = theano.tensor.dot(vsample, wG) + hbiasG
             hiddenActData   = self.activationFunction.sample(linearSum)
             #negative
-            linearSum       = theano.dot(hiddenActData, wG.T) + theano.tensor.tile(vbiasG, (int(self.numcases.get_value()),1), ndim=None)
+            linearSum       = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
             visibleActRec   = self.activationFunction.sample(linearSum)
             return [visibleActRec, hiddenActData]
 
@@ -378,65 +390,82 @@ class rbm_gpu(object):
                                     non_sequences= [self.w, self.visbiases, self.hidbiases],
                                     n_steps      = steps,
                                     strict       = True,
-                                    name         = 'scan_oneStepCD')
+                                    name         = 'scan_oneStepCD2')
 
         # last step, dont sample, only necessary for parameters updates
-        linearSum       = theano.dot(visibleActRec, self.w) + theano.tensor.tile(self.hidbiases, (int(self.numcases.get_value()),1), ndim=None)
+        linearSum       = theano.tensor.dot(visibleActRec, self.w) + self.hidbiases
         hiddenActRec    = self.activationFunction.activationProbablity(linearSum)
-
-        #visibleActRec = visibleActRec[-1]; hiddenActData = hiddenActData[-1]
-        ##
 
         return ([visibleActRec, hiddenActData, hiddenActRec], updates)
 
-    def reconstructer(self, vsamples):
+    def reconstructer_Kstep(self, vsamples, steps):
         """
-        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) one step
+        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) K step
+        if K is equal to one, dont iterate, its not necessary generate 'scan' function
+        so manualy calculate the output
+
+        :type vsamples: tensor matrix
+        :param vsamples: node to examples
+
+        :type steps: integer
+        :param steps: how many steps perform, normaly 1 step
         """
-        #positive
-        linearSum       = theano.dot(vsamples, self.w) + theano.tensor.tile(self.hidbiases, (int(self.numcases.get_value()),1), ndim=None)
-        hiddenActData   = self.activationFunction.sample(linearSum)
-        #negative
-        linearSum       = theano.dot(hiddenActData, self.w.T) + theano.tensor.tile(self.visbiases, (int(self.numcases.get_value()),1), ndim=None)
-        visibleReconstruction = self.activationFunction.sample(linearSum)
+        # si la iteracion es de un solo paso, evito generar el scan, ahorra un poco de tiempo
+        if steps == 1:
+            # positive
+            linearSum    = theano.tensor.dot(vsamples, self.w) + self.hidbiases
+            hiddenActPos = self.activationFunction.sample(linearSum)
+            #negative
+            linearSum    = theano.tensor.dot(hiddenActPos, self.w.T) + self.visbiases
+            visibleActRec= self.activationFunction.sample(linearSum)
 
-        errorReconstruction = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleReconstruction - vsamples, 2),axis=0), axis=0)
+            errorRec     = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActRec - vsamples, 2),axis=0), axis=0)
 
-        return visibleReconstruction, errorReconstruction
+            # en este caso como no se crea el scan, no me interesa la tercer salida
+            # para la compilation en la funcion, el parametro 'updates' es None por default
+            retorno = visibleActRec, errorRec, None
+        else:
+            ([visibleActRec, _, _], updates) = self.markovChain_k(vsamples, steps) # ejecuto k iteraciones
 
-    def reconstructer2(self, vsamples, numcas):
-        """
-        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) one step
-        """
-        #positive
-        linearSum       = theano.dot(vsamples, self.w) + theano.tensor.tile(self.hidbiases, (numcas,1), ndim=None)
-        hiddenActData   = self.activationFunction.sample(linearSum)
-        #negative
-        linearSum       = theano.dot(hiddenActData, self.w.T) + theano.tensor.tile(self.visbiases, (numcas,1), ndim=None)
-        visibleReconstruction = self.activationFunction.sample(linearSum)
+            visibleActRec = visibleActRec[-1]
 
-        errorReconstruction = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleReconstruction - vsamples, 2),axis=0), axis=0)
+            errorRec = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActRec - vsamples, 2),axis=0), axis=0)
 
-        return visibleReconstruction, errorReconstruction
+            retorno = visibleActRec, errorRec, updates
 
-    def reconstructer3(self, vsamples, numcas):
-        """
-        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) one step
-        """
-        #positive
-        linearSum       = theano.dot(vsamples, self.w) + theano.tensor.tile(self.hidbiases, (numcas,1), ndim=None)
-        hiddenActData   = self.activationFunction.sample(linearSum)
-        #negative
-        linearSum       = theano.dot(hiddenActData, self.w.T) + theano.tensor.tile(self.visbiases, (numcas,1), ndim=None)
-        visibleReconstruction = self.activationFunction.sample(linearSum)
-
-        errorReconstruction = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleReconstruction - vsamples, 2),axis=0), axis=0)
-
-        return visibleReconstruction, hiddenActData, errorReconstruction
+        return retorno
 
     def cost(self, conjunto='validation'):
+        # version sin batch
+        """
+
+        """
+        data = False
+        if conjunto == 'training':
+            data = self.sharedData
+        elif conjunto == 'validation':
+            data = self.sharedValidationData
+        else:
+            print("parametro 'conjunto' no corresponde")
+            sys.exit(0)
+
+        costSamples = theano.tensor.matrix('costSamples')
+        pasos=1
+
+        _, errorTotal, updatesCost = self.reconstructer_Kstep(data, pasos)
+
+        # la energia es un vector
+        freeEnergyRec = self.free_energy(data)
+        #freeEnergyVis = self.free_energy(data.get_value())
+        #freeEnergyMean = theano.tensor.mean(freeEnergyVis) - theano.tensor.mean(freeEnergyRec)
+        freeEnergyMean = theano.tensor.mean(freeEnergyRec)
+
+        return errorTotal, freeEnergyMean, updatesCost
+
+    def cost2(self, conjunto='validation'):
         """
         Separo en miniBatch el conjunto de validacion, para no quedarme sin memoria
+        mepa que le falta un ejemplo o algo asi si no es entero jjusto el miniBatchSIze
         """
         data = False
         if conjunto == 'training':
@@ -453,28 +482,45 @@ class rbm_gpu(object):
         # Symbolic variable for index
         index = theano.tensor.iscalar()
         valsamples = theano.tensor.fmatrix('valsamples')
+        pasos=1
+        visibleActRec, errorRec, updatesRec = self.reconstructer_Kstep(valsamples, pasos)
 
-        _, error = self.reconstructer2(valsamples, miniBatchSize)
+        # la energia es un vector
+        freeEnergyRec = self.free_energy(valsamples)
+        #freeEnergyVis = self.free_energy(data.get_value())
+        #freeEnergyMean = theano.tensor.mean(freeEnergyVis) - theano.tensor.mean(freeEnergyRec)
+        freeEnergyMean = theano.tensor.mean(freeEnergyRec)
 
         reconstructFunction = theano.function(
-            inputs=[index],
-            outputs=error,
-            givens={valsamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
+            inputs  = [index],
+            outputs = [errorRec,freeEnergyMean],
+            updates = updatesRec,
+            givens  ={valsamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
 
 
-        errores = [reconstructFunction(i) for i in range(nrMiniBatches)]
+        tmp = [reconstructFunction(i) for i in range(nrMiniBatches)]
         errorTotal = 0.0
+        energiaTotal = 0.0
         for i in range(nrMiniBatches):
-            errorTotal += errores[i]
-        return errorTotal
+            errorTotal += tmp[i][0]
+            energiaTotal += tmp[i][1]
+
+        del tmp
+        return errorTotal, energiaTotal
 
     def sample(self, data):
         """
+        Sampleador de los datos, fluye data sobre la red (entrenada?) y muestrea
+        su salida como datos regenerados y las activaciones ocultas asi como el error
+        se diferecia de reconstructer debido a que esta diseñado para ejecutarse sobre
+        cualquier conjunto de datos pasado, ademas se ejecuta por batchs
         Separo en miniBatch la data
+
         """
+        # TODO creo que esta haciendo un ejemplo de mas,,,
+
         numeroCasos = data.shape[0]
         visibleRec  = numpy.zeros(shape=(numeroCasos,self.n_visible))
-        hiddenAct   = numpy.zeros(shape=(numeroCasos,self.n_hidden))
 
         data = theano.shared(numpy.asarray(data,dtype=theanoFloat), name='sampleData')
 
@@ -486,103 +532,42 @@ class rbm_gpu(object):
         # Symbolic variable for index
         index = theano.tensor.iscalar('indiceSamples')
         dataSamples = theano.tensor.fmatrix('dataSamples')
-
-        visibleReconstructions, hiddenActivations, error = self.reconstructer3(dataSamples, miniBatchSize)
+        pasos = 1
+        visibleActRec, errorRec, updatesRec = self.reconstructer_Kstep(dataSamples, pasos)
 
         reconstructFunction1 = theano.function(
                             inputs  =[index],
-                            outputs =[visibleReconstructions, hiddenActivations, error],
+                            outputs =[visibleActRec, errorRec],
+                            updates = updatesRec,
                             givens  ={dataSamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
 
         tmp = [reconstructFunction1(i) for i in range(nrMiniBatches)]
         errorTotal = 0.0
         for i in range(nrMiniBatches):
-
             visibleRec[i * miniBatchSize: (i + 1) * miniBatchSize] = tmp[i][0]
-            hiddenAct[i * miniBatchSize: (i + 1) * miniBatchSize]  = tmp[i][1]
-            errorTotal += tmp[i][2]
-
+            errorTotal += tmp[i][1]
         del tmp
 
         if restoCasos != 0:
-            visibleReconstructions2, hiddenActivations2, error2 = self.reconstructer3(dataSamples, restoCasos)
+            pasos = 1
+            visibleActRec2, errorRec2, updatesRec2 = self.reconstructer_Kstep(dataSamples, pasos)
             reconstructFunction2 = theano.function(
                             inputs  =[],
-                            outputs =[visibleReconstructions2, hiddenActivations2, error2],
+                            outputs =[visibleActRec2, errorRec2],
+                            updates =updatesRec2,
                             givens  ={dataSamples: data[nrMiniBatches * miniBatchSize:]})
             tmp2 = reconstructFunction2()
             visibleRec[nrMiniBatches * miniBatchSize:] = tmp2[0]
-            hiddenAct[nrMiniBatches * miniBatchSize:]  = tmp2[1]
-            errorTotal += tmp2[2]
+            errorTotal += tmp2[1]
 
-        return visibleRec, hiddenAct, errorTotal
+        return visibleRec, errorTotal
 
-    def sample2(self, data):
-        """
-        Separo en miniBatch la data
-        """
-        numeroCasos = data.shape[0]
-        visibleRec  = numpy.zeros(shape=(numeroCasos,self.n_visible))
-        hiddenAct   = numpy.zeros(shape=(numeroCasos,self.n_hidden))
-
-        data = theano.shared(numpy.asarray(data,dtype=theanoFloat), name='sampleData')
-
-        miniBatchSize = 1000
-        #nrMiniBatches = int(int(data.get_value().shape[0]) / miniBatchSize)
-        nrMiniBatches = int(numeroCasos / miniBatchSize + 1)
-
-        resto = numeroCasos - nrMiniBatches*miniBatchSize
-
-        # Symbolic variable for index
-        index = theano.tensor.iscalar()
-        dataSamples = theano.tensor.fmatrix('dataSamples')
-
-        visRec, hiddenDataAct, error = self.reconstructer3(dataSamples, miniBatchSize)
-
-        reconstructFunction = theano.function(
-            inputs=[index],
-            outputs=[visRec, hiddenDataAct, error],
-            givens={dataSamples: data[index * miniBatchSize: (index + 1) * miniBatchSize]})
-
-
-        tmp = [reconstructFunction(i) for i in range(nrMiniBatches)]
-        errorTotal = 0.0
-
-
-        for i in range(nrMiniBatches):
-            errorTotal += tmp[i][2]
-
-            #TODO visibleRec.append(tmp[i][0]) aca salta el errror
-            assert False
-            hiddenAct.append(tmp[i][1])
-
-        visibleRec = numpy.vstack(visibleRec)
-        hiddenAct = numpy.vstack(hiddenAct)
-
-        if resto != 0:
-            visibleRecResto, hiddenDataActResto, errorResto = self.reconstructer3(dataSamples, resto)
-
-            reconstructFunction2 = theano.function(
-                inputs=[],
-                outputs=[visibleRecResto, hiddenDataActResto, errorResto],
-                givens={dataSamples: data[nrMiniBatches*miniBatchSize:]})
-
-            tmp2 = reconstructFunction2()
-
-            erroresResto = tmp2[2]
-            errorTotal += erroresResto
-
-            visibleRecResto = tmp2[0]
-            hiddenDataActResto = tmp2[1]
-
-            visibleRec = numpy.vstack(visibleRecResto)
-            hiddenAct = numpy.vstack(hiddenDataActResto)
-
-
-
-
-        return errorTotal, visibleRec, hiddenAct
-
+    def free_energy(self, vsample):
+        ''' Function to compute the free energy '''
+        wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
+        vbias_term = theano.tensor.dot(vsample, self.visbiases)
+        hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
+        return -hidden_term - vbias_term
 
     def free_energy_tmp(self, v_sample):
         ''' Function to compute the free energy '''
@@ -598,8 +583,8 @@ class rbm_gpu(object):
             else:
                 momentum = self.initialmomentum
 
-            positiva   = theano.dot(msamples.T, hiddenActData)      # (100,784)'*(1,300)>(784,300)
-            negativa   = theano.dot(visibleActRec.T, hiddenActRec)  # (100,784)'*(1,300)>(784,300)
+            positiva   = theano.tensor.dot(msamples.T, hiddenActData)      # (100,784)'*(1,300)>(784,300)
+            negativa   = theano.tensor.dot(visibleActRec.T, hiddenActRec)  # (100,784)'*(1,300)>(784,300)
 
             # calculo de los terminos
             # TODO fijarse lo de los bias, aplica como la suma sobre una nuerona de todas las activaciones... esta bien?
@@ -642,9 +627,7 @@ class rbm_gpu(object):
         self.numcases.set_value(miniBatchSize)
 
         # Theano NODES
-        msamples = theano.tensor.fmatrix(name="msamples")   # root
-        msamplesTrain = theano.tensor.fmatrix(name="msamplesTrain")
-
+        msamples = theano.tensor.matrix(name="msamples")   # root
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
@@ -686,6 +669,7 @@ class rbm_gpu(object):
         # corre los minibatchs
         # calcula y actualiza los parametros
         # retorna el costo de la red "(pero antes de que se actualicen los parametros!!!)"
+
         trainer = theano.function(  inputs =[miniBatchIndex, steps],
                                     #outputs=[vishidinc, visbiasinc, hidbiasinc], # quitar,-> [] si se quiere que no retorne, es al pedo por ahora
                                     outputs=old_error,
@@ -693,20 +677,26 @@ class rbm_gpu(object):
                                     givens ={msamples: self.sharedData[miniBatchIndex*miniBatchSize: (miniBatchIndex+1)*miniBatchSize:1]},
                                     name   ='rbm_trainer')
 
-
-
-        # calcula el costo de la red en el estado que este para iterar dentro del for de bacth y epoch
-        # PARA EL COSTO SOBRE EL CONJUNTO DE ENTRENAMIENTO
-        # Es para separar si se ejecuto 'trainer' antes, se retorna el costo actual del batch
-        # paso de las recosntrucciones
-        (visibleReconstruction, errorReconstruction) = self.reconstructer(msamples)
-
-        # recibe el indice del batch a iterar
-        costoBatchTraining = theano.function(inputs =[miniBatchIndex],
-                                            outputs =[visibleReconstruction, errorReconstruction],
+        # Para calcular el error durante el entrenamiento (recibe el indice el batch)
+        # Para calcular el costo real se debe ejecutar despues de la funcion 'trainer'
+        pasos = 1
+        visibleReconstructionT, errorReconstructionT, updatesCostT = self.reconstructer_Kstep(msamples,pasos)
+        costoBatchTraining = theano.function(inputs =[miniBatchIndex], # recibe el indice del batch a iterar
+                                            outputs =[visibleReconstructionT, errorReconstructionT],
                                             givens  ={msamples: self.sharedData[miniBatchIndex*miniBatchSize: (miniBatchIndex+1)*miniBatchSize:1]},
+                                            updates = updatesCostT,
                                             name    ='rbm_BatchCostTraining')
 
+
+        #otra para el costo, total, del error de reconstruccion y de la energia libre
+        errorReconstruccion, freeEnergy, updatesCost = self.cost(conjunto='validation')
+        costTotal = theano.function(
+            inputs  = [],
+            outputs = [errorReconstruccion, freeEnergy],
+            updates = updatesCost)
+
+
+        #errorTotal, energiaLibreTotal = reconstructFunction(data)
 
         ## llamar dentro del for del tran por epoch y  iteracion
         # ejecuto
@@ -715,19 +705,23 @@ class rbm_gpu(object):
 
 
         ## para que este funcione se debe ejecutar en su totatilida, reconstructur no sabe el tamaño para el tile
-        (visibleReconstruction1, errorReconstruction1) = self.reconstructer(msamples)
+        """
+        visibleReconstruction1, errorReconstruction1, updatesCost2 = self.reconstructer(msamples)
+
         sampler = theano.function(  inputs=[msamples],
                                     outputs=[visibleReconstruction1, errorReconstruction1],
+                                    updates= updatesCost2,
                                     name   ='rbm_sampler')
-
+        """
 
         _errorTrn       = theano.shared(numpy.asarray(0.0, dtype=theanoFloat), name='_errorTrn')
-        errorTraining   = theano.shared(numpy.asarray(0.0, dtype=theanoFloat), name='errorTraining')
-        errorValidation = theano.shared(numpy.asarray(0.0, dtype=theanoFloat), name='errorValidation')
+
+        errorValidation, energiaValidation = costTotal()
 
         for epoch in range(0, self.maxEpoch):
-            print('Starting Epoch {} of {}, errorTrn:{}, errorVal:{}'.format(epoch, self.maxEpoch, errorTraining.get_value(), errorValidation.get_value()), end='\r')
+            print('Starting Epoch {} of {}, errorTrn:{}, errorVal:{}, freeEnergy:{}'.format(epoch, self.maxEpoch, _errorTrn.get_value(), errorValidation, energiaValidation), end='\r')
             _errorTrn.set_value(0.0)
+            energiaValidation = 0.0
             for p in range(0, indexCount):
                 trainer(p,1)
                 [_,er] = costoBatchTraining(p)
@@ -735,16 +729,15 @@ class rbm_gpu(object):
             # END SET
 
             # errores sobre el set entero en la epoca i
-            errorTraining.set_value(_errorTrn.get_value())
-            errorValidation.set_value(self.cost(conjunto='validation'))
-            # los agrego al diccionario de estadicticas
-            self.statistics['errorTraining'].append(errorTraining.get_value())
-            self.statistics['errorValidation'].append(errorValidation.get_value())
+            errorValidation, energiaValidation1 = costTotal()
+            energiaValidation = energiaValidation - energiaValidation1
+
+            # los agrego al diccionario de estadisticas
+            self.statistics['errorTraining'].append(_errorTrn.get_value())
+            self.statistics['errorValidation'].append(errorValidation)
+            self.statistics['energyValidation'].append(energiaValidation)
         # END epcoh
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
-        print("FIN")
-        print("ERROR Entranamiento:",self.statistics['errorTraining'])
-        print("ERROR Validacion:",self.statistics['errorValidation'])
 
         return 1
 
@@ -1007,12 +1000,14 @@ if __name__ == "__main__":
         end = time.time()
         print("Tiempo total para guardar: {}".format(timer(start,end)))
 
-        red.plot_error(red.statistics['errorTraining'],show=False)
-        red.plot_error(red.statistics['errorValidation'],show=True)
-        red.plot_error(red.statistics['errorTraining'],tipo='training', show=False).show()
+        print("FIN")
+        print("ERROR Entranamiento:",red.statistics['errorTraining'])
+        print("ERROR Validacion:",red.statistics['errorValidation'])
+        print("ENERGIA Validacion:",red.statistics['energyValidation'])
 
-        red.plot_error(red.statistics['errorTraining'],tipo='training', show=False, save=True).show()
-
+        red.plot_error(red.statistics['errorTraining'],   show=True)
+        red.plot_error(red.statistics['errorValidation'], show=True)
+        red.plot_error(red.statistics['energyValidation'],show=True)
         red.plot_weigth()
 
 
@@ -1025,10 +1020,9 @@ if __name__ == "__main__":
         end = time.time()
         print("Tiempo total para abrir: {}".format(timer(start,end)))
 
-
-        #red2.w.set_value(a)
-        red2.plot_error(red2.statistics['errorValidation'],tipo='validation', save=True, show=False, path=fullPath).show()
-        red2.plot_error(red2.statistics['errorTraining'],tipo='training', save=True, show=False, path=fullPath).show()
+        red2.plot_error(red2.statistics['errorValidation'], tipo='validation',  save=True, show=False, path=fullPath).show()
+        red2.plot_error(red2.statistics['errorTraining'],   tipo='training',    save=True, show=False, path=fullPath).show()
+        red2.plot_error(red2.statistics['energyValidation'],tipo='validation',  show=False).show()
         red2.plot_weigth(save=True)
 
         #red2.tile_raster_images(X=red2.w.get_value(), img_shape=(28,28), tile_shape=(10,10))
@@ -1037,41 +1031,22 @@ if __name__ == "__main__":
         ejemplos = red2.sharedData.get_value()[0:10]
         ejemplostotal = red2.sharedData.get_value()
 
-        vis, hid, err = red2.sample(ejemplos)
-        vis2, hid2, err2 = red2.sample(ejemplostotal)
-        print("errrrooooo2:",err)
+        e = 0.0
+
+        ejemplos = red2.sharedData.get_value()[0:26000]
+        vis, err = red2.sample(ejemplos)
+        e += err
+        ejemplos = red2.sharedData.get_value()[26001:]
+        vis, err = red2.sample(ejemplos)
+        e += err
+
+        print("llegue..")
+        vis2, err2 = red2.sample(ejemplostotal)
+        print("errrrooooo2:",e)
         print("errrrooooo22222:",err2)
         print("")
 
 
-        MNIST.plot_ten_digits(ejemplos,crop=False)
-        MNIST.plot_ten_digits(vis, crop=False)
+        #MNIST.plot_ten_digits(ejemplos,crop=False)
+        #MNIST.plot_ten_digits(vis, crop=False)
         # como imprimo los acultos? MNIST.plot_ten_digits(hid, crop=False)
-
-    """
-    Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
-    RBM learningRate: epsilonw
-    Data set size for Restricted Boltzmann Machine 50000
-    FINrting Epoch 9 of 10, error:1509052.0
-    ERROR: [array(2168984.0, dtype=float32), array(1913833.0, dtype=float32), array(1786226.0, dtype=float32), array(1697431.0, dtype=float32), array(1634844.0, dtype=float32), array(1600061.0, dtype=float32), array(1562577.0, dtype=float32), array(1525803.0, dtype=float32), array(1509052.0, dtype=float32), array(1491618.0, dtype=float32)]
-    Tiempo total: 00:04:32.86
-
-    ### cambiado los updates de los incrementos el comportamiento no es tan "suave"
-    Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
-    RBM learningRate: epsilonw
-    Data set size for Restricted Boltzmann Machine 50000
-    FINrting Epoch 9 of 10, error:1516655.0
-    ERROR: [array(2194691.0, dtype=float32), array(1897565.0, dtype=float32), array(1743270.0, dtype=float32), array(1623479.0, dtype=float32), array(1573964.0, dtype=float32), array(1583476.0, dtype=float32), array(1560282.0, dtype=float32), array(1544130.0, dtype=float32), array(1516655.0, dtype=float32), array(1530101.0, dtype=float32)]
-    Tiempo total: 00:04:26.04
-
-
-    #### calculando el error viejo.. osea en el mismo paso antes de actualizar lo que evita la multiplicacion delas matrices una vez mas, no continene el ultimo error, se reduce mucho el tiempo
-    Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
-    Training an RBM, with | 784 | visibles neurons and | 500 | hidden neurons
-    Data set size for Restricted Boltzmann Machine 50000
-    FINrting Epoch 9 of 10, error:1513187.0
-    ERROR: [array(2801426.0, dtype=float32), array(2018036.0, dtype=float32), array(1785388.0, dtype=float32), array(1668504.0, dtype=float32), array(1602905.0, dtype=float32), array(1570406.0, dtype=float32), array(1542211.0, dtype=float32), array(1535153.0, dtype=float32), array(1513187.0, dtype=float32), array(1505977.0, dtype=float32)]
-    Tiempo total: 00:02:30.58
-
-
-    """
