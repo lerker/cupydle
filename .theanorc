@@ -1,0 +1,25 @@
+[global]
+floatX = float32
+device = gpu
+force_device = True
+print_active_device = True
+enable_initial_driver_test = True
+warn_float64 = warn
+mode = FAST_RUN
+profile = False
+profile_memory = False
+exception_verbosity=high
+#optimizer=None
+
+[nvcc]
+fastmath = True
+
+[warn]
+argmax_pushdown_bug = False
+sum_div_dimshuffle_bug = False
+subtensor_merge_bug = False
+
+[cuda]
+root = /opt/cuda/
+
+
