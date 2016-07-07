@@ -91,7 +91,7 @@ class dbn(object):
                                                   # of [int] labels
 
         self.weights = []
-        self.sigmoid_layers = []
+        self.layers = []
 
         self.n_ins = n_ins
 
@@ -111,6 +111,8 @@ class dbn(object):
         # training the DBN by doing stochastic gradient descent on the
         # MLP.
 
+        self.x = dataTrn
+
         for i in range(self.n_layers):
             # construct the sigmoidal layer
 
@@ -128,7 +130,7 @@ class dbn(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.sigmoid_layers[-1]
+                layer_input = self.layers[-1]
 
 
             # Construct an RBM that shared weights with this layer
@@ -136,8 +138,8 @@ class dbn(object):
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            rbm_layer.maxEpoch = 5
-            rbm_layer.train(data=dataTrn,
+            rbm_layer.maxEpoch = 15
+            rbm_layer.train(data=layer_input,
                             miniBatchSize=50,
                             validationData=dataVal)
 
@@ -147,8 +149,18 @@ class dbn(object):
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # TODO aca debo tener las activaciones de las ocultas
-            rbm_layer.sample(dataTrn)
-            assert False, "LLEGUE"
+            [_, hiddenActPos, _, _] = rbm_layer.sampler(layer_input)
+            [_, dataVal, _, _] = rbm_layer.sampler(dataVal)
+
+            print("Guardando las muestras para la siguiente capa..")
+            filename_pesos = path + self.name + "_capaPesos" + str(i+1)
+            import pickle
+            import gzip # gzip
+            with gzip.GzipFile(filename_pesos + '.pgz', 'w') as f:
+                pickle.dump(hiddenActPos, f)
+                f.close()
+            self.layers.append(hiddenActPos)
+            del rbm_layer
         # FIN FOR
 
         print("Terminado")
@@ -158,6 +170,7 @@ class dbn(object):
 
 
 if __name__ == "__main__":
+    from cupydle.dnn.utils import timer
     import os
     currentPath = os.getcwd()                               # directorio actual de ejecucion
     testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests

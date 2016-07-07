@@ -287,3 +287,9 @@ def load(filename=None, compression=None):
         sys.exit("Parametro de compresion no se reconoce")
 
     return objeto
+
+def timer(start,end):
+    hours, rem = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+# END TIMER

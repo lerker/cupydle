@@ -435,6 +435,68 @@ class rbm_gpu(object):
 
         return retorno
 
+    def reconstructer_Kstep_v2(self, vsamples, steps):
+        """
+        iterate over RBM from visibles units to hidden ones and back to visibles (recontruction) K step
+        if K is equal to one, dont iterate, its not necessary generate 'scan' function
+        so manualy calculate the output
+
+        :type vsamples: tensor matrix
+        :param vsamples: node to examples
+
+        :type steps: integer
+        :param steps: how many steps perform, normaly 1 step
+        """
+        # si la iteracion es de un solo paso, evito generar el scan, ahorra un poco de tiempo
+        if steps == 1:
+            # positive
+            linearSum    = theano.tensor.dot(vsamples, self.w) + self.hidbiases
+            hiddenActPos = self.activationFunction.sample(linearSum)
+            #negative
+            linearSum    = theano.tensor.dot(hiddenActPos, self.w.T) + self.visbiases
+            visibleActNeg= self.activationFunction.sample(linearSum)
+
+            errorRec     = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActNeg - vsamples, 2),axis=0), axis=0)
+
+            # en este caso como no se crea el scan, no me interesa la tercer salida
+            # para la compilation en la funcion, el parametro 'updates' es None por default
+            retorno = visibleActNeg, hiddenActPos, errorRec, None
+        else:
+            ([visibleActNeg, hiddenActPos, _], updates) = self.markovChain_k(vsamples, steps) # ejecuto k iteraciones
+
+            visibleActNeg = visibleActNeg[-1]
+            hiddenActPos = hiddenActPos[-1]
+
+            errorRec = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActNeg - vsamples, 2),axis=0), axis=0)
+
+            retorno = visibleActNeg, hiddenActPos, errorRec, updates
+
+        return retorno
+
+    def sampler(self, data):
+        # version sin batch
+        """
+
+        """
+        data = theano.shared(numpy.asarray(data,dtype=theanoFloat), name='samplerData')
+
+        costSamples = theano.tensor.matrix('samplerSamples')
+        pasos=1
+        visibleActNeg, hiddenActPos, errorTotal, updates = self.reconstructer_Kstep_v2(data, pasos)
+
+        # la energia es un vector
+        freeEnergyRec = self.free_energy(data)
+        freeEnergyMean = theano.tensor.mean(freeEnergyRec)
+
+        muestreador = theano.function(  inputs=[],
+                                        outputs=[visibleActNeg, hiddenActPos, errorTotal, freeEnergyMean],
+                                        updates=updates,
+                                        name='samplerFun')
+
+        [visibleActNeg, hiddenActPos, errorTotal, freeEnergyMean] = muestreador()
+
+        return visibleActNeg, hiddenActPos, errorTotal, freeEnergyMean
+
     def cost(self, conjunto='validation'):
         # version sin batch
         """
@@ -569,13 +631,6 @@ class rbm_gpu(object):
         hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
         return -hidden_term - vbias_term
 
-    def free_energy_tmp(self, v_sample):
-        ''' Function to compute the free energy '''
-        wx_b = T.dot(v_sample, self.W) + self.hbias
-        vbias_term = T.dot(v_sample, self.vbias)
-        hidden_term = T.sum(T.log(1 + T.exp(wx_b)), axis=1)
-        return -hidden_term - vbias_term
-
     def updateParams(self, msamples, visibleActRec, hiddenActData, hiddenActRec, updates, epoch):
         # TODO arreglar lo de epoch
             if theano.tensor.ge(epoch,self.maxEpoch/2):
@@ -689,34 +744,22 @@ class rbm_gpu(object):
 
 
         #otra para el costo, total, del error de reconstruccion y de la energia libre
-        errorReconstruccion, freeEnergy, updatesCost = self.cost(conjunto='validation')
-        costTotal = theano.function(
-            inputs  = [],
-            outputs = [errorReconstruccion, freeEnergy],
-            updates = updatesCost)
+        if validationData is not None:
+            errorReconstruccion, freeEnergy, updatesCost = self.cost(conjunto='validation')
+            costTotal = theano.function(inputs  = [],
+                                        outputs = [errorReconstruccion, freeEnergy],
+                                        updates = updatesCost)
 
-
-        #errorTotal, energiaLibreTotal = reconstructFunction(data)
-
-        ## llamar dentro del for del tran por epoch y  iteracion
-        # ejecuto
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
 
+        # error temporal acumulativo
+        _errorTrn = theano.shared(numpy.asarray(0.0, dtype=theanoFloat), name='_errorTrn')
 
-        ## para que este funcione se debe ejecutar en su totatilida, reconstructur no sabe el tamaño para el tile
-        """
-        visibleReconstruction1, errorReconstruction1, updatesCost2 = self.reconstructer(msamples)
-
-        sampler = theano.function(  inputs=[msamples],
-                                    outputs=[visibleReconstruction1, errorReconstruction1],
-                                    updates= updatesCost2,
-                                    name   ='rbm_sampler')
-        """
-
-        _errorTrn       = theano.shared(numpy.asarray(0.0, dtype=theanoFloat), name='_errorTrn')
-
-        errorValidation, energiaValidation = costTotal()
+        if validationData is not None:
+            errorValidation, energiaValidation = costTotal()
+        else:
+            errorValidation = 0.0; energiaValidation = 0.0
 
         for epoch in range(0, self.maxEpoch):
             print('Starting Epoch {} of {}, errorTrn:{}, errorVal:{}, freeEnergy:{}'.format(epoch, self.maxEpoch, _errorTrn.get_value(), errorValidation, energiaValidation), end='\r')
@@ -729,8 +772,9 @@ class rbm_gpu(object):
             # END SET
 
             # errores sobre el set entero en la epoca i
-            errorValidation, energiaValidation1 = costTotal()
-            energiaValidation = energiaValidation - energiaValidation1
+            if validationData is not None:
+                errorValidation, energiaValidation1 = costTotal()
+                energiaValidation = energiaValidation - energiaValidation1
 
             # los agrego al diccionario de estadisticas
             self.statistics['errorTraining'].append(_errorTrn.get_value())
