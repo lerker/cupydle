@@ -239,4 +239,128 @@ if __name__ == "__main__":
         print("Tiempo total: {}".format(timer(start,end)))
 
     else:
-        assert False, "No implementado aun"
+        red = rbm_gpu.load(fullPath + 'dbnTest_capa1.pgz')
+        w1=red.w.get_value()
+        del red
+
+        # Dependencias Externas
+        from cupydle.dnn.NeuralNetwork import NeuralNetwork
+        from cupydle.test.mnist.mnist import MNIST
+        from cupydle.test.mnist.mnist import open4disk
+        from cupydle.test.mnist.mnist import save2disk
+
+        def label_to_vector(label, n_classes):
+            lab = numpy.zeros((n_classes, 1), dtype=numpy.int8)
+            label = int(label)
+            lab[label] = 1
+            return numpy.array(lab).transpose()
+
+        # Seteo de los parametros
+        capa_entrada    = 784
+        capa_oculta_1   = 500
+        capa_salida     = 10
+        capas           = [capa_entrada, capa_oculta_1, capa_salida]
+
+
+        # se leen de disco los datos
+        mn = open4disk(filename=dataPath + setName, compression='bzip2')
+        #mn.info                                        # muestra alguna informacion de la base de datos
+
+        # obtengo todos los subconjuntos
+        train_img,  train_labels= mn.get_training()
+        test_img,   test_labels = mn.get_testing()
+        val_img,    val_labels  = mn.get_validation()
+
+        # parametros de la red
+        n_visible = 784
+        batchSize = 50
+
+        # umbral para la binarizacion
+        threshold = 128
+        binaryTrnData = (train_img>threshold).astype(numpy.float32)
+        binaryValData = (val_img>threshold).astype(numpy.float32)
+        binaryTstData = (test_img>threshold).astype(numpy.float32)
+
+        y_tr = [label_to_vector(y, 10)[0] for y in train_labels]
+        training_data = [(x, y) for x, y in zip(binaryTrnData, y_tr)]
+
+
+
+
+        print(w1.shape) #784,500
+        # w1 W[(500, 784)]:
+        # w2 W[(10, 500)]:
+        lista_pesos = []
+        lista_pesos.append(w1.transpose())
+
+        # esto es de la ultima capa, la cual no deberia importarme, solo se inicializan las primeras, esta es de clasificacion
+        w_tmp = numpy.asarray(
+                numpy.random.uniform(low=-numpy.sqrt(6.0 / (500 + 10)),
+                                  high=+numpy.sqrt(6.0 / (500 + 10)),
+                                  size=(500,10)),
+                dtype=numpy.dtype(float))
+        lista_pesos.append(w_tmp.transpose())
+
+        net = NeuralNetwork(list_layers=capas, clasificacion=True, funcion_error="CROSS_ENTROPY",
+                            funcion_activacion="Sigmoid", w=lista_pesos, b=None)
+
+        y_val = [label_to_vector(y, 10)[0] for y in val_labels]
+        validation_data = [(x, y) for x, y in zip(binaryValData, y_val)]
+
+        y_tst = numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1))
+        testing_data = [(x, y) for x, y in zip(binaryTstData, y_tst)]
+        #testing_data = [(x, y) for x, y in zip(binaryTstData, test_labels)]
+
+
+        print("Training Data size: " + str(len(training_data)))
+        print("--trn:", "x:",training_data[0][0].shape, "y:", training_data[0][1].shape)
+        print("Validating Data size: " + str(len(validation_data)))
+        print("--val:", "x:",validation_data[0][0].shape, "y:", validation_data[0][1].shape)
+        print("Testing Data size: " + str(len(testing_data)))
+        print("--tst:", "x:",testing_data[0][0].shape, "y:", testing_data[0][1].shape)
+
+        training_data2 =    [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels, dtype=float), (len(train_labels), 1)))]
+        validation_data2 =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels, dtype=float), (len(val_labels), 1)))]
+        testing_data2 =     [(x, y) for x, y in zip(binaryTstData, numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1)))]
+
+        import random
+        """
+        for i in range(0,10):
+            indice = random.randint(0,len(testing_data2))
+            prediccion = net.predict(testing_data2[indice][0])
+            real = testing_data2[indice][1]
+            print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+
+        #
+        """
+        print("Entrenando...")
+        net.fit(train=training_data2, valid=validation_data2, test=testing_data2, batch_size=50, epocas=25, tasa_apren=0.2, momentum=0.1)
+        """
+
+        for i in range(0,10):
+            indice = random.randint(0,len(testing_data2))
+            prediccion = net.predict(testing_data2[indice][0])
+            real = testing_data2[indice][1]
+            print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+        net.save(fullPath + 'mnist_demo_dbn')
+        """
+        from cupydle.dnn.NeuralNetwork import load as Nload
+        net = Nload(fullPath + 'mnist_demo_dbn.cupydle')
+        for i in range(0,10):
+            indice = random.randint(0,len(testing_data2))
+            prediccion = net.predict(testing_data2[indice][0])
+            real = testing_data2[indice][1]
+            print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+        """
+        Epoch 0 training complete - Error: 76.41 [%]- Tiempo: 105.3323 [s]
+        Epoch 1 training complete - Error: 73.7 [%]- Tiempo: 114.0037 [s]
+        Epoch 2 training complete - Error: 74.6 [%]- Tiempo: 113.7274 [s]
+        Epoch 3 training complete - Error: 49.32 [%]- Tiempo: 125.6869 [s]
+        Epoch 4 training complete - Error: 46.4 [%]- Tiempo: 117.2031 [s]
+        Epoch 5 training complete - Error: 47.78 [%]- Tiempo: 112.594 [s]
+        Epoch 6 training complete - Error: 42.86 [%]- Tiempo: 126.6591 [s]
+        Epoch 7 training complete - Error: 36.1 [%]- Tiempo: 147.8314 [s]
+        Epoch 8 training complete - Error: 36.14 [%]- Tiempo: 149.3755 [s]
+        Epoch 9 training complete - Error: 34.47 [%]- Tiempo: 136.7185 [s]
+        Epoch 10 training complete - Error: 30.33 [%]- Tiempo: 141.6036 [s]
+        """

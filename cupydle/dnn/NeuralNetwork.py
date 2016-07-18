@@ -60,10 +60,13 @@ class NeuralNetwork(object):
 
         del size
 
-        # si quiero cargar los w y b
-        if w is not None or b is not None:
+        # si quiero cargar los w
+        if w is not None:
             for idx, val in enumerate(self.list_layers):
                 val.set_weights(w[idx])
+        # si quiero cargar los b
+        if b is not None:
+            for idx, val in enumerate(self.list_layers):
                 val.set_bias(b[idx])
     # FIN  __init_layers__
 
@@ -102,8 +105,8 @@ class NeuralNetwork(object):
         test_result = self.__feedforward__(x)
 
         # me guardo el indice, ya sea de una sola salida (indice=0) o de varias
-        salida = np.argmax(test_result)
-
+        #salida = np.argmax(test_result)
+        salida = np.argmax(test_result.matrix)
         return salida
 
     # FIN predict

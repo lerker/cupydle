@@ -55,7 +55,7 @@ class NeuralLayer(object):
 
     # propiedades intrisecas de las capas
     def __str__(self):
-        return str("W:\n" + str(self.weights) + "\nbias:\n" + str(self.bias))
+        return str("W[" + str(self.weights.shape) + "]:\n" + str(self.weights) + "\nbias[" + str(self.bias.shape) + "]:\n" + str(self.bias))
 
     def __mul__(self, other):
         self.weights *= other
