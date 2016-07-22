@@ -150,8 +150,8 @@ class rbm_gpu(object):
         #       a parameter theano.shared(..., broadcastable=(True, False))
         #
         self.epsilonw       = theano.shared(numpy.asarray(0.1,   dtype=theanoFloat), name='epsilonw')  # Learning rate for weights
-        self.epsilonvb      = theano.shared(numpy.asarray(0.1,   dtype=theanoFloat), name='episilonvb')# Learning rate for biases of visible units
-        self.epsilonhb      = theano.shared(numpy.asarray(0.1,   dtype=theanoFloat), name='episilonhb')# Learning rate for biases of hidden units
+        self.epsilonvb      = theano.shared(numpy.asarray(0.1,   dtype=theanoFloat), name='epsilonvb')# Learning rate for biases of visible units
+        self.epsilonhb      = theano.shared(numpy.asarray(0.1,   dtype=theanoFloat), name='epsilonhb')# Learning rate for biases of hidden units
         self.weightcost     = theano.shared(numpy.asarray(0.0002,dtype=theanoFloat), name='weightcost')# Weigth punishment
         self.momentum       = theano.shared(numpy.asarray(0.6,   dtype=theanoFloat), name='momentum')  # Momentum rate for default
         self.initialmomentum= theano.shared(numpy.asarray(0.5,   dtype=theanoFloat), name='momentum0') # Initial Mementum
@@ -228,6 +228,21 @@ class rbm_gpu(object):
         self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
         self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
     # END INIT
+
+    def setParams(self, numEpoch, epsilonw=None, epsilonvb=None,
+                    epsilonhb=None, weightcost=None, initialmomentum=None,
+                    finalmomentum=None, activationFunction=None):
+        self.epsilonw.set_value(epsilonw) if epsilonw is not None else None
+        self.epsilonvb.set_value(epsilonvb) if epsilonvb is not None else None
+        self.epsilonhb.set_value(epsilonhb) if epsilonhb is not None else None
+        self.weightcost.set_value(weightcost) if weightcost is not None else None
+        self.initialmomentum.set_value(initialmomentum) if initialmomentum is not None else None
+        self.finalmomentum.set_value(finalmomentum) if finalmomentum is not None else None
+        self.maxEpoch=numEpoch # no puede ser none
+        # TODO
+        self.activationFunction = Sigmoid()
+
+        return
 
     def plot_weigth(self, weight=None, save=None, path=None):
         """
@@ -667,6 +682,38 @@ class rbm_gpu(object):
 
             return ([self.vishidinc, self.visbiasinc, self.hidbiasinc], updates)
 
+    def updateStatics(self, errorTrn=None, errorVal=None, errorTst=None, freeEnergy=None):
+            self.statistics['errorTraining'].append(errorTrn)
+            self.statistics['errorValidation'].append(errorVal)
+            self.statistics['energyValidation'].append(freeEnergy)
+            return 0
+
+    def plotStatics(self, save=True, path=None):
+        errorTrn = self.statistics['errorTraining']
+        errorVal = self.statistics['errorValidation']
+        freeEner = self.statistics['energyValidation']
+
+        if errorTrn != []:
+            fig1 = self.plot_error(errorTrn, tipo='training', show=False, save=save, path=path)
+        if errorVal != []:
+            fig2 = self.plot_error(errorVal, tipo='validation', show=False, save=save, path=path)
+        if freeEner != []:
+            fig3 = self.plot_error(freeEner, tipo='validation', show=False, save=save, path=path)
+
+        #fig = plt.figure('Statics').clear()
+        assert False
+        """
+        # Two subplots, the axes array is 1-d
+        f, axarr = plt.subplots(3, sharex=True)
+        axarr[0].plot(x, y)
+        axarr[0].set_title('Sharing X axis')
+        axarr[1].scatter(x, y)
+        # Fine-tune figure; hide x ticks for top plots and y ticks for right plots
+        plt.setp([a.get_xticklabels() for a in axarr[0, :]], visible=False)
+        plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
+        """
+        return
+
     def train(self, data, miniBatchSize=100, validationData=None):
         print("Training an RBM, with | {} | visibles neurons and | {} | hidden neurons".format(self.n_visible, self.n_hidden))
         print("Data set size for Restricted Boltzmann Machine", len(data))
@@ -777,9 +824,11 @@ class rbm_gpu(object):
                 energiaValidation = energiaValidation - energiaValidation1
 
             # los agrego al diccionario de estadisticas
-            self.statistics['errorTraining'].append(_errorTrn.get_value())
-            self.statistics['errorValidation'].append(errorValidation)
-            self.statistics['energyValidation'].append(energiaValidation)
+            self.updateStatics(errorTrn=_errorTrn.get_value(), errorVal=errorValidation, freeEnergy=energiaValidation)
+
+            #self.statistics['errorTraining'].append(_errorTrn.get_value())
+            #self.statistics['errorValidation'].append(errorValidation)
+            #self.statistics['energyValidation'].append(energiaValidation)
         # END epcoh
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
 

@@ -39,12 +39,56 @@ theanoFloat  = theano.config.floatX
 # parte de las rbm
 from cupydle.dnn.rbm_gpu import rbm_gpu
 
+from cupydle.dnn.utils import save
+from cupydle.dnn.utils import load as load_utils
 
+verbose = False
+
+class rbmParams(object):
+    # sirve para guardar el estado nomas
+    def __init__(self,
+                n_visible,
+                n_hidden,
+                numEpoch,
+                batchSize,
+                epsilonw,        # Learning rate for weights
+                epsilonvb=None,  # Learning rate for biases of visible units
+                epsilonhb=None,  # Learning rate for biases of hidden units
+                weightcost=None, # Weigth punishment
+                initialmomentum=None,
+                finalmomentum=None):
+        self.n_visible=n_visible
+        self.n_hidden=n_hidden
+        self.numEpoch=numEpoch
+        self.epsilonw=epsilonw
+        self.epsilonvb=epsilonvb
+        self.epsilonhb=epsilonhb
+        self.weightcost=weightcost
+        self.initialmomentum=initialmomentum
+        self.finalmomentum=finalmomentum
+        self.batchSize=batchSize
+
+        return
+
+    def __str__(self):
+        print("Numero de neuronas visibles:",self.n_visible)
+        print("Numero de neuronas ocultas:",self.n_hidden)
+        print("Numero de epocas:",self.numEpoch)
+        print("Tasa de aprendizaje para los pesos:",self.epsilonw)
+        print("Tasa de aprendizaje para las unidades visibles",self.epsilonvb)
+        print("Tasa de aprendizaje para las unidades ocultas:",self.epsilonhb)
+        print("Castigo pesos:",self.weightcost)
+        print("Tasa de momento inicial:",self.initialmomentum)
+        print("Tasa de momento final:",self.finalmomentum)
+        print("Tamanio del batch:",self.batchSize)
+        return str("")
+
+    #def __call__(self):
+    #    return
 
 class dbn(object):
 
-    def __init__(self, numpy_rng=None, theano_rng=None, n_ins=784,
-                 hidden_layers_sizes=[500, 100], n_outs=None, name=None):
+    def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None):
         """This class is made to support a variable number of layers.
 
         :type numpy_rng: numpy.random.RandomState
@@ -70,12 +114,7 @@ class dbn(object):
         """
         self.params = []
 
-        # hidden units
-        self.hidden_layers_sizes = [500,100]
-
-        self.n_layers = len(self.hidden_layers_sizes)
-
-        assert self.n_layers > 0, "No hay nada que computar"
+        self.n_layers = 0
 
         if not numpy_rng:
             numpy_rng = numpy.random.RandomState(1234)
@@ -89,18 +128,47 @@ class dbn(object):
         self.x = theano.tensor.matrix('samples')  # the data is presented as rasterized images
         self.y = theano.tensor.ivector('labels')  # the labels are presented as 1D vector
                                                   # of [int] labels
-
-        self.weights = []
         self.layers = []
-
-        self.n_ins = n_ins
 
         if name is None:
             name="dbnTest"
         self.name = name
 
+        self.numpy_rng = numpy_rng
+        self.theano_rng = theano_rng
 
-    def train(self, dataTrn, dataVal, path):
+    def addLayer(self,
+                n_visible,
+                n_hidden,
+                numEpoch,
+                batchSize,
+                epsilonw,        # Learning rate for weights
+                epsilonvb=None,  # Learning rate for biases of visible units
+                epsilonhb=None,  # Learning rate for biases of hidden units
+                weightcost=None, # Weigth punishment
+                initialmomentum=None,
+                finalmomentum=None):
+        # agrego una capa de rbm a la dbn, con los parametros que le paso
+        self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
+                                    numEpoch=numEpoch, batchSize=batchSize,
+                                    epsilonw=epsilonw, epsilonvb=epsilonvb,
+                                    epsilonhb=epsilonhb, weightcost=weightcost,
+                                    initialmomentum=initialmomentum, finalmomentum=finalmomentum))
+        self.n_layers += 1
+
+        return
+
+    def train(self, dataTrn, dataVal, path='./'):
+        """
+        :type dataTrn: narray
+        :param dataTrn: datos de entrenamiento
+
+        :type dataVal: narray
+        :param dataTrn: datos de validacion
+
+        :type path: string
+        :param path: directorio donde almacenar los resultados, archivos
+        """
         # The DBN is an MLP, for which all weights of intermediate
         # layers are shared with a different RBM.  We will first
         # construct the DBN as a deep multilayer perceptron, and when
@@ -110,20 +178,10 @@ class dbn(object):
         # weights of the MLP as well) During finetuning we will finish
         # training the DBN by doing stochastic gradient descent on the
         # MLP.
-
+        assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
 
         for i in range(self.n_layers):
-            # construct the sigmoidal layer
-
-            # the size of the input is either the number of hidden
-            # units of the layer below or the input size if we are on
-            # the first layer
-            if i == 0:
-                input_size = self.n_ins
-            else:
-                input_size = self.hidden_layers_sizes[i - 1]
-
             # the input to this layer is either the activation of the
             # hidden layer below or the input of the DBN if you are on
             # the first layer
@@ -132,18 +190,27 @@ class dbn(object):
             else:
                 layer_input = self.layers[-1]
 
-
             # Construct an RBM that shared weights with this layer
-            rbm_layer = rbm_gpu(n_visible=input_size, n_hidden=self.hidden_layers_sizes[i])
+            rbm_layer = rbm_gpu(n_visible=self.params[i].n_visible,
+                                n_hidden=self.params[i].n_hidden)
+
+            # configuro la capa, la rbm
+            rbm_layer.setParams(numEpoch =          self.params[i].numEpoch,
+                                epsilonw =          self.params[i].epsilonw,
+                                epsilonvb =         self.params[i].epsilonvb,
+                                epsilonhb =         self.params[i].epsilonhb,
+                                weightcost =        self.params[i].weightcost,
+                                initialmomentum =   self.params[i].initialmomentum,
+                                finalmomentum =     self.params[i].finalmomentum,
+                                activationFunction =None)
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            rbm_layer.maxEpoch = 15
-            rbm_layer.train(data=layer_input,
-                            miniBatchSize=50,
-                            validationData=dataVal)
+            rbm_layer.train(data =          layer_input,
+                            miniBatchSize = self.params[i].batchSize,
+                            validationData =dataVal)
 
-            print("Guardando los pesos..")
+            print("Guardando la capa..") if verbose else None
             filename = path + self.name + "_capa" + str(i+1) + ".pgz"
             rbm_layer.save(filename, absolutName=True)
 
@@ -152,20 +219,63 @@ class dbn(object):
             [_, hiddenActPos, _, _] = rbm_layer.sampler(layer_input)
             [_, dataVal, _, _] = rbm_layer.sampler(dataVal)
 
-            print("Guardando las muestras para la siguiente capa..")
-            filename_pesos = path + self.name + "_capaPesos" + str(i+1)
-            import pickle
-            import gzip # gzip
-            with gzip.GzipFile(filename_pesos + '.pgz', 'w') as f:
-                pickle.dump(hiddenActPos, f)
-                f.close()
+            print("Guardando las muestras para la siguiente capa..") if verbose else None
+            filename_samples = path + self.name + "_capaSample" + str(i+1)
+            save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
+
+            # guardo la salida de la capa para la proxima iteracion
             self.layers.append(hiddenActPos)
+
             del rbm_layer
         # FIN FOR
-
-        print("Terminado")
-        return 1
+        return
     # FIN TRAIN
+
+    def save2(self, filename, compression='zip'):
+        """
+        guarda la dbn, algunos datos para poder levantarla
+        """
+        datos = {"name":self.name,
+                    "layers":self.layers,
+                    "n_layers":self.n_layers,
+                    "params":self.params,
+                    "numpy_rng":self.numpy_rng,
+                    "theano_rng":self.theano_rng}
+        save(objeto=datos, filename=filename, compression=compression)
+        return
+
+    def save(self, filename, compression='zip'):
+        """
+        guarda la dbn, algunos datos para poder levantarla
+        """
+
+        save(objeto=self, filename=filename, compression=compression)
+        return
+
+    @staticmethod
+    def load(filename, compression='zip'):
+        datos = None
+        datos = load_utils(filename=filename, compression=compression)
+        return datos
+
+    # redefino
+    def __str__(self):
+        print("Name:", self.name)
+        print("Cantidad de capas:", self.n_layers)
+        for i in range(0,len(self.params)):
+            print("-[" + str(i+1) + "] :")
+            print(self.params[i])
+        #if self.clasificacion:
+        #    print("DBN para la tarea de clasificacion")
+        #else:
+        #    print("DBN para la tarea reconstruccion")
+        return str("")
+
+    @property
+    def info(self):
+        print("Name:", self.name)
+        print("Cantidad de capas:", self.n_layers)
+        return 0
 
 
 
@@ -200,45 +310,67 @@ if __name__ == "__main__":
     guardar = args.guardar
     modelName = args.modelo
     #modelName = 'capa1.pgz'
+    verbose = True
 
-    if guardar:
-        # para la prueba...
+    if guardar :
+
         from cupydle.test.mnist.mnist import MNIST
         from cupydle.test.mnist.mnist import open4disk
         from cupydle.test.mnist.mnist import save2disk
 
         # se leen de disco los datos
-        mn = open4disk(filename=dataPath + setName, compression='bzip2')
-        #mn.info                                        # muestra alguna informacion de la base de datos
+        mnData = open4disk(filename=dataPath + setName, compression='bzip2')
+        #mn.info  # muestra alguna informacion de la base de datos
 
         # obtengo todos los subconjuntos
-        train_img,  train_labels= mn.get_training()
-        test_img,   test_labels = mn.get_testing()
-        val_img,    val_labels  = mn.get_validation()
+        train_img,  train_labels= mnData.get_training()
+        test_img,   test_labels = mnData.get_testing()
+        val_img,    val_labels  = mnData.get_validation()
 
-        # umbral para la binarizacion
+        # binarizacion
         threshold = 128
-
-        # parametros de la red
-        n_visible = 784
-        batchSize = 50
-
         binaryTrnData = (train_img>threshold).astype(numpy.float32)
         binaryValData = (val_img>threshold).astype(numpy.float32)
 
-        mi_dbn = dbn(n_ins=n_visible, hidden_layers_sizes=[500,100], name=None)
+        # TODO solo deberia quedar el nombre
+        dbn0 = dbn(name=None)
 
+        # agrego una capa..
+        dbn0.addLayer(n_visible=784,
+                      n_hidden=500,
+                      numEpoch=15,
+                      batchSize=50,
+                      epsilonw=0.1)
+        # otra capa mas
+        dbn0.addLayer(n_visible=500, # coincide con las ocultas de las anteriores
+                      n_hidden=100,
+                      numEpoch=15,
+                      batchSize=50,
+                      epsilonw=0.1)
+
+        # clasificacion
+        dbn0.addLayer(n_visible=100, # coincide con las ocultas de las anteriores
+                      n_hidden=10,
+                      numEpoch=15,
+                      batchSize=50,
+                      epsilonw=0.1)
 
         start = time.time() # inicia el temporizador
-
         #entrena la red
-        mi_dbn.train(dataTrn=binaryTrnData,
-                     dataVal=binaryValData,
-                     path=fullPath)
+        dbn0.train(dataTrn=binaryTrnData,
+                   dataVal=binaryValData,
+                   path=fullPath)
         end = time.time()   # fin del temporizador
         print("Tiempo total: {}".format(timer(start,end)))
 
-    else:
+        dbn0.save(fullPath + "dbnMNIST", compression='zip')
+
+    else: # no guardar, levanto de disco
+
+        miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
+        print(miDBN)
+        print(miDBN.layers[0].shape)
+        assert False
         red = rbm_gpu.load(fullPath + 'dbnTest_capa1.pgz')
         w1=red.w.get_value()
         del red
@@ -351,16 +483,134 @@ if __name__ == "__main__":
             prediccion = net.predict(testing_data2[indice][0])
             real = testing_data2[indice][1]
             print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
-        """
-        Epoch 0 training complete - Error: 76.41 [%]- Tiempo: 105.3323 [s]
-        Epoch 1 training complete - Error: 73.7 [%]- Tiempo: 114.0037 [s]
-        Epoch 2 training complete - Error: 74.6 [%]- Tiempo: 113.7274 [s]
-        Epoch 3 training complete - Error: 49.32 [%]- Tiempo: 125.6869 [s]
-        Epoch 4 training complete - Error: 46.4 [%]- Tiempo: 117.2031 [s]
-        Epoch 5 training complete - Error: 47.78 [%]- Tiempo: 112.594 [s]
-        Epoch 6 training complete - Error: 42.86 [%]- Tiempo: 126.6591 [s]
-        Epoch 7 training complete - Error: 36.1 [%]- Tiempo: 147.8314 [s]
-        Epoch 8 training complete - Error: 36.14 [%]- Tiempo: 149.3755 [s]
-        Epoch 9 training complete - Error: 34.47 [%]- Tiempo: 136.7185 [s]
-        Epoch 10 training complete - Error: 30.33 [%]- Tiempo: 141.6036 [s]
-        """
+
+
+    if False:
+
+
+            red = rbm_gpu.load(fullPath + 'dbnTest_capa1.pgz')
+            w1=red.w.get_value()
+            del red
+
+            # Dependencias Externas
+            from cupydle.dnn.NeuralNetwork import NeuralNetwork
+            from cupydle.test.mnist.mnist import MNIST
+            from cupydle.test.mnist.mnist import open4disk
+            from cupydle.test.mnist.mnist import save2disk
+
+            def label_to_vector(label, n_classes):
+                lab = numpy.zeros((n_classes, 1), dtype=numpy.int8)
+                label = int(label)
+                lab[label] = 1
+                return numpy.array(lab).transpose()
+
+            # Seteo de los parametros
+            capa_entrada    = 784
+            capa_oculta_1   = 500
+            capa_salida     = 10
+            capas           = [capa_entrada, capa_oculta_1, capa_salida]
+
+
+            # se leen de disco los datos
+            mn = open4disk(filename=dataPath + setName, compression='bzip2')
+            #mn.info                                        # muestra alguna informacion de la base de datos
+
+            # obtengo todos los subconjuntos
+            train_img,  train_labels= mn.get_training()
+            test_img,   test_labels = mn.get_testing()
+            val_img,    val_labels  = mn.get_validation()
+
+            # parametros de la red
+            n_visible = 784
+            batchSize = 50
+
+            # umbral para la binarizacion
+            threshold = 128
+            binaryTrnData = (train_img>threshold).astype(numpy.float32)
+            binaryValData = (val_img>threshold).astype(numpy.float32)
+            binaryTstData = (test_img>threshold).astype(numpy.float32)
+
+            y_tr = [label_to_vector(y, 10)[0] for y in train_labels]
+            training_data = [(x, y) for x, y in zip(binaryTrnData, y_tr)]
+
+
+
+
+            print(w1.shape) #784,500
+            # w1 W[(500, 784)]:
+            # w2 W[(10, 500)]:
+            lista_pesos = []
+            lista_pesos.append(w1.transpose())
+
+            # esto es de la ultima capa, la cual no deberia importarme, solo se inicializan las primeras, esta es de clasificacion
+            w_tmp = numpy.asarray(
+                    numpy.random.uniform(low=-numpy.sqrt(6.0 / (500 + 10)),
+                                      high=+numpy.sqrt(6.0 / (500 + 10)),
+                                      size=(500,10)),
+                    dtype=numpy.dtype(float))
+            lista_pesos.append(w_tmp.transpose())
+
+            net = NeuralNetwork(list_layers=capas, clasificacion=True, funcion_error="CROSS_ENTROPY",
+                                funcion_activacion="Sigmoid", w=lista_pesos, b=None)
+
+            y_val = [label_to_vector(y, 10)[0] for y in val_labels]
+            validation_data = [(x, y) for x, y in zip(binaryValData, y_val)]
+
+            y_tst = numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1))
+            testing_data = [(x, y) for x, y in zip(binaryTstData, y_tst)]
+            #testing_data = [(x, y) for x, y in zip(binaryTstData, test_labels)]
+
+
+            print("Training Data size: " + str(len(training_data)))
+            print("--trn:", "x:",training_data[0][0].shape, "y:", training_data[0][1].shape)
+            print("Validating Data size: " + str(len(validation_data)))
+            print("--val:", "x:",validation_data[0][0].shape, "y:", validation_data[0][1].shape)
+            print("Testing Data size: " + str(len(testing_data)))
+            print("--tst:", "x:",testing_data[0][0].shape, "y:", testing_data[0][1].shape)
+
+            training_data2 =    [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels, dtype=float), (len(train_labels), 1)))]
+            validation_data2 =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels, dtype=float), (len(val_labels), 1)))]
+            testing_data2 =     [(x, y) for x, y in zip(binaryTstData, numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1)))]
+
+            import random
+            """
+            for i in range(0,10):
+                indice = random.randint(0,len(testing_data2))
+                prediccion = net.predict(testing_data2[indice][0])
+                real = testing_data2[indice][1]
+                print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+
+            #
+            """
+            print("Entrenando...")
+            net.fit(train=training_data2, valid=validation_data2, test=testing_data2, batch_size=50, epocas=25, tasa_apren=0.2, momentum=0.1)
+            """
+
+            for i in range(0,10):
+                indice = random.randint(0,len(testing_data2))
+                prediccion = net.predict(testing_data2[indice][0])
+                real = testing_data2[indice][1]
+                print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+            net.save(fullPath + 'mnist_demo_dbn')
+            """
+            from cupydle.dnn.NeuralNetwork import load as Nload
+            net = Nload(fullPath + 'mnist_demo_dbn.cupydle')
+            for i in range(0,10):
+                indice = random.randint(0,len(testing_data2))
+                prediccion = net.predict(testing_data2[indice][0])
+                real = testing_data2[indice][1]
+                print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
+            """
+            Epoch 0 training complete - Error: 76.41 [%]- Tiempo: 105.3323 [s]
+            Epoch 1 training complete - Error: 73.7 [%]- Tiempo: 114.0037 [s]
+            Epoch 2 training complete - Error: 74.6 [%]- Tiempo: 113.7274 [s]
+            Epoch 3 training complete - Error: 49.32 [%]- Tiempo: 125.6869 [s]
+            Epoch 4 training complete - Error: 46.4 [%]- Tiempo: 117.2031 [s]
+            Epoch 5 training complete - Error: 47.78 [%]- Tiempo: 112.594 [s]
+            Epoch 6 training complete - Error: 42.86 [%]- Tiempo: 126.6591 [s]
+            Epoch 7 training complete - Error: 36.1 [%]- Tiempo: 147.8314 [s]
+            Epoch 8 training complete - Error: 36.14 [%]- Tiempo: 149.3755 [s]
+            Epoch 9 training complete - Error: 34.47 [%]- Tiempo: 136.7185 [s]
+            Epoch 10 training complete - Error: 30.33 [%]- Tiempo: 141.6036 [s]
+            """
+

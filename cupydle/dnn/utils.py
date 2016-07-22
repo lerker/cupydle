@@ -246,6 +246,10 @@ def save(objeto, filename=None, compression=None):
         with bz2.BZ2File(filename + '.pbz2', 'w') as f:
             pickle.dump(objeto, f)
             f.close()
+    elif compression == 'zip':
+        with gzip.GzipFile(filename + '.zip', 'wb') as f:
+            pickle.dump(objeto,f)
+            f.close()
     else:
         sys.exit("Parametro de compresion no se reconoce")
     return objeto
@@ -281,6 +285,10 @@ def load(filename=None, compression=None):
             f.close()
     elif compression == 'bzip2':
         with bz2.open(filename + '.pbz2', 'rb') as f:
+            objeto = pickle.load(f)
+            f.close()
+    elif compression == 'zip':
+        with gzip.open(filename + '.zip', 'rb') as f:
             objeto = pickle.load(f)
             f.close()
     else:
