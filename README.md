@@ -56,6 +56,55 @@ Functionality:
   - Visualization of input, filters and samples from the model
   - on-the-fly modifications to trainingset via gaussian noise or translations
 
+GPU Notes
+=========
+In host must be installed nvidia's driver correcpond to device model (e.i Tesla 1060 == _nvidia driver 340_)
+In ubuntu
+- sudo apt-get install nvidia-340 nvidia-340-uvm libcuda1-340
+ - wget http://developer.download.nvidia.com/compute/cuda/6_5/rel/installers/cuda_6.5.14_linux_64.run
+
+Cuda toolkit 6.5 is required as minimum _gcc 4.6_
+controlar las variables de entorno
+export PATH LD_LIBRARY and PYTHONPATH
+
+cat /proc/driver/nvidia/version
+nvidia-smi
+nvcc --version
+
+
+Docker Notes
+============
+# para que cuda funcione se debe correr en el host deviceQuery una vez (carga las dev)
+# crear la imagen (evidentemente no funciona con docker solo desde el dockerfile debido a que los devices no son conectados en el build), crear un contenedor de ubuntu 14.04 y correr linea por linea del dockerfile
+# docker build -t "ubuntu/cuda/theano/python3" .
+## sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu:14.04 /bin/bash
+# correr en modo previligiado y cargar los devices (probar con docker-nvidia o docker solo)
+# sudo nvidia-docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu/cuda/theano/python3 /bin/bash
+
+# contenedores (-q solo ids)
+docker ps -a
+# imagenes
+docker images -a
+# borrar contenedor [ docker rm $(docker ps -aq) ]
+docker rm <id>
+# borrar imagen
+docker rmi <id>
+# crear imagen
+docker build -t "nombre/de/mi/imagen/:tag" /path:dockerfile
+#correr contenedor (iterativo -i, borrar contenedor al salir --rm)
+sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia <imagen_id> /bin/bash
+# _salir sin exit_ ctrl p y luego ctrl q
+# se sale, buscar el id del docker
+docker ps -q
+# commitear los cambios
+docker commit <id> <nombre>
+
+#volver al container
+docker attach <id>
+
+# copiar un archivo del container en ejecucion
+docker cp <id>:absolut/path/to/file destination/path/in/host
+
 
 Authors and Contributors
 ========================

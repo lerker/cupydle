@@ -16,6 +16,11 @@ fi
 
 LOG_FILE="logFile"
 
+if [ -e $LOG_FILE ]
+then
+    rm -f $LOG_FILE
+fi
+
 # Close STDOUT file descriptor
 exec 1<&-
 # Close STDERR FD
