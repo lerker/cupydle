@@ -2,6 +2,7 @@
 
 # TODO
 # explota por falta de memoria, se ve que algo que hice del free energy
+# Error en el NeuralNetwork tipo de error MSE, con CROSSENTROPY funciona
 
 """Implementation of restricted Boltzmann machine on GP-GPU."""
 
@@ -285,9 +286,8 @@ def load_dbn_weigths(path, dbnName):
     """
     capas = []
     for file in glob.glob(path + dbnName + "_capa[0-9].*"):
-        print(file)
+        print("capa:",file)
         capas.append(rbm_gpu.load(str(file)))
-    print(capas[0])
     return capas
 
 if __name__ == "__main__":
@@ -385,6 +385,7 @@ if __name__ == "__main__":
 
         # Dependencias Externas
         from cupydle.dnn.NeuralNetwork import NeuralNetwork
+        from cupydle.dnn.NeuralNetwork import load as netLoad
         from cupydle.test.mnist.mnist import MNIST
         from cupydle.test.mnist.mnist import open4disk
         from cupydle.test.mnist.mnist import save2disk
@@ -395,15 +396,8 @@ if __name__ == "__main__":
             lab[label] = 1
             return numpy.array(lab).transpose()
 
-        # Seteo de los parametros
-        capa_entrada    = 784
-        capa_oculta_1   = 500
-        capa_oculta_2   = 100
-        capa_salida     = 10
-        capas           = [capa_entrada, capa_oculta_1, capa_oculta_2, capa_salida]
 
-
-        # se leen de disco los datos
+        # se leen de disco la base de datos
         mn = open4disk(filename=dataPath + setName, compression='bzip2')
         #mn.info                                        # muestra alguna informacion de la base de datos
 
@@ -411,10 +405,6 @@ if __name__ == "__main__":
         train_img,  train_labels= mn.get_training()
         test_img,   test_labels = mn.get_testing()
         val_img,    val_labels  = mn.get_validation()
-
-        # parametros de la red
-        n_visible = 784
-        batchSize = 50
 
         # umbral para la binarizacion
         threshold = 128
@@ -425,14 +415,6 @@ if __name__ == "__main__":
         y_tr = [label_to_vector(y, 10)[0] for y in train_labels]
         training_data = [(x, y) for x, y in zip(binaryTrnData, y_tr)]
 
-        # cargo los pesos solamente de la red, ojo que deben estar transpuestos
-        # (salida, entrada) por la nomeclatura adoptada en los multilayer perceptrons
-        lista_pesos = [rbm.w.get_value().transpose() for rbm in red_capas]
-
-
-        net = NeuralNetwork(list_layers=capas, clasificacion=True, funcion_error="CROSS_ENTROPY",
-                            funcion_activacion="Sigmoid", w=lista_pesos, b=None)
-
         y_val = [label_to_vector(y, 10)[0] for y in val_labels]
         validation_data = [(x, y) for x, y in zip(binaryValData, y_val)]
 
@@ -440,6 +422,27 @@ if __name__ == "__main__":
         testing_data = [(x, y) for x, y in zip(binaryTstData, y_tst)]
         #testing_data = [(x, y) for x, y in zip(binaryTstData, test_labels)]
 
+
+        # cargo los pesos solamente de la red, ojo que deben estar transpuestos
+        # (salida, entrada) por la nomeclatura adoptada en los multilayer perceptrons
+        lista_pesos = [rbm.w.get_value().transpose() for rbm in red_capas]
+
+        # parametros de la red
+        n_visible = 784
+        batchSize = 50
+        capas_tmp = [pesos.shape[0] for pesos in lista_pesos]
+        capas = [n_visible]
+        capas.extend(capas_tmp)
+#        capas = [784, 500, 100, 10]
+#        print(lista_pesos[0].shape)
+#        print(lista_pesos[1].shape)
+#        print(lista_pesos[2].shape)
+        net = NeuralNetwork(list_layers=capas,
+                            clasificacion=True,
+                            funcion_error="MSE", ##"CROSS_ENTROPY" / "MSE"
+                            funcion_activacion="Sigmoid",
+                            w=lista_pesos,
+                            b=None)
 
         print("Training Data size: " + str(len(training_data)))
         print("--trn:", "x:",training_data[0][0].shape, "y:", training_data[0][1].shape)
@@ -455,12 +458,17 @@ if __name__ == "__main__":
         import random
 
         print("Entrenando...")
-        net.fit(train=training_data2, valid=validation_data2, test=testing_data2, batch_size=20, epocas=100, tasa_apren=0.2, momentum=0.1)
-        net.save(fullPath + 'mnist_demo_dbn')
+        net.fit(train=training_data2,
+                valid=validation_data2,
+                test=testing_data2,
+                batch_size=batchSize,
+                epocas=100,
+                tasa_apren=0.2,
+                momentum=0.1)
+        net.save(fullPath + miDBN.name + '_Train')
 
 
-        from cupydle.dnn.NeuralNetwork import load as Nload
-        net = Nload(fullPath + 'mnist_demo_dbn.cupydle')
+        net = netLoad(fullPath + miDBN.name + '_Train')
         for i in range(0,10):
             indice = random.randint(0,len(testing_data2))
             prediccion = net.predict(testing_data2[indice][0])

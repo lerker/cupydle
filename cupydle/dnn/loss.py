@@ -17,15 +17,37 @@ from cupydle.dnn.utils import vectorize_label
 
 
 def mse(value, target):
+    # TODO aca creo que es el error entre el 'target' y la salida de la red
+    # tener en cuenta que la salida de la red puede ser un softmax, por lo tanto
+    # si son por ejemplo 10 salidas, la correspondiente al softmax es la salida esperada
+    # y que ademas esta etiquetada
+    #
+    # antes..
+    """
     err = (target - value).matrix
     n = err.size
     return np.sum(np.square(err)) / (1.0 * n)
+    """
+    value = value - max(value.matrix)
+    softmax = np.exp(value.matrix) / (sum(np.exp(value.matrix)))
+    value = np.argmax(softmax)
+    error = np.square(target - value)
+    return error.matrix[0][0]
 
 
 def mse_prime(value, target):
+    # TODO ver el mse, la derivada no es la misma forma de calcular
+    """
     err = target - value
     n = err.size
+    print(type(2 * err / (1.0 * n)))
     return 2 * err / (1.0 * n)
+    """
+    value = value - max(value)
+    softmax = np.exp(value) / (sum(np.exp(value)))
+    value = np.argmax(softmax)
+    error = target - value
+    return 2 * error
 
 
 def cross_entropy(a, y):

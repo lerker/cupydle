@@ -153,7 +153,7 @@ class NeuralNetwork(object):
         # 3 ---------------------- Output Error
         # costo de la red
         costo = self.loss(a[-1], y)
-
+        #print("costo", costo, "type", type(costo))
         # error de salida, delta de la ultima salida
         # el error viene dado por el error instantaneo local de cada neurona, originado por el error cuadratico
         # aca va el costo, derivada de la funcion, en MSE => (y_prediccion - real)
@@ -161,6 +161,8 @@ class NeuralNetwork(object):
         #d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), y.shape) # TODO segunda opcion
         d_cost = Neurons(self.loss_d(y.matrix, a[-1].matrix), a[-1].shape) # TODO segunda opcion
         delta = d_cost
+        #print("delta",delta, "type", type(delta))
+        #assert False
 
         # 4 ---------------------- Backward pass
         # desde la ultima capa hasta la primera, la ultima capa es especial el delta, lo calculo afuera
