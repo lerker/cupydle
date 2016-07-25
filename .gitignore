@@ -63,3 +63,6 @@ target/
 
 # IDE
 .idea/
+
+# test y relacionados a ejecucion
+#cupydle/test/mnist/test[0-1]/*
