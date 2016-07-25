@@ -161,7 +161,7 @@ class dbn(object):
 
         return
 
-    def train(self, dataTrn, dataVal, path='./'):
+    def train(self, dataTrn, dataVal, path='./', saveInitialLayer=False):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -209,6 +209,10 @@ class dbn(object):
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
+            if saveInitialLayer:
+                filename = path + self.name + "_capaInicial" + str(i+1) + ".pgz"
+                rbm_layer.save(filename)
+
             rbm_layer.train(data =          layer_input,
                             miniBatchSize = self.params[i].batchSize,
                             validationData =dataVal)

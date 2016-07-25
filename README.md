@@ -65,7 +65,9 @@ In ubuntu
 
 Cuda toolkit 6.5 is required as minimum _gcc 4.6_
 controlar las variables de entorno
-export PATH LD_LIBRARY and PYTHONPATH
+export PATH=/usr/local/cuda/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
 
 cat /proc/driver/nvidia/version
 nvidia-smi
