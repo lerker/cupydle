@@ -282,11 +282,12 @@ class dbn(object):
 
 def load_dbn_weigths(path, dbnName):
     """
-    carga las primeras 10 capas de la dbn segun su nombre y directorio
+    carga las primeras 10 capas de la dbn segun su nombre y directorio (ordenadas por nombre)
+    http://stackoverflow.com/questions/6773584/how-is-pythons-glob-glob-ordered
     """
     capas = []
-    for file in glob.glob(path + dbnName + "_capa[0-9].*"):
-        print("capa:",file)
+    for file in sorted(glob.glob(path + dbnName + "_capa[0-9].*")):
+        print("Cargando capa: ",file) if verbose else None
         capas.append(rbm_gpu.load(str(file)))
     return capas
 
@@ -349,21 +350,21 @@ if __name__ == "__main__":
         # agrego una capa..
         dbn0.addLayer(n_visible=784,
                       n_hidden=500,
-                      numEpoch=15,
-                      batchSize=50,
+                      numEpoch=100,
+                      batchSize=20,
                       epsilonw=0.1)
         # otra capa mas
         dbn0.addLayer(n_visible=500, # coincide con las ocultas de las anteriores
                       n_hidden=100,
-                      numEpoch=15,
-                      batchSize=50,
+                      numEpoch=100,
+                      batchSize=20,
                       epsilonw=0.1)
 
         # clasificacion
         dbn0.addLayer(n_visible=100, # coincide con las ocultas de las anteriores
                       n_hidden=10,
-                      numEpoch=15,
-                      batchSize=50,
+                      numEpoch=100,
+                      batchSize=20,
                       epsilonw=0.1)
 
         start = time.time() # inicia el temporizador
@@ -382,6 +383,7 @@ if __name__ == "__main__":
         print(miDBN)
 
         red_capas = load_dbn_weigths(fullPath, miDBN.name)
+        assert False
 
         # Dependencias Externas
         from cupydle.dnn.NeuralNetwork import NeuralNetwork
@@ -433,10 +435,6 @@ if __name__ == "__main__":
         capas_tmp = [pesos.shape[0] for pesos in lista_pesos]
         capas = [n_visible]
         capas.extend(capas_tmp)
-#        capas = [784, 500, 100, 10]
-#        print(lista_pesos[0].shape)
-#        print(lista_pesos[1].shape)
-#        print(lista_pesos[2].shape)
         net = NeuralNetwork(list_layers=capas,
                             clasificacion=True,
                             funcion_error="MSE", ##"CROSS_ENTROPY" / "MSE"
