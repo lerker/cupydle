@@ -47,14 +47,19 @@ echo -e "      LOG FILE START TIME: " ${GREEN}$(date '+%Y-%m-%d    %H:%M:%S')
 echo -e "${BLUE}============================================================${DEF}"
 
 
+python3 $1 -g
 python3 $1
 
 echo -e "${BLUE}============================================================${DEF}"
 echo -e "      LOG FILE END TIME: " ${GREEN}$(date '+%Y-%m-%d    %H:%M:%S')
 
 echo ""
+# calulo el tiempo transcurrdido total
 duration=$SECONDS
-echo -e "${DEF}It tooks ${RED}$(($duration / 1440 )) ${DEF}hours, ${RED}$(($duration / 60)) ${DEF}minutes and ${RED}$(($duration % 60)) ${DEF}seconds to finish."
+horas=$(($duration/60/60))
+minutos=$(($duration/60 - $horas*60))
+segundos=$(($duration - $horas*60*60 - $minutos*60))
+echo -e "${DEF}It tooks ${RED}$horas ${DEF}hours, ${RED}$minutos ${DEF}minutes and ${RED}$segundos ${DEF}seconds to finish."
 echo ""
 
 # $0 - The name of the Bash script.

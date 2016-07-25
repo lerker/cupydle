@@ -308,10 +308,8 @@ if __name__ == "__main__":
         print('Creando la carpeta para el test en: ',fullPath)
         os.makedirs(fullPath)
 
-    #os.chdir(currentPath+'/cupydle/data/')                  # me muevo al directorio de los datos
     import subprocess
     subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
-    #os.chdir(currentPath)                                   # vuelvo al directorio original
 
     from cupydle.test.mnist.mnist import MNIST
     setName = "mnist"
