@@ -32,6 +32,10 @@ exec 1<>$LOG_FILE
 # Redirect STDERR to STDOUT
 exec 2>&1
 
+# cambiando los permisos necesarios
+chmod a+x gpu.sh
+chmod a+x cupydle/test/mnist/get_data.sh
+
 ######
 RED="\e[31m"
 GREEN="\e[92m"

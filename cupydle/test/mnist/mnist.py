@@ -319,11 +319,11 @@ class MNIST(object):
         # guardar el archivo en el directorio en un unico binario
         dirr = os.getcwd()
         os.chdir(directorio)
-        result = find(nombre+'*',dirr) # pregunto si existe un archivo igual para no recomprimir
+        result = find(nombre+'*',".") # pregunto si existe un archivo igual para no recomprimir
         if not result:
             save2disk(handler, filename=nombre, compression=compresion)
-        else:
-            print('El archivo ' + nombre + ' en ' + directorio + ' ya existe, saliendo...')
+        #else:
+            #print('El archivo ' + nombre + ' en ' + directorio + ' ya existe, saliendo...')
         os.chdir(dirr)
         return 1
 
