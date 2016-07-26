@@ -461,7 +461,7 @@ if __name__ == "__main__":
         net.save(fullPath + miDBN.name + '_Train')
 
 
-        net = netLoad(fullPath + miDBN.name + '_Train')
+        net = netLoad(fullPath + miDBN.name + '_Train.cupydle')
         for i in range(0,10):
             indice = random.randint(0,len(testing_data2))
             prediccion = net.predict(testing_data2[indice][0])
