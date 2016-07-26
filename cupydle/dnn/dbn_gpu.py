@@ -161,7 +161,7 @@ class dbn(object):
 
         return
 
-    def train(self, dataTrn, dataVal, path='./', saveInitialLayer=False):
+    def train(self, dataTrn, dataVal, path='./', saveInitialWeights=False):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -171,16 +171,10 @@ class dbn(object):
 
         :type path: string
         :param path: directorio donde almacenar los resultados, archivos
+
+        :type saveInitialWeigths: boolean
+        :param saveInitialWeights: si se requiere almacenar los pesos iniciales antes de aplicar la rbm
         """
-        # The DBN is an MLP, for which all weights of intermediate
-        # layers are shared with a different RBM.  We will first
-        # construct the DBN as a deep multilayer perceptron, and when
-        # constructing each sigmoidal layer we also construct an RBM
-        # that shares weights with that layer. During pretraining we
-        # will train these RBMs (which will lead to chainging the
-        # weights of the MLP as well) During finetuning we will finish
-        # training the DBN by doing stochastic gradient descent on the
-        # MLP.
         assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
 
@@ -209,7 +203,7 @@ class dbn(object):
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            if saveInitialLayer:
+            if saveInitialWeights:
                 filename = path + self.name + "_capaInicial" + str(i+1) + ".pgz"
                 rbm_layer.save(filename)
 
@@ -385,7 +379,6 @@ if __name__ == "__main__":
         print(miDBN)
 
         red_capas = load_dbn_weigths(fullPath, miDBN.name)
-        assert False
 
         # Dependencias Externas
         from cupydle.dnn.NeuralNetwork import NeuralNetwork
@@ -451,16 +444,17 @@ if __name__ == "__main__":
         print("Testing Data size: " + str(len(testing_data)))
         print("--tst:", "x:",testing_data[0][0].shape, "y:", testing_data[0][1].shape)
 
-        training_data2 =    [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels, dtype=float), (len(train_labels), 1)))]
-        validation_data2 =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels, dtype=float), (len(val_labels), 1)))]
-        testing_data2 =     [(x, y) for x, y in zip(binaryTstData, numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1)))]
+        binaryTrnDataSet =  [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels, dtype=float), (len(train_labels), 1)))]
+        binaryValDataSet =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels, dtype=float), (len(val_labels), 1)))]
+        binaryTstDataSet =  [(x, y) for x, y in zip(binaryTstData, numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1)))]
 
         import random
 
+        assert False
         print("Entrenando...")
-        net.fit(train=training_data2,
-                valid=validation_data2,
-                test=testing_data2,
+        net.fit(train=binaryTrnDataSet,
+                valid=binaryValDataSet,
+                test=binaryTstDataSet,
                 batch_size=batchSize,
                 epocas=100,
                 tasa_apren=0.2,
