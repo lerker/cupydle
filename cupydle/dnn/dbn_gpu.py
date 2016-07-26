@@ -463,9 +463,9 @@ if __name__ == "__main__":
 
         net = netLoad(fullPath + miDBN.name + '_Train.cupydle')
         for i in range(0,10):
-            indice = random.randint(0,len(testing_data2))
-            prediccion = net.predict(testing_data2[indice][0])
-            real = testing_data2[indice][1]
+            indice = random.randint(0,len(binaryTstDataSet))
+            prediccion = net.predict(binaryTstDataSet[indice][0])
+            real = binaryTstDataSet[indice][1]
             print("indice: {} \t Real: {} \t Prediccion: {}".format(indice, real, prediccion))
 
         """
