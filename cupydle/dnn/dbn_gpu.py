@@ -444,13 +444,12 @@ if __name__ == "__main__":
         print("Testing Data size: " + str(len(testing_data)))
         print("--tst:", "x:",testing_data[0][0].shape, "y:", testing_data[0][1].shape)
 
-        binaryTrnDataSet =  [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels, dtype=float), (len(train_labels), 1)))]
-        binaryValDataSet =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels, dtype=float), (len(val_labels), 1)))]
+        binaryTrnDataSet =  [(x, y) for x, y in zip(binaryTrnData, numpy.reshape(numpy.array(train_labels,dtype=float), (len(train_labels), 1)))]
+        binaryValDataSet =  [(x, y) for x, y in zip(binaryValData, numpy.reshape(numpy.array(val_labels,  dtype=float), (len(val_labels), 1)))]
         binaryTstDataSet =  [(x, y) for x, y in zip(binaryTstData, numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1)))]
 
         import random
 
-        assert False
         print("Entrenando...")
         net.fit(train=binaryTrnDataSet,
                 valid=binaryValDataSet,
