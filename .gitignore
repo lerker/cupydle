@@ -67,3 +67,8 @@ target/
 # test y relacionados a ejecucion
 cupydle/test/mnist/test[0-1]/*
 cupydle/data/DB_mnist/*
+*.pkl
+*.gz
+*.zip
+*.png
+
