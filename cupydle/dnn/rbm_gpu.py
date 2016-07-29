@@ -42,6 +42,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 theanoFloat  = theano.config.floatX
 
+from cupydle.dnn.activations import Sigmoid
+
 
 """
 
@@ -56,55 +58,6 @@ def scale_to_unit_interval(ndar, eps=1e-8):
     ndar *= 1.0 / (ndar.max() + eps)
     return ndar
 
-
-"""
-
-
-"""
-
-
-class ActivationFunction(object):
-    # TODO ver esto de generacion de randoms cada vez
-
-    def __getstate__(self):
-        odict = self.__dict__.copy() # copy the dict since we change it
-        #if 'theanoGenerator' in odict:
-        #    del odict['theanoGenerator']
-        return odict
-
-    def __setstate__(self, dict):
-        self.__dict__.update(dict)   # update attributes
-
-    def __getinitargs__():
-        return None
-
-
-class Sigmoid(ActivationFunction):
-    def __init__(self):
-        #self.theanoGenerator = theano.sandbox.cuda.rng_curand.CURAND_RandomStreams(seed=numpy.random.randint(1, 1000))
-        # o la version  MRG31k3p
-        self.theanoGenerator = RandomStreams(seed=numpy.random.randint(1, 1000))
-
-    def activationProbablity(self, x):
-        return theano.tensor.nnet.sigmoid(x)
-
-    def sample(self, x):
-        # TODO por lo visto la binomial no esta implementada en CUDA,
-        # por lo tanto lo lleva a la GPU a los datos
-        # luego calcula la binomial (la cual la trae a la CPU de nuevo los datos)
-        # y por ultimo lleva de nuevo a la GPU los datos calculado
-        ### SOLUCION
-        # deberia calcularse los numeros binomiales ({0,1}) en la GPU sin usar RandomStreams.binomial
-        # si se retorna val y al theano.tensor.nnet.sigmoid(x) se le agrega 'transfer('gpu')' de la
-        # activationProbability en el grafo se da cuenta de la optimizacion
-        ###$
-        # http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
-        # There are 2 other implementations based on MRG31k3p and CURAND.
-        # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
-        val = self.activationProbablity(x)
-        return self.theanoGenerator.binomial(size=val.shape, n=1, p=val, dtype=theanoFloat)
-
-####
 class rbm_gpu(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
@@ -391,10 +344,10 @@ class rbm_gpu(object):
             # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
             # bias (dimension), ya que lo hace automaticamente
             linearSum       = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData   = self.activationFunction.sample(linearSum)
+            hiddenActData   = self.activationFunction.nonDeterminstic(linearSum)
             #negative
             linearSum       = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec   = self.activationFunction.sample(linearSum)
+            visibleActRec   = self.activationFunction.nonDeterminstic(linearSum)
             return [visibleActRec, hiddenActData]
 
         # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
@@ -429,10 +382,10 @@ class rbm_gpu(object):
         if steps == 1:
             # positive
             linearSum    = theano.tensor.dot(vsamples, self.w) + self.hidbiases
-            hiddenActPos = self.activationFunction.sample(linearSum)
+            hiddenActPos = self.activationFunction.nonDeterminstic(linearSum)
             #negative
             linearSum    = theano.tensor.dot(hiddenActPos, self.w.T) + self.visbiases
-            visibleActRec= self.activationFunction.sample(linearSum)
+            visibleActRec= self.activationFunction.nonDeterminstic(linearSum)
 
             errorRec     = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActRec - vsamples, 2),axis=0), axis=0)
 
@@ -466,10 +419,10 @@ class rbm_gpu(object):
         if steps == 1:
             # positive
             linearSum    = theano.tensor.dot(vsamples, self.w) + self.hidbiases
-            hiddenActPos = self.activationFunction.sample(linearSum)
+            hiddenActPos = self.activationFunction.nonDeterminstic(linearSum)
             #negative
             linearSum    = theano.tensor.dot(hiddenActPos, self.w.T) + self.visbiases
-            visibleActNeg= self.activationFunction.sample(linearSum)
+            visibleActNeg= self.activationFunction.nonDeterminstic(linearSum)
 
             errorRec     = theano.tensor.sum(theano.tensor.sum(theano.tensor.pow(visibleActNeg - vsamples, 2),axis=0), axis=0)
 
