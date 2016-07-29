@@ -391,7 +391,7 @@ if __name__ == '__main__':
     classifier = MLP(   task="clasificacion",
                         rng=None)
 
-    #"""
+    """
     currentPath2 = os.getcwd()
     testPath2    = currentPath2 + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
     testFolder2  = 'test1/'
@@ -417,8 +417,9 @@ if __name__ == '__main__':
                         testSet=mnData.get_testing(),
                         batch_size=20)
     assert False
-    #"""
     """
+
+    #"""
     classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
     classifier.addLayer(unitsIn=500, unitsOut=10, classification=True, weight=None, bias=None)
 

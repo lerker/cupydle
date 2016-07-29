@@ -64,6 +64,8 @@ In ubuntu
  - wget http://developer.download.nvidia.com/compute/cuda/6_5/rel/installers/cuda_6.5.14_linux_64.run
 
 Cuda toolkit 6.5 is required as minimum _gcc 4.6_
+./cuda_6.5.14_linux_64.run --silent --driver
+./NVIDIA_CUDA-6.5_Samples/bin/x86_64/linux/release/deviceQuery
 controlar las variables de entorno
 export PATH=/usr/local/cuda/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
