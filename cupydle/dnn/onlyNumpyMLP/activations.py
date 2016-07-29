@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 __author__      = "Ponzoni, Nelson"
 __copyright__   = "Copyright 2015"
@@ -184,8 +182,3 @@ def expectedValueRectified(mean, variance):
 # Approximation of the cdf of a standard normal
 def cdf(x, miu=0.0, variance=1.0):
     return 1.0/2 *  (1.0 + theano.tensor.erf((x - miu)/ theano.tensor.sqrt(2 * variance)))
-
-
-if __name__ == '__main__':
-    assert False, "Este modulo no es ejecutable!!!"
-
