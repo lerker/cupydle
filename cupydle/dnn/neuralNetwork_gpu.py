@@ -144,26 +144,25 @@ class mlp(object):
 
 
     def addLayer(self, unitsIn, unitsOut, classification, activation=Sigmoid(), weight=None, bias=None):
-        if not classification:
-            if not self.capas:
-                # primer capa, es la entrada de mlp, osea x, para iniciar el arbol
-                entrada = self.x
-            else:
-                # la entrada es la salida de la ultima capa hasta ahora...
-                entrada = self.capas[-1].activate()
+        if not self.capas:
+            # primer capa, es la entrada de mlp, osea x, para iniciar el arbol
+            entrada = self.x
+        else:
+            # la entrada es la salida de la ultima capa hasta ahora...
+            entrada = self.capas[-1].activate()
 
+        if not classification:
             capa = Layer(nIn = unitsIn,
                          nOut = unitsOut,
-                         input = self.x,
+                         input = entrada,
                          rng = self.rng,
                          activationFn = activation,
                          W = weight,
                          b = bias)
-
         else:
             capa = classificationLayer(nIn = unitsIn,
                                        nOut = unitsOut,
-                                       input = self.capas[-1].activate(),
+                                       input = entrada,
                                        W = weight,
                                        b = bias)
 
@@ -190,7 +189,6 @@ class mlp(object):
 
         learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001; n_epochs=1000
 
-
         trainX, trainY  = shared_dataset(trainSet)
         validX, validY  = shared_dataset(validSet)
         testX, testY    = shared_dataset(testSet)
@@ -206,7 +204,6 @@ class mlp(object):
                 self.cost +
                 L1_reg * self.L1 +
                 L2_reg * self.L2_sqr)
-
 
         # compute the gradient of cost with respect to theta (sorted in params)
         # the resulting gradients will be stored in a list gparams
@@ -393,24 +390,20 @@ if __name__ == '__main__':
     classifier = mlp(   task="clasificacion",
                         rng=None)
 
-    """
+    #"""
     currentPath2 = os.getcwd()
     testPath2    = currentPath2 + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
     testFolder2  = 'test1/'
     fullPath2 = testPath2 + testFolder2
     red_capas = load_dbn_weigths(fullPath2, 'dbnTest')
-    print(red_capas[0])
     #classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
     #print(classifier.capas[-1].W.get_value().shape)
     #assert False
+
     peso1 = red_capas[0].w.get_value()
     peso2 = red_capas[1].w.get_value()
     peso3 = red_capas[2].w.get_value()
-    print(type(peso1), peso1.shape)
 
-    peso1 = red_capas[0].w
-    peso2 = red_capas[1].w
-    peso3 = red_capas[2].w
     classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=peso1, bias=None)
     classifier.addLayer(unitsIn=500, unitsOut=100, classification=False, activation=Sigmoid(), weight=peso2, bias=None)
     classifier.addLayer(unitsIn=100, unitsOut=10, classification=True, weight=peso3, bias=None)
@@ -420,9 +413,8 @@ if __name__ == '__main__':
                         testSet=mnData.get_testing(),
                         batch_size=20)
     assert False
-
-    """
     #"""
+    """
     classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
     classifier.addLayer(unitsIn=500, unitsOut=10, classification=True, weight=None, bias=None)
 

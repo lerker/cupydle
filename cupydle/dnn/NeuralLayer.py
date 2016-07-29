@@ -35,6 +35,11 @@ class Layer(object):
             if type(self.activationFn) == type(Sigmoid()):
                 W_values *= 4
             W = theano.shared(value=W_values, name='W', borrow=True)
+        else:
+            if type(W).__module__ != numpy.__name__:
+                assert False, "Solo acepto del tipo numpy.ndarray"
+            else:
+                W = theano.shared(value=W, name='W', borrow=True)
 
         if b is None:
             b_values = numpy.zeros((nOut,), dtype=theano.config.floatX)
@@ -64,6 +69,11 @@ class classificationLayer(Layer):
             W_values = numpy.zeros((nIn, nOut), dtype=theano.config.floatX)
             W = theano.shared(value=W_values, name='W', borrow=True)
             del W_values
+        else:
+            if type(W).__module__ != numpy.__name__:
+                assert False, "Solo acepto del tipo numpy.ndarray"
+            else:
+                W = theano.shared(value=W, name='W', borrow=True)
 
         # initialize the biases b as a vector of nOut 0s
         if b is None:
