@@ -107,6 +107,9 @@ class Sigmoid(ActivationFunction):
     def activationProbablity(self, x):
         return self.deterministic(x)
 
+    def __str__(self):
+        return ("Sigmoid Function")
+
 class Rectified(ActivationFunction):
 
   def __init__(self):
