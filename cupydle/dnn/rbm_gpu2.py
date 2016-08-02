@@ -20,7 +20,6 @@ __status__      = "Production"
 # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
 
 # sistema basico
-import time # tiempo requedo por iteracion, se puede eliminar
 import sys  # llamadas al sistema en errores
 from subprocess import call # para ejecutar programas
 import numpy
@@ -48,7 +47,7 @@ from cupydle.dnn.activations import Sigmoid
 
 
 """
-import timeit
+from cupydle.dnn.utils import timer as timer2
 try:
     import PIL.Image as Image
 except ImportError:
@@ -432,7 +431,7 @@ class RBM(object):
         """
         return
 
-    def plot_filters(self, filename, path):
+    def plot_filters(self, filename, path, binary=False):
         # plot los filtros iniciales (sin entrenamiento)
         image = Image.fromarray(
             tile_raster_images(
@@ -442,8 +441,163 @@ class RBM(object):
                 tile_spacing=(1, 1)
             )
         )
+        if binary:
+            gray = image.convert('L')
+            # Let numpy do the heavy lifting for converting pixels to pure black or white
+            bw = numpy.asarray(gray).copy()
+            # Pixel range is 0...255, 256/2 = 128
+            bw[bw < 128] = 0    # Black
+            bw[bw >= 128] = 255 # White
+            # Now we put it back in Pillow/PIL land
+            image = Image.fromarray(bw)
+
         image.save(path + filename)
+
         return 1
+
+    def get_cost_updates(self, persistent=None, k=1):
+        """This functions implements one step of CD-k or PCD-k
+
+        :param lr: learning rate used to train the RBM
+
+        :param persistent: None for CD. For PCD, shared variable
+            containing old state of Gibbs chain. This must be a shared
+            variable of size (batch size, number of hidden units).
+
+        :param k: number of Gibbs steps to do in CD-k/PCD-k
+
+        Returns a proxy for the cost and the updates dictionary. The
+        dictionary contains the update rules for weights and biases but
+        also an update of the shared variable used to store the persistent
+        chain, if one is used.
+
+        """
+        def propup(vis):
+            pre_sigmoid_activation = theano.tensor.dot(vis, self.w) + self.hidbiases
+            return [pre_sigmoid_activation, theano.tensor.nnet.sigmoid(pre_sigmoid_activation)]
+
+        def sample_h_given_v(v0_sample):
+            pre_sigmoid_h1, h1_mean = propup(v0_sample)
+            h1_sample = self.theano_rng.binomial(size=h1_mean.shape,
+                                                 n=1, p=h1_mean,
+                                                 dtype=theanoFloat)
+            return [pre_sigmoid_h1, h1_mean, h1_sample]
+
+        def propdown(hid):
+            pre_sigmoid_activation = theano.tensor.dot(hid, self.w.T) + self.visbiases
+            return [pre_sigmoid_activation, theano.tensor.nnet.sigmoid(pre_sigmoid_activation)]
+
+        def sample_v_given_h(h0_sample):
+            pre_sigmoid_v1, v1_mean = propdown(h0_sample)
+            v1_sample = self.theano_rng.binomial(size=v1_mean.shape,
+                                             n=1, p=v1_mean,
+                                             dtype=theanoFloat)
+            return [pre_sigmoid_v1, v1_mean, v1_sample]
+
+        def gibbs_hvh(h0_sample):
+            pre_sigmoid_v1, v1_mean, v1_sample = sample_v_given_h(h0_sample)
+            pre_sigmoid_h1, h1_mean, h1_sample = sample_h_given_v(v1_sample)
+            return [pre_sigmoid_v1, v1_mean, v1_sample,
+                    pre_sigmoid_h1, h1_mean, h1_sample]
+
+        pre_sigmoid_ph, ph_mean, ph_sample = sample_h_given_v(self.x)
+
+        # decide how to initialize persistent chain:
+        # for CD, we use the newly generate hidden sample
+        # for PCD, we initialize from the old state of the chain
+        if persistent is None:
+            chain_start = ph_sample
+        else:
+            chain_start = persistent
+        # end-snippet-2
+        # perform actual negative phase
+        # in order to implement CD-k/PCD-k we need to scan over the
+        # function that implements one gibbs step k times.
+        # Read Theano tutorial on scan for more information :
+        # http://deeplearning.net/software/theano/library/scan.html
+        # the scan will return the entire Gibbs chain
+        (
+            [
+                pre_sigmoid_nvs,
+                nv_means,
+                nv_samples,
+                pre_sigmoid_nhs,
+                nh_means,
+                nh_samples
+            ],
+            updates
+        ) = theano.scan(
+            gibbs_hvh,
+            # the None are place holders, saying that
+            # chain_start is the initial state corresponding to the
+            # 6th output
+            outputs_info=[None, None, None, None, None, chain_start],
+            n_steps=k,
+            name="gibbs_hvh"
+        )
+        # start-snippet-3
+        # determine gradients on RBM parameters
+        # note that we only need the sample at the end of the chain
+        chain_end = nv_samples[-1]
+
+        cost = theano.tensor.mean(self.free_energy(self.x)) \
+               - theano.tensor.mean(self.free_energy(chain_end))
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
+        # end-snippet-3 start-snippet-4
+        # constructs the update dictionary
+        for gparam, param in zip(gparams, self.internalParams):
+            # make sure that the learning rate is of the right dtype
+            updates[param] = param - gparam * theano.tensor.cast(
+                self.params['epsilonw'],
+                dtype=theanoFloat
+            )
+
+        if persistent:
+            # Note that this works only if persistent is a shared variable
+            updates[persistent] = nh_samples[-1]
+            # pseudo-likelihood is a better proxy for PCD
+            """Stochastic approximation to the pseudo-likelihood"""
+
+            # index of bit i in expression p(x_i | x_{\i})
+            bit_i_idx = theano.shared(value=0, name='bit_i_idx')
+
+            # binarize the input image by rounding to nearest integer
+            xi = theano.tensor.round(self.x)
+
+            # calculate free energy for the given bit configuration
+            fe_xi = self.free_energy(xi)
+
+            # flip bit x_i of matrix xi and preserve all other bits x_{\i}
+            # Equivalent to xi[:,bit_i_idx] = 1-xi[:, bit_i_idx], but assigns
+            # the result to xi_flip, instead of working in place on xi.
+            xi_flip = theano.tensor.set_subtensor(xi[:, bit_i_idx], 1 - xi[:, bit_i_idx])
+
+            # calculate free energy with bit flipped
+            fe_xi_flip = self.free_energy(xi_flip)
+
+            # equivalent to e^(-FE(x_i)) / (e^(-FE(x_i)) + e^(-FE(x_{\i})))
+            cost = theano.tensor.mean(self.n_visible * theano.tensor.log(theano.tensor.nnet.sigmoid(fe_xi_flip -
+                                                                fe_xi)))
+
+            # increment bit_i_idx % number as part of updates
+            updates[bit_i_idx] = (bit_i_idx + 1) % self.n_visible
+
+            monitoring_cost = cost
+        else:
+            # reconstruction cross-entropy is a better proxy for CD
+            monitoring_cost = theano.tensor.mean(
+                                theano.tensor.sum(
+                                    self.x * theano.tensor.log(
+                                        theano.tensor.nnet.sigmoid(pre_sigmoid_nvs[-1]))
+                                            + (1 - self.x)
+                                            * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(pre_sigmoid_nvs[-1])),
+                                axis=1
+                                )
+            )
+
+        return monitoring_cost, updates
+
 
     def train(self, data, miniBatchSize=100, gibbsSteps=1, validationData=None, plotFilters=''):
         print("Training an RBM, with | {} | visibles neurons and | {} | hidden neurons".format(self.n_visible, self.n_hidden))
@@ -459,18 +613,19 @@ class RBM(object):
         # Theano NODES
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
+        """
         ##
         ##  de aca en adelante hasta el ##!!! puede borrarse
         ##
         # compute positive phase
-        def coso(vis):
-            pre_sigmoid_activation = theano.tensor.dot(vis, self.w) + self.hidbiases
-            h1_mean = theano.tensor.nnet.sigmoid(pre_sigmoid_activation)
-            h1_sample = self.theano_rng.binomial(size=h1_mean.shape,
-                                                 n=1, p=h1_mean,
-                                                 dtype=theanoFloat)
-            return pre_sigmoid_activation, h1_mean, h1_sample
+        def oneStep_hvh(hsample):
+            # positive
+            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
+            # bias (dimension), ya que lo hace automaticamente
+            linearSum = theano.tensor.dot(hsample, self.w) + self.hidbiases
+            h1_mean   = self.activationFunction.deterministic(linearSum)
+            h1_sample   = self.activationFunction.nonDeterminstic(linearSum)
+            return [linearSum, h1_mean, linearSum]
 
         pre_sigmoid_ph, ph_mean, ph_sample = coso(self.x)
 
@@ -493,6 +648,7 @@ class RBM(object):
 
         cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
             self.free_energy(chain_end))
+
 
         # build updates...
         updates = self.buildUpdates(updates=updates, cost=cost, constant=chain_end)
@@ -521,6 +677,25 @@ class RBM(object):
             },
             name='train_rbm'
         )
+        """
+        # initialize storage for the persistent chain (state = hidden
+        # layer of chain)
+        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
+                                                     dtype=theanoFloat),
+                                         borrow=True)
+        #cost, updates = self.get_cost_updates(persistent=None, k=steps)
+        cost, updates = self.get_cost_updates(persistent=persistent_chain, k=steps)
+
+        train_rbm = theano.function(
+            [miniBatchIndex, steps],
+            cost,
+            updates=updates,
+            givens={
+                self.x: self.sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+            },
+            name='train_rbm'
+        )
+
 
         if plotFilters is not None:
             # plot los filtros iniciales (sin entrenamiento)
@@ -530,9 +705,6 @@ class RBM(object):
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
         mean_cost = numpy.Inf
-
-        plotting_time = 0.
-        start_time = timeit.default_timer()
 
         for epoch in range(0, self.params['maxepoch']):
             # imprimo algo de informacion sobre la terminal
@@ -560,38 +732,118 @@ class RBM(object):
                                 'freeEnergy': 0.0})
 
             if plotFilters is not None:
-                plotting_start = timeit.default_timer()
                 self.plot_filters(filename='filters_at_epoch_{}.pdf'.format(epoch),
                                   path=plotFilters)
-                plotting_stop = timeit.default_timer()
-                plotting_time += (plotting_stop - plotting_start)
+
             # END SET
         # END epcoh
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
 
-        end_time = timeit.default_timer()
-        pretraining_time = (end_time - start_time) - plotting_time
-
-        #print ('Tiempo de Entrenamiento: {:<6.3}'.format(pretraining_time / 60.))
-
         #print(self.statistics)
         return 1
 
-    def sampleo(self):
-        #################################
-        #     Sampling from the RBM     #
-        #################################
+    def sampleo(self, data, labels=None, chains=20, samples=10, binary=True):
+        #chains = 20 # cantidad de ejemplos a comenzar
+        #samples = 10 # numero de ejemplos a imprimir en cada cadena
         # find out the number of test samples
-        number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
+
+        data  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='DataSample')
+        number_of_test_samples = data.get_value(borrow=True).shape[0]
 
         # pick random test examples, with which to initialize the persistent chain
-        test_idx = rng.randint(number_of_test_samples - n_chains)
+        # devuelve un solo ejemplo.. desde [0,...]
+        test_idx = self.numpy_rng.randint(number_of_test_samples - chains)
+
+        # agarro chains de ejemplos desde un random...
         persistent_vis_chain = theano.shared(
-            numpy.asarray(
-                test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
-                dtype=theano.config.floatX
-            )
+                                    numpy.asarray(
+                                        data.get_value(borrow=True)
+                                            [test_idx:test_idx + chains],
+                                        dtype=theanoFloat
+                                    )
         )
+        if labels is not None:
+            lista = range(test_idx, test_idx + chains)
+            print("labels: ", str(labels[lista]))
+
+        plot_every = 1000
+        # define one step of Gibbs sampling (mf = mean-field) define a
+        # function that does `plot_every` steps before returning the
+        # sample for plotting
+
+                # realizar la cadena de markov k veces
+        (   [visibleActRec,
+             _,
+             _,
+             linearSum],
+            updates        ) = self.markovChain_k(plot_every)
+
+        # add to updates the shared variable that takes care of our persistent
+        # chain :.
+        updates.update({persistent_vis_chain: visibleActRec[-1]})
+        # construct the function that implements our persistent chain.
+        # we generate the "mean field" activations for plotting and the actual
+        # samples for reinitializing the state of our persistent chain
+        sample_fn = theano.function(
+            [],
+            [
+                linearSum[-1],
+                visibleActRec[-1]
+            ],
+            updates=updates,
+            givens={self.x: persistent_vis_chain},
+            name='sample_fn'
+        )
+
+        # create a space to store the image for plotting ( we need to leave
+        # room for the tile_spacing as well)
+
+        image_data = numpy.zeros((29 * samples + 1, 29 * chains - 1),
+                                dtype='uint8'
+        )
+        for idx in range(samples):
+            # generate `plot_every` intermediate samples that we discard,
+            # because successive samples in the chain are too correlated
+            vis_mf, vis_sample = sample_fn()
+            print(' ... plotting sample %d' % idx)
+            image_data[29 * idx:29 * idx + 28, :] = tile_raster_images(
+                X=vis_mf,
+                img_shape=(28, 28),
+                tile_shape=(1, chains),
+                tile_spacing=(1, 1)
+            )
+
+        # construct image
+        image = Image.fromarray(image_data)
+
+        filename = "samples_" + str(labels[lista])
+        filename = filename.replace(" ", "_")
+
+        # poner las etiquetas sobre la imagen
+        watermark = False
+        if watermark:
+            from PIL import ImageDraw, ImageFont
+            # get the ImageDraw item for this image
+            draw = ImageDraw.Draw(image)
+            fontsize = 15
+            font = ImageFont.truetype("arial.ttf", fontsize)
+            #fill = (255,255,255) # blanco
+            fill = (255,255,0) # amarillo
+            fill = 255
+            draw.text((0, 0),text=str(labels[lista]),fill=fill,font=font)
+
+        if binary:
+            gray = image.convert('L')
+            # Let numpy do the heavy lifting for converting pixels to pure black or white
+            bw = numpy.asarray(gray).copy()
+            # Pixel range is 0...255, 256/2 = 128
+            bw[bw < 128] = 0    # Black
+            bw[bw >= 128] = 255 # White
+            # Now we put it back in Pillow/PIL land
+            image2 = Image.fromarray(bw)
+            image2.save(filename + '_binary.pdf')
+
+        image.save(filename + '.pdf')
 
         return 1
 
@@ -723,17 +975,6 @@ class RBM(object):
     # END LOAD
 
 
-
-
-
-
-def timer(start,end):
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    return "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
-# END TIMER
-
-
 if __name__ == "__main__":
 
     import os
@@ -796,11 +1037,14 @@ if __name__ == "__main__":
     red.setParams({'epsilonw':0.1})
     red.setParams({'epsilonvb':0.1})
     red.setParams({'epsilonhb':0.1})
-    red.setParams({'maxepoch':5})
     red.setParams({'initialmomentum':0.5})
     red.setParams({'weightcost':0.0002})
+    red.setParams({'maxepoch':1})
 
-    start = time.time() # inicia el temporizador
+
+    T = timer2()
+    inicio = T.tic()
+
     #entrena la red
     #red.train(  data=(train_img>threshold).astype(numpy.float32),   # los datos los binarizo y convierto a float
     #            miniBatchSize=batchSize,
@@ -808,20 +1052,23 @@ if __name__ == "__main__":
 
     red.train(  data=(train_img/255.0).astype(numpy.float32),   # los datos los binarizo y convierto a float
                 miniBatchSize=batchSize,
-                gibbsSteps=1,
+                gibbsSteps=15,
                 validationData=(val_img/255.0).astype(numpy.float32),
                 plotFilters=fullPath)
 
-    end = time.time()   # fin del temporizador
-    print("Tiempo total: {}".format(timer(start,end)))
+    final = T.toc()
+    print("Tiempo total para entrenamiento: {}".format(T.elapsed(inicio, final)))
 
-    red.sampleo()
+    red.sampleo(data=(train_img/255.0).astype(numpy.float32),
+                labels=train_labels)
 
-    """
+
+
+
     print('Guardando el modelo en ...', fullPath + modelName)
-    start = time.time()
+    inicio = T.tic()
     red.save(fullPath + modelName, absolutName=True)
-    end = time.time()
-    print("Tiempo total para guardar: {}".format(timer(start,end)))
-    """
+    final = T.toc()
+    print("Tiempo total para guardar: {}".format(T.elapsed(inicio, final)))
+
     print("FIN")

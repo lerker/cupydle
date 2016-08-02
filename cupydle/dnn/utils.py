@@ -6,6 +6,8 @@ import pickle
 import bz2 # bzip2
 import gzip # gzip
 
+import timeit
+
 __author__ = 'lerker'
 
 
@@ -296,8 +298,51 @@ def load(filename=None, compression=None):
 
     return objeto
 
-def timer(start,end):
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    return "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
-# END TIMER
+class timer(object):
+    '''
+    tipo singleton
+    https://es.wikipedia.org/wiki/Singleton#Python
+    '''
+
+    instance = None
+    inicio = None
+    fin = None
+
+    def __new__(cls, *args, **kargs):
+        if cls.instance is None:
+            cls.instance = object.__new__(cls, *args, **kargs)
+        return cls.instance
+
+    def time(self):
+        return timeit.default_timer()
+
+    def tic(cls):
+        '''
+        retorna una marca del temporizador...
+        se ejecuta dos veces, una al inicio y otra al final...
+        asi se cuenta la diferencia
+        '''
+        # realiza un tic
+        cls.inicio = cls.time()
+        cls.fin = None # lo borro
+        return cls.inicio
+
+
+    def toc(cls):
+        '''
+        '''
+        cls.fin = cls.time()
+        if cls.inicio is None:
+            cls.inicio = cls.fin
+        return cls.fin
+
+    # todo arreglar
+    def elapsed(self, start=inicio, end=fin):
+        if start is None:
+            return ""
+        if end is None:
+            end = self.toc()
+        hours, rem = divmod(end-start, 3600)
+        minutes, seconds = divmod(rem, 60)
+        tiempo = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+        return tiempo

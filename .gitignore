@@ -71,4 +71,5 @@ cupydle/data/DB_mnist/*
 *.gz
 *.zip
 *.png
+*.pdf
 
