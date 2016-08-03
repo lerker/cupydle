@@ -633,12 +633,116 @@ class RBM(object):
 
         return monitoring_cost, updates
 
-
     def train(self, data, miniBatchSize=10, gibbsSteps=1, validationData=None, plotFilters=''):
-        print("Training an RBM, with | {} | visibles neurons and | {} | hidden neurons".format(self.n_visible, self.n_hidden))
-        print("Data set size for Restricted Boltzmann Machine", len(data))
 
-        # convierto todos los datos a una variable shared de theano
+        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
+        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+
+        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
+        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+
+        # para la validacion
+        if validationData is not None:
+            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+
+        # Theano NODES.
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+        steps = theano.tensor.lscalar('steps')
+
+        # realizar la cadena de markov k veces
+        (   [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
+            updates        ) = self.markovChain_k(steps)
+
+        # la cadena finaliza con el ultimo muestreo de gibbs
+        chain_end = visibleActRec[-1]
+
+        # el costo de la red... diferencias de energia libre del inicio al final de la cadena
+        cost = theano.tensor.mean(self.free_energy(self.x)) \
+               - theano.tensor.mean(self.free_energy(chain_end))
+
+        # NO se debe computar el gradiente a traves de las cadena de markov, solo la diferencia entre el primer y ultimo
+        # para ello se deja constante la cadena... o variable mejor dicho
+        #updates = self.buildUpdates(updates=updates, cost=cost, constant=chain_end)
+
+        ###no se que carajo...
+        assert False
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
+        for gparam, param in zip(gparams, self.internalParams):
+            updates[param] = param - gparam * theano.tensor.cast(self.params['epsilonw'],
+                            dtype=theanoFloat)
+
+        monitoring_cost = theano.tensor.mean(
+                                theano.tensor.sum(
+                                    self.x * theano.tensor.log(
+                                        theano.tensor.nnet.sigmoid(linearSumP[-1]))
+                                            + (1 - self.x)
+                                            * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(linearSumP[-1])),
+                                axis=1
+                                )
+        )
+
+        # funcion princial
+        trainer = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost],
+                        updates=updates,
+                        givens={self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]}, ###
+                        name='trainer'
+        )
+
+
+        if plotFilters is not None:
+            # plot los filtros iniciales (sin entrenamiento)
+            self.plot_filters(  filename='filtros_iniciales.pdf',
+                                path=plotFilters)
+
+        # cantidad de indices... para recorrer el set
+        indexCount = int(data.shape[0]/miniBatchSize)
+        mean_cost = numpy.Inf
+
+        for epoch in range(0, self.params['maxepoch']):
+            # imprimo algo de informacion sobre la terminal
+            print(str('Starting Epoch {:>3d} '
+                    + 'of {:>3d}, '
+                    + 'errorTrn:{:>7.5f}, '
+                    + 'errorVal:{:>7.5f}, '
+                    + 'freeEnergy:{:>7.5f}').format(
+                        epoch+1,
+                        self.params['maxepoch'],
+                        mean_cost,
+                        0.0,
+                        0.0),
+                    end='\r')
+
+            mean_cost = []
+            for batch in range(0, indexCount):
+                mean_cost += [trainer(batch, gibbsSteps)]
+
+            mean_cost = numpy.mean(mean_cost)
+
+            self.addStatistics({'errorTraining': mean_cost,
+                                'errorValidating': 0.0,
+                                'errorTesting': 0.0,
+                                'freeEnergy': 0.0})
+
+            if plotFilters is not None:
+                self.plot_filters(filename='filters_at_epoch_{}.pdf'.format(epoch),
+                                  path=plotFilters)
+
+            # END SET
+        # END epcoh
+        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
+
+        #print(self.statistics)
+        return 1
+
+
+    def train2(self, data, miniBatchSize=10, gibbsSteps=1, validationData=None, plotFilters=''):
+
+        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
+        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+
+        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
         sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
 
         # para la validacion
@@ -780,6 +884,13 @@ class RBM(object):
     def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000,
                 patchesDim=(28,28), binary=False):
         """
+        # TODO
+        cambiar el gibbsSteps por una variable como en train...ver que pasa
+
+
+
+
+
         Realiza un 'sampleo' de los datos con los parametros 'aprendidos'
         El proposito de la funcion es ejemplificar como una serie de ejemplos
         se muestrean a traves de la red ejecuntado sucesivas cadenas de markov
