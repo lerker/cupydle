@@ -645,7 +645,7 @@ class RBM(object):
         if validationData is not None:
             sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
 
-        # Theano NODES.
+        # Theano NODES
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
         """
