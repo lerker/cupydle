@@ -634,7 +634,7 @@ class RBM(object):
         return monitoring_cost, updates
 
 
-    def train(self, data, miniBatchSize=100, gibbsSteps=1, validationData=None, plotFilters=''):
+    def train(self, data, miniBatchSize=10, gibbsSteps=1, validationData=None, plotFilters=''):
         print("Training an RBM, with | {} | visibles neurons and | {} | hidden neurons".format(self.n_visible, self.n_hidden))
         print("Data set size for Restricted Boltzmann Machine", len(data))
 
