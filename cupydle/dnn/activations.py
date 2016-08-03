@@ -101,8 +101,8 @@ class Sigmoid(ActivationFunction):
         # http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
         # There are 2 other implementations based on MRG31k3p and CURAND.
         # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
-        val = self.deterministic(x)
-        return self.theanoGenerator.binomial(size=val.shape, n=1, p=val, dtype=theanoFloat)
+        probability = self.deterministic(x)
+        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
 
     def activationProbablity(self, x):
         return self.deterministic(x)

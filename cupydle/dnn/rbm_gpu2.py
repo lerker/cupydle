@@ -372,19 +372,54 @@ class RBM(object):
             # positive
             # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
             # bias (dimension), ya que lo hace automaticamente
-            linearSum       = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData   = self.activationFunction.nonDeterminstic(linearSum)
+            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
+            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
             #negative
-            linearSum       = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec   = self.activationFunction.nonDeterminstic(linearSum)
-            return [visibleActRec, hiddenActData, linearSum]
+            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
+            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
 
         # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
-        ( [visibleActRec,
-           hiddenActData,
-           linearSum],
+        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
           updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [self.x, None, None],
+                                    outputs_info = [self.x, None, None, None, None, None],
+                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                    n_steps      = steps,
+                                    strict       = True,
+                                    name         = 'scan_oneStepCD2')
+
+        # last step, dont sample, only necessary for parameters updates
+        #linearSum2       = theano.tensor.dot(visibleActRec, self.w) + self.hidbiases
+        #hiddenActRec    = self.activationFunction.activationProbablity(linearSum2)
+
+        return ([visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN], updates)
+
+    def markovChain_k2(self, steps):
+        """
+        Ejecuta una cadena de Markov de 'k=steps' pasos
+
+        :param steps: nodo escalar de la cantidad de pasos
+
+        La Cadena de Markov comienza del ejemplo visible, luego se samplea
+        la unidad oculta, el siguiente paso es samplear las unidades visibles
+        a partir de la oculta (reconstruccion)
+        """
+        # un paso de CD es V->H->V
+        def oneStep(vsample, wG, vbiasG, hbiasG):
+            # positive
+            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
+            # bias (dimension), ya que lo hace automaticamente
+            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
+            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            #negative
+            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
+            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
+
+        # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
+        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
+          updates) = theano.scan(   fn           = oneStep,
+                                    outputs_info = [self.x, None, None, None, None, None],
                                     non_sequences= [self.w, self.visbiases, self.hidbiases],
                                     n_steps      = steps,
                                     strict       = True,
@@ -394,7 +429,7 @@ class RBM(object):
         linearSum2       = theano.tensor.dot(visibleActRec, self.w) + self.hidbiases
         hiddenActRec    = self.activationFunction.activationProbablity(linearSum2)
 
-        return ([visibleActRec, hiddenActData, hiddenActRec, linearSum], updates)
+        return ([visibleActRec, hiddenActData, hiddenActRec, linearSumN], updates)
 
 
 
@@ -604,11 +639,11 @@ class RBM(object):
         print("Data set size for Restricted Boltzmann Machine", len(data))
 
         # convierto todos los datos a una variable shared de theano
-        self.sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
 
         # para la validacion
         if validationData is not None:
-            self.sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
 
         # Theano NODES
         steps = theano.tensor.iscalar(name='steps')         # CD steps
@@ -673,7 +708,7 @@ class RBM(object):
             monitoring_cost, # cost
             updates=updates,
             givens={
-                self.x: self.sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
             },
             name='train_rbm'
         )
@@ -691,7 +726,7 @@ class RBM(object):
             cost,
             updates=updates,
             givens={
-                self.x: self.sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
             },
             name='train_rbm'
         )
@@ -742,79 +777,98 @@ class RBM(object):
         #print(self.statistics)
         return 1
 
-    def sampleo(self, data, labels=None, chains=20, samples=10, binary=True):
-        #chains = 20 # cantidad de ejemplos a comenzar
-        #samples = 10 # numero de ejemplos a imprimir en cada cadena
-        # find out the number of test samples
+    def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000,
+                patchesDim=(28,28), binary=False):
+        """
+        Realiza un 'sampleo' de los datos con los parametros 'aprendidos'
+        El proposito de la funcion es ejemplificar como una serie de ejemplos
+        se muestrean a traves de la red ejecuntado sucesivas cadenas de markov
+
+        :type data: numpy.narray (sample, data)
+        :param data: conjunto de datos a extraer las muestras
+
+        :type labels: numpy.narray (sample,)
+        :param labels: conjunto de etiquetas que se corresponden a los datos
+
+        :type chains: int
+        :param chains: cantidad de cadenas parallelas de Gibbs de las cuales se muestrea
+
+        :type samples: int
+        :param samples: cantidad de muestras a realizar sobre cada cadena
+
+        :type gibbsSteps: int
+        :param gibssSteps: catidad de pasos de gibbs a ejecutar por cada muestra
+
+        :type patchesDim: tuple ints
+        :param patchesDim: dimesion de los patches 'sampleo' de cada cadena,
+                            (alto, ancho). Para mnist (28,28)
+
+        :type binary: bool
+        :param binary: la imagen de salida debe ser binarizada
+        """
 
         data  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='DataSample')
-        number_of_test_samples = data.get_value(borrow=True).shape[0]
+        n_samples = data.get_value(borrow=True).shape[0]
 
-        # pick random test examples, with which to initialize the persistent chain
-        # devuelve un solo ejemplo.. desde [0,...]
-        test_idx = self.numpy_rng.randint(number_of_test_samples - chains)
+        # seleeciona de forma aleatoria donde comienza a extraer los ejemplos
+        # devuelve un solo indice.. desde [0,..., n - chains]
+        test_idx = self.numpy_rng.randint(n_samples - chains)
 
-        # agarro chains de ejemplos desde un random...
-        persistent_vis_chain = theano.shared(
-                                    numpy.asarray(
-                                        data.get_value(borrow=True)
-                                            [test_idx:test_idx + chains],
-                                        dtype=theanoFloat
-                                    )
+        # inicializacion de la cadena, estado que persiste
+        cadenaFija = theano.shared(
+                        numpy.asarray(data.get_value(borrow=True)
+                                        [test_idx:test_idx + chains],
+                                    dtype=theanoFloat
+                        )
         )
+        # tengo leyenda sobre la imagen?
         if labels is not None:
             lista = range(test_idx, test_idx + chains)
             print("labels: ", str(labels[lista]))
 
-        plot_every = 1000
-        # define one step of Gibbs sampling (mf = mean-field) define a
-        # function that does `plot_every` steps before returning the
-        # sample for plotting
+        # realizar la cadena de markov k veces
+        (   [visibleActRec, # actualiza la cadena
+            _,
+            _,
+            probabilityN,
+            _,
+            _], # linear sum es la que se plotea
+            updates        ) = self.markovChain_k(gibbsSteps)
 
-                # realizar la cadena de markov k veces
-        (   [visibleActRec,
-             _,
-             _,
-             linearSum],
-            updates        ) = self.markovChain_k(plot_every)
+        # cambiar el valor de la cadenaFija al de la reconstruccion de las visibles
+        updates.update({cadenaFija: visibleActRec[-1]})
 
-        # add to updates the shared variable that takes care of our persistent
-        # chain :.
-        updates.update({persistent_vis_chain: visibleActRec[-1]})
-        # construct the function that implements our persistent chain.
-        # we generate the "mean field" activations for plotting and the actual
-        # samples for reinitializing the state of our persistent chain
-        sample_fn = theano.function(
-            [],
-            [
-                linearSum[-1],
-                visibleActRec[-1]
-            ],
-            updates=updates,
-            givens={self.x: persistent_vis_chain},
-            name='sample_fn'
+        # funcion princial
+        muestreo = theano.function(
+                        inputs=[],
+                        outputs=[probabilityN[-1], visibleActRec[-1]],
+                        updates=updates,
+                        givens={self.x: cadenaFija},
+                        name='muestreo'
         )
 
-        # create a space to store the image for plotting ( we need to leave
-        # room for the tile_spacing as well)
-
-        image_data = numpy.zeros((29 * samples + 1, 29 * chains - 1),
-                                dtype='uint8'
-        )
+        # dimensiones de los patches, para el mnist es (28,28)
+        #ancho=28
+        #alto=28
+        alto, ancho = patchesDim
+        imageResults = numpy.zeros(((alto+1) * samples + 1, (ancho+1) * chains - 1),
+                            dtype='uint8')
         for idx in range(samples):
-            # generate `plot_every` intermediate samples that we discard,
-            # because successive samples in the chain are too correlated
-            vis_mf, vis_sample = sample_fn()
-            print(' ... plotting sample %d' % idx)
-            image_data[29 * idx:29 * idx + 28, :] = tile_raster_images(
-                X=vis_mf,
-                img_shape=(28, 28),
-                tile_shape=(1, chains),
-                tile_spacing=(1, 1)
-            )
+            #genero muestras y visualizo cada gibssSteps, ya que las muestras intermedias
+            # estan muy correlacionadas, se visializa la probabilidad de activacion de
+            # las unidades ocultas (NO la muestra binomial)
+            probabilityN, _ = muestreo()
+
+            print(' ... plotting sample {}'.format(idx))
+            imageResults[(alto+1) * idx:(ancho+1) * idx + ancho, :] \
+                = tile_raster_images(X=probabilityN,
+                                    img_shape=(alto, ancho),
+                                    tile_shape=(1, chains),
+                                    tile_spacing=(1, 1)
+                )
 
         # construct image
-        image = Image.fromarray(image_data)
+        image = Image.fromarray(imageResults)
 
         filename = "samples_" + str(labels[lista])
         filename = filename.replace(" ", "_")
@@ -955,13 +1009,22 @@ class RBM(object):
     @staticmethod
     def load(filename=None, method='simple', compression=None):
         """
-        funcion que importa desde disco una rbm, lo importante es que
-        si el parametro 'method' es 'simple', se levanta el archivo como cuarquier
-        clase guardada con pickle, comprimida o no.
-        Si el parametro 'method' es 'theano' levanta el archivo como si se hibiera
-        guardado con las funciones de theano. ver
-        # http://deeplearning.net/software/theano/tutorial/loading_and_saving.html
-        hay que hacer un par de modificaciones aun
+        Carga desde archivo un objeto RBM guardado. Se distinguen los metodos
+        de guardado, pickle simple o theano.
+
+        :type filename: string
+        :param filename: ruta completa al archivo donde se aloja la RBM
+
+        :type method: string
+        :param method: si es 'simple' se carga el objeto con los metodos estandar
+                        para pickle, si es 'theano' se carga con las funciones
+                        correspondientes
+
+        :type compression: string
+        :param compression: si es None se infiere la compresion segun 'filename'
+                            valores posibles 'zip', 'pgz' 'bzp2'
+
+        url: http://deeplearning.net/software/theano/tutorial/loading_and_saving.html
         # TODO
         """
         objeto = None
@@ -1023,9 +1086,6 @@ if __name__ == "__main__":
     test_img,   test_labels = mn.get_testing()
     val_img,    val_labels  = mn.get_validation()
 
-    # umbral para la binarizacion
-    threshold = 128
-
     # parametros de la red
     n_visible = 784
     n_hidden  = 500
@@ -1045,14 +1105,9 @@ if __name__ == "__main__":
     T = timer2()
     inicio = T.tic()
 
-    #entrena la red
-    #red.train(  data=(train_img>threshold).astype(numpy.float32),   # los datos los binarizo y convierto a float
-    #            miniBatchSize=batchSize,
-    #            validationData=(val_img>threshold).astype(numpy.float32))
-
     red.train(  data=(train_img/255.0).astype(numpy.float32),   # los datos los binarizo y convierto a float
                 miniBatchSize=batchSize,
-                gibbsSteps=15,
+                gibbsSteps=1,
                 validationData=(val_img/255.0).astype(numpy.float32),
                 plotFilters=fullPath)
 
@@ -1070,5 +1125,12 @@ if __name__ == "__main__":
     red.save(fullPath + modelName, absolutName=True)
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.elapsed(inicio, final)))
+
+    red2 = RBM.load(fullPath + "coso.pgz")
+
+    if numpy.allclose(red.w.get_value(), red2.w.get_value()):
+        assert False
+    else:
+        print("no son iguales")
 
     print("FIN")
