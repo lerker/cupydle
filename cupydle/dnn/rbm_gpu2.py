@@ -357,7 +357,7 @@ class RBM(object):
 
         return plt
 
-    def markovChain_k(self, steps):
+    def markovChain(self, steps):
         """
         Ejecuta una cadena de Markov de 'k=steps' pasos
 
@@ -386,52 +386,8 @@ class RBM(object):
                                     non_sequences= [self.w, self.visbiases, self.hidbiases],
                                     n_steps      = steps,
                                     strict       = True,
-                                    name         = 'scan_oneStepCD2')
-
-        # last step, dont sample, only necessary for parameters updates
-        #linearSum2       = theano.tensor.dot(visibleActRec, self.w) + self.hidbiases
-        #hiddenActRec    = self.activationFunction.activationProbablity(linearSum2)
-
-        return ([visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN], updates)
-
-    def markovChain_k2(self, steps):
-        """
-        Ejecuta una cadena de Markov de 'k=steps' pasos
-
-        :param steps: nodo escalar de la cantidad de pasos
-
-        La Cadena de Markov comienza del ejemplo visible, luego se samplea
-        la unidad oculta, el siguiente paso es samplear las unidades visibles
-        a partir de la oculta (reconstruccion)
-        """
-        # un paso de CD es V->H->V
-        def oneStep(vsample, wG, vbiasG, hbiasG):
-            # positive
-            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
-            # bias (dimension), ya que lo hace automaticamente
-            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
-            #negative
-            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
-            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
-
-        # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
-        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
-          updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [self.x, None, None, None, None, None],
-                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
-                                    n_steps      = steps,
-                                    strict       = True,
-                                    name         = 'scan_oneStepCD2')
-
-        # last step, dont sample, only necessary for parameters updates
-        linearSum2       = theano.tensor.dot(visibleActRec, self.w) + self.hidbiases
-        hiddenActRec    = self.activationFunction.activationProbablity(linearSum2)
-
-        return ([visibleActRec, hiddenActData, hiddenActRec, linearSumN], updates)
-
-
+                                    name         = 'scan_oneStepMarkovVHV')
+        return ([visibleActRec[-1], hiddenActData[-1], probabilityP[-1], probabilityN[-1], linearSumP[-1], linearSumN[-1]], updates)
 
     def free_energy(self, vsample):
         ''' Function to compute the free energy '''
@@ -633,7 +589,167 @@ class RBM(object):
 
         return monitoring_cost, updates
 
-    def train(self, data, miniBatchSize=10, gibbsSteps=1, validationData=None, plotFilters=''):
+    def pseudoLikelihoodCost(self, updates=None):
+        # pseudo-likelihood is a better proxy for PCD
+        """Stochastic approximation to the pseudo-likelihood"""
+
+        # index of bit i in expression p(x_i | x_{\i})
+        bit_i_idx = theano.shared(value=0, name='bit_i_idx')
+
+        # binarize the input image by rounding to nearest integer
+        xi = theano.tensor.round(self.x)
+
+        # calculate free energy for the given bit configuration
+        fe_xi = self.free_energy(xi)
+
+        # flip bit x_i of matrix xi and preserve all other bits x_{\i}
+        # Equivalent to xi[:,bit_i_idx] = 1-xi[:, bit_i_idx], but assigns
+        # the result to xi_flip, instead of working in place on xi.
+        xi_flip = theano.tensor.set_subtensor(xi[:, bit_i_idx], 1 - xi[:, bit_i_idx])
+
+        # calculate free energy with bit flipped
+        fe_xi_flip = self.free_energy(xi_flip)
+
+        # equivalent to e^(-FE(x_i)) / (e^(-FE(x_i)) + e^(-FE(x_{\i})))
+        cost = theano.tensor.mean(self.n_visible \
+             * theano.tensor.log(theano.tensor.nnet.sigmoid(fe_xi_flip
+                                                            - fe_xi)))
+
+        # increment bit_i_idx % number as part of updates
+        updates[bit_i_idx] = (bit_i_idx + 1) % self.n_visible
+
+        # TODO es necesario retornar las updates?
+        # ni siquiera las utiliza en el algoritmo.. medio inutil pasarla o retornarla
+        return cost
+
+    def PersistentConstrastiveDivergence(self, miniBatchSize, sharedData):
+
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # initialize storage for the persistent chain (state = hidden
+        # layer of chain)
+        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
+                                                     dtype=theanoFloat),
+                                         borrow=True)
+
+        # un paso de CD es H->V->H
+        def oneStep(hsample, wG, vbiasG, hbiasG):
+            #negative
+            linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
+            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            # positive
+            linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
+            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
+
+        ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
+          updates) = theano.scan(   fn           = oneStep,
+                                    outputs_info = [persistent_chain, None, None, None, None, None],
+                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                    n_steps      = steps,
+                                    strict       = True,
+                                    name         = 'scan_oneStepHVH')
+
+
+        chain_end = visibleActRec[-1]
+
+        cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
+            self.free_energy(chain_end))
+
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
+        # constructs the update dictionary
+        for gparam, param in zip(gparams, self.internalParams):
+            # make sure that the learning rate is of the right dtype
+            updates[param] = param - gparam * theano.tensor.cast(
+                self.params['epsilonw'], dtype=theanoFloat
+            )
+
+        # Note that this works only if persistent is a shared variable
+        updates[persistent_chain] = hiddenActData[-1]
+
+
+        monitoring_cost = self.pseudoLikelihoodCost(updates)
+
+        train_rbm = theano.function(
+            [miniBatchIndex, steps],
+            monitoring_cost,
+            updates=updates,
+            givens={
+                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+            },
+            name='train_rbm_pcd'
+        )
+
+        return train_rbm
+
+    def reconstructionCost(self, linearSumN):
+        # reconstruction cross-entropy is a better proxy for CD
+        crossEntropy = theano.tensor.mean(
+            theano.tensor.sum(
+                self.x * theano.tensor.log(theano.tensor.nnet.sigmoid(linearSumN)) +
+                (1 - self.x) * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(linearSumN)),
+                axis=1
+            )
+        )
+        return crossEntropy
+
+    def ConstrastiveDivergence(self, miniBatchSize, sharedData):
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # un paso de CD es V->H->V
+        def oneStep(vsample, wG, vbiasG, hbiasG):
+            # positive
+            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
+            # bias (dimension), ya que lo hace automaticamente
+            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
+            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            #negative
+            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
+            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
+
+        # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
+        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
+          updates) = theano.scan(   fn           = oneStep,
+                                    outputs_info = [self.x, None, None, None, None, None],
+                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                    n_steps      = steps,
+                                    strict       = True,
+                                    name         = 'scan_oneStepVHV')
+
+        chain_end = visibleActRec[-1]
+
+        cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
+            self.free_energy(chain_end))
+
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
+        # constructs the update dictionary
+        for gparam, param in zip(gparams, self.internalParams):
+            # make sure that the learning rate is of the right dtype
+            updates[param] = param - gparam * theano.tensor.cast(
+                self.params['epsilonw'], dtype=theanoFloat
+            )
+
+
+        monitoring_cost = self.reconstructionCost(linearSumN[-1])
+
+        train_rbm = theano.function(
+            [miniBatchIndex, steps],
+            monitoring_cost,
+            updates=updates,
+            givens={
+                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+            },
+            name='train_rbm_cd'
+        )
+
+        return train_rbm
+
+    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters=''):
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
@@ -645,51 +761,13 @@ class RBM(object):
         if validationData is not None:
             sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
 
-        # Theano NODES.
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-        steps = theano.tensor.lscalar('steps')
 
-        # realizar la cadena de markov k veces
-        (   [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
-            updates        ) = self.markovChain_k(steps)
+        trainer = None
 
-        # la cadena finaliza con el ultimo muestreo de gibbs
-        chain_end = visibleActRec[-1]
-
-        # el costo de la red... diferencias de energia libre del inicio al final de la cadena
-        cost = theano.tensor.mean(self.free_energy(self.x)) \
-               - theano.tensor.mean(self.free_energy(chain_end))
-
-        # NO se debe computar el gradiente a traves de las cadena de markov, solo la diferencia entre el primer y ultimo
-        # para ello se deja constante la cadena... o variable mejor dicho
-        #updates = self.buildUpdates(updates=updates, cost=cost, constant=chain_end)
-
-        ###no se que carajo...
-        assert False
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
-        for gparam, param in zip(gparams, self.internalParams):
-            updates[param] = param - gparam * theano.tensor.cast(self.params['epsilonw'],
-                            dtype=theanoFloat)
-
-        monitoring_cost = theano.tensor.mean(
-                                theano.tensor.sum(
-                                    self.x * theano.tensor.log(
-                                        theano.tensor.nnet.sigmoid(linearSumP[-1]))
-                                            + (1 - self.x)
-                                            * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(linearSumP[-1])),
-                                axis=1
-                                )
-        )
-
-        # funcion princial
-        trainer = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost],
-                        updates=updates,
-                        givens={self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]}, ###
-                        name='trainer'
-        )
-
+        if pcd:
+            trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
+        else:
+            trainer = self.ConstrastiveDivergence(miniBatchSize, sharedData)
 
         if plotFilters is not None:
             # plot los filtros iniciales (sin entrenamiento)
@@ -699,6 +777,9 @@ class RBM(object):
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
         mean_cost = numpy.Inf
+        unaLineaPrint = False
+        finLinea='\n'
+        finLinea = '\r' if unaLineaPrint else '\n'
 
         for epoch in range(0, self.params['maxepoch']):
             # imprimo algo de informacion sobre la terminal
@@ -712,7 +793,7 @@ class RBM(object):
                         mean_cost,
                         0.0,
                         0.0),
-                    end='\r')
+                    end=finLinea)
 
             mean_cost = []
             for batch in range(0, indexCount):
@@ -752,71 +833,7 @@ class RBM(object):
         # Theano NODES.
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-        """
-        ##
-        ##  de aca en adelante hasta el ##!!! puede borrarse
-        ##
-        # compute positive phase
-        def oneStep_hvh(hsample):
-            # positive
-            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
-            # bias (dimension), ya que lo hace automaticamente
-            linearSum = theano.tensor.dot(hsample, self.w) + self.hidbiases
-            h1_mean   = self.activationFunction.deterministic(linearSum)
-            h1_sample   = self.activationFunction.nonDeterminstic(linearSum)
-            return [linearSum, h1_mean, linearSum]
 
-        pre_sigmoid_ph, ph_mean, ph_sample = coso(self.x)
-
-        chain_start = ph_sample
-        ##!!!
-        ##!!!
-        ##!!!
-
-
-        # realizar la cadena de markov k veces
-        (   [visibleActRec,
-             _,
-             _,
-             linearSum],
-            updates        ) = self.markovChain_k(steps)
-
-        # determine gradients on RBM parameters
-        # note that we only need the sample at the end of the chain
-        chain_end = visibleActRec[-1]
-
-        cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
-            self.free_energy(chain_end))
-
-
-        # build updates...
-        updates = self.buildUpdates(updates=updates, cost=cost, constant=chain_end)
-
-
-        cross_entropy = theano.tensor.mean(
-                            theano.tensor.sum(
-                                self.x
-                                * theano.tensor.log(theano.tensor.nnet.sigmoid(linearSum[-1]))
-                                + (1 - self.x)
-                                * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(linearSum[-1])),
-                            axis=1
-                            )
-        )
-
-        monitoring_cost = cross_entropy
-
-        # it is ok for a theano function to have no output
-        # the purpose of train_rbm is solely to update the RBM parameters
-        train_rbm = theano.function(
-            [miniBatchIndex, steps],
-            monitoring_cost, # cost
-            updates=updates,
-            givens={
-                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-            },
-            name='train_rbm'
-        )
-        """
         # initialize storage for the persistent chain (state = hidden
         # layer of chain)
         persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
@@ -944,15 +961,15 @@ class RBM(object):
             probabilityN,
             _,
             _], # linear sum es la que se plotea
-            updates        ) = self.markovChain_k(gibbsSteps)
+            updates        ) = self.markovChain(gibbsSteps)
 
         # cambiar el valor de la cadenaFija al de la reconstruccion de las visibles
-        updates.update({cadenaFija: visibleActRec[-1]})
+        updates.update({cadenaFija: visibleActRec})
 
         # funcion princial
         muestreo = theano.function(
                         inputs=[],
-                        outputs=[probabilityN[-1], visibleActRec[-1]],
+                        outputs=[probabilityN, visibleActRec],
                         updates=updates,
                         givens={self.x: cadenaFija},
                         name='muestreo'
@@ -1210,7 +1227,7 @@ if __name__ == "__main__":
     red.setParams({'epsilonhb':0.1})
     red.setParams({'initialmomentum':0.5})
     red.setParams({'weightcost':0.0002})
-    red.setParams({'maxepoch':1})
+    red.setParams({'maxepoch':5})
 
 
     T = timer2()
@@ -1218,6 +1235,7 @@ if __name__ == "__main__":
 
     red.train(  data=(train_img/255.0).astype(numpy.float32),   # los datos los binarizo y convierto a float
                 miniBatchSize=batchSize,
+                pcd=False,
                 gibbsSteps=1,
                 validationData=(val_img/255.0).astype(numpy.float32),
                 plotFilters=fullPath)
