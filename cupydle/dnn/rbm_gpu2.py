@@ -180,6 +180,29 @@ class RBM(object):
         self.params['activationfuntion'] = Sigmoid()
         return 1
 
+    def set_w(self, w):
+        #if isinstance(w, numpy.ndarray):
+        #    self.w.set_value(w)
+        self.w.set_value(w)
+        return 1
+
+    def set_biasVisible(self, bias):
+        self.visbiases.set_value(bias)
+        return 1
+
+    def set_biasOculto(self, bias):
+        self.hidbiases.set_value(bias)
+        return 1
+
+    def get_w(self):
+        return self.w.get_value()
+
+    def get_biasVisible(self):
+        return self.visbiases.get_value()
+
+    def get_biasOculto(self):
+        return self.hidbiases.get_value()
+
     def printParams(self):
         for key, value in self.params.items():
             print('{:>20}: {:<10}'.format(str(key), str(value)))
@@ -199,29 +222,29 @@ class RBM(object):
 
     def _initStatistics(self):
         dic = {}
-        dic['errorTraining'] = 0.0
-        dic['errorValidating'] = 0.0
-        dic['errorTesting'] = 0.0
-        dic['freeEnergy'] = 0.0
+        dic['errorEntrenamiento'] = 0.0
+        dic['errorValidacion'] = 0.0
+        dic['errorTesteo'] = 0.0
+        dic['energiaLibreEntrenamiento'] = 0.0
 
         self.statistics.append(dic)
         return 1
 
-    def addStatistics(self, values):
-        if not isinstance(values, dict):
-            assert False, "necesito un diccionario"
+    def addStatistics(self, estadistico):
+        if not isinstance(estadistico, dict):
+            assert False, str(repr('estadistico') + " debe ser un tipo diccionario")
 
         dic = {}
-        dic['errorTraining'] = 0.0
-        dic['errorValidating'] = 0.0
-        dic['errorTesting'] = 0.0
-        dic['freeEnergy'] = 0.0
+        dic['errorEntrenamiento'] = 0.0
+        dic['errorValidacion'] = 0.0
+        dic['errorTesteo'] = 0.0
+        dic['energiaLibreEntrenamiento'] = 0.0
 
-        for key, val in values.items():
+        for key, val in estadistico.items():
             if key in dic:
-                dic[key] = values[key]
+                dic[key] = estadistico[key]
             else:
-                assert False, "no exite el key" + str(key)
+                assert False, str("No exite el key " + repr(key))
 
         self.statistics.append(dic)
         return
@@ -389,7 +412,7 @@ class RBM(object):
                                     name         = 'scan_oneStepMarkovVHV')
         return ([visibleActRec[-1], hiddenActData[-1], probabilityP[-1], probabilityN[-1], linearSumP[-1], linearSumN[-1]], updates)
 
-    def free_energy(self, vsample):
+    def energiaLibre(self, vsample):
         ''' Function to compute the free energy '''
         wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
         vbias_term = theano.tensor.dot(vsample, self.visbiases)
@@ -446,149 +469,6 @@ class RBM(object):
 
         return 1
 
-    def get_cost_updates(self, persistent=None, k=1):
-        """This functions implements one step of CD-k or PCD-k
-
-        :param lr: learning rate used to train the RBM
-
-        :param persistent: None for CD. For PCD, shared variable
-            containing old state of Gibbs chain. This must be a shared
-            variable of size (batch size, number of hidden units).
-
-        :param k: number of Gibbs steps to do in CD-k/PCD-k
-
-        Returns a proxy for the cost and the updates dictionary. The
-        dictionary contains the update rules for weights and biases but
-        also an update of the shared variable used to store the persistent
-        chain, if one is used.
-
-        """
-        def propup(vis):
-            pre_sigmoid_activation = theano.tensor.dot(vis, self.w) + self.hidbiases
-            return [pre_sigmoid_activation, theano.tensor.nnet.sigmoid(pre_sigmoid_activation)]
-
-        def sample_h_given_v(v0_sample):
-            pre_sigmoid_h1, h1_mean = propup(v0_sample)
-            h1_sample = self.theano_rng.binomial(size=h1_mean.shape,
-                                                 n=1, p=h1_mean,
-                                                 dtype=theanoFloat)
-            return [pre_sigmoid_h1, h1_mean, h1_sample]
-
-        def propdown(hid):
-            pre_sigmoid_activation = theano.tensor.dot(hid, self.w.T) + self.visbiases
-            return [pre_sigmoid_activation, theano.tensor.nnet.sigmoid(pre_sigmoid_activation)]
-
-        def sample_v_given_h(h0_sample):
-            pre_sigmoid_v1, v1_mean = propdown(h0_sample)
-            v1_sample = self.theano_rng.binomial(size=v1_mean.shape,
-                                             n=1, p=v1_mean,
-                                             dtype=theanoFloat)
-            return [pre_sigmoid_v1, v1_mean, v1_sample]
-
-        def gibbs_hvh(h0_sample):
-            pre_sigmoid_v1, v1_mean, v1_sample = sample_v_given_h(h0_sample)
-            pre_sigmoid_h1, h1_mean, h1_sample = sample_h_given_v(v1_sample)
-            return [pre_sigmoid_v1, v1_mean, v1_sample,
-                    pre_sigmoid_h1, h1_mean, h1_sample]
-
-        pre_sigmoid_ph, ph_mean, ph_sample = sample_h_given_v(self.x)
-
-        # decide how to initialize persistent chain:
-        # for CD, we use the newly generate hidden sample
-        # for PCD, we initialize from the old state of the chain
-        if persistent is None:
-            chain_start = ph_sample
-        else:
-            chain_start = persistent
-        # end-snippet-2
-        # perform actual negative phase
-        # in order to implement CD-k/PCD-k we need to scan over the
-        # function that implements one gibbs step k times.
-        # Read Theano tutorial on scan for more information :
-        # http://deeplearning.net/software/theano/library/scan.html
-        # the scan will return the entire Gibbs chain
-        (
-            [
-                pre_sigmoid_nvs,
-                nv_means,
-                nv_samples,
-                pre_sigmoid_nhs,
-                nh_means,
-                nh_samples
-            ],
-            updates
-        ) = theano.scan(
-            gibbs_hvh,
-            # the None are place holders, saying that
-            # chain_start is the initial state corresponding to the
-            # 6th output
-            outputs_info=[None, None, None, None, None, chain_start],
-            n_steps=k,
-            name="gibbs_hvh"
-        )
-        # start-snippet-3
-        # determine gradients on RBM parameters
-        # note that we only need the sample at the end of the chain
-        chain_end = nv_samples[-1]
-
-        cost = theano.tensor.mean(self.free_energy(self.x)) \
-               - theano.tensor.mean(self.free_energy(chain_end))
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
-        # end-snippet-3 start-snippet-4
-        # constructs the update dictionary
-        for gparam, param in zip(gparams, self.internalParams):
-            # make sure that the learning rate is of the right dtype
-            updates[param] = param - gparam * theano.tensor.cast(
-                self.params['epsilonw'],
-                dtype=theanoFloat
-            )
-
-        if persistent:
-            # Note that this works only if persistent is a shared variable
-            updates[persistent] = nh_samples[-1]
-            # pseudo-likelihood is a better proxy for PCD
-            """Stochastic approximation to the pseudo-likelihood"""
-
-            # index of bit i in expression p(x_i | x_{\i})
-            bit_i_idx = theano.shared(value=0, name='bit_i_idx')
-
-            # binarize the input image by rounding to nearest integer
-            xi = theano.tensor.round(self.x)
-
-            # calculate free energy for the given bit configuration
-            fe_xi = self.free_energy(xi)
-
-            # flip bit x_i of matrix xi and preserve all other bits x_{\i}
-            # Equivalent to xi[:,bit_i_idx] = 1-xi[:, bit_i_idx], but assigns
-            # the result to xi_flip, instead of working in place on xi.
-            xi_flip = theano.tensor.set_subtensor(xi[:, bit_i_idx], 1 - xi[:, bit_i_idx])
-
-            # calculate free energy with bit flipped
-            fe_xi_flip = self.free_energy(xi_flip)
-
-            # equivalent to e^(-FE(x_i)) / (e^(-FE(x_i)) + e^(-FE(x_{\i})))
-            cost = theano.tensor.mean(self.n_visible * theano.tensor.log(theano.tensor.nnet.sigmoid(fe_xi_flip -
-                                                                fe_xi)))
-
-            # increment bit_i_idx % number as part of updates
-            updates[bit_i_idx] = (bit_i_idx + 1) % self.n_visible
-
-            monitoring_cost = cost
-        else:
-            # reconstruction cross-entropy is a better proxy for CD
-            monitoring_cost = theano.tensor.mean(
-                                theano.tensor.sum(
-                                    self.x * theano.tensor.log(
-                                        theano.tensor.nnet.sigmoid(pre_sigmoid_nvs[-1]))
-                                            + (1 - self.x)
-                                            * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(pre_sigmoid_nvs[-1])),
-                                axis=1
-                                )
-            )
-
-        return monitoring_cost, updates
-
     def pseudoLikelihoodCost(self, updates=None):
         # pseudo-likelihood is a better proxy for PCD
         """Stochastic approximation to the pseudo-likelihood"""
@@ -600,7 +480,7 @@ class RBM(object):
         xi = theano.tensor.round(self.x)
 
         # calculate free energy for the given bit configuration
-        fe_xi = self.free_energy(xi)
+        fe_xi = self.energiaLibre(xi)
 
         # flip bit x_i of matrix xi and preserve all other bits x_{\i}
         # Equivalent to xi[:,bit_i_idx] = 1-xi[:, bit_i_idx], but assigns
@@ -608,7 +488,7 @@ class RBM(object):
         xi_flip = theano.tensor.set_subtensor(xi[:, bit_i_idx], 1 - xi[:, bit_i_idx])
 
         # calculate free energy with bit flipped
-        fe_xi_flip = self.free_energy(xi_flip)
+        fe_xi_flip = self.energiaLibre(xi_flip)
 
         # equivalent to e^(-FE(x_i)) / (e^(-FE(x_i)) + e^(-FE(x_{\i})))
         cost = theano.tensor.mean(self.n_visible \
@@ -654,8 +534,10 @@ class RBM(object):
 
         chain_end = visibleActRec[-1]
 
-        cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
-            self.free_energy(chain_end))
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
 
         # We must not compute the gradient through the gibbs sampling
         gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
@@ -672,19 +554,49 @@ class RBM(object):
 
         monitoring_cost = self.pseudoLikelihoodCost(updates)
 
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
         train_rbm = theano.function(
-            [miniBatchIndex, steps],
-            monitoring_cost,
-            updates=updates,
-            givens={
-                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-            },
-            name='train_rbm_pcd'
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+                        name='train_rbm_pcd'
         )
 
         return train_rbm
 
     def reconstructionCost(self, linearSumN):
+        """Approximation to the reconstruction error
+
+        Note that this function requires the pre-sigmoid activation as
+        input.  To understand why this is so you need to understand a
+        bit about how Theano works. Whenever you compile a Theano
+        function, the computational graph that you pass as input gets
+        optimized for speed and stability.  This is done by changing
+        several parts of the subgraphs with others.  One such
+        optimization expresses terms of the form log(sigmoid(x)) in
+        terms of softplus.  We need this optimization for the
+        cross-entropy since sigmoid of numbers larger than 30. (or
+        even less then that) turn to 1. and numbers smaller than
+        -30. turn to 0 which in terms will force theano to compute
+        log(0) and therefore we will get either -inf or NaN as
+        cost. If the value is expressed in terms of softplus we do not
+        get this undesirable behaviour. This optimization usually
+        works fine, but here we have a special case. The sigmoid is
+        applied inside the scan op, while the log is
+        outside. Therefore Theano will only see log(scan(..)) instead
+        of log(sigmoid(..)) and will not apply the wanted
+        optimization. We can not go and replace the sigmoid in scan
+        with something else also, because this only needs to be done
+        on the last step. Therefore the easiest and more efficient way
+        is to get also the pre-sigmoid activation as an output of
+        scan, and apply both the log and sigmoid outside scan such
+        that Theano can catch and optimize the expression.
+
+        """
         # reconstruction cross-entropy is a better proxy for CD
         crossEntropy = theano.tensor.mean(
             theano.tensor.sum(
@@ -694,6 +606,17 @@ class RBM(object):
             )
         )
         return crossEntropy
+
+    def reconstructionCost_MSE(self, reconstrucciones):
+        # mean squared error, error cuadratico medio
+
+        mse = theano.tensor.mean(
+                theano.tensor.sum(
+                    theano.tensor.sqr( self.x - reconstrucciones ), axis=1
+                )
+        )
+
+        return mse
 
     def ConstrastiveDivergence(self, miniBatchSize, sharedData):
         steps = theano.tensor.iscalar(name='steps')         # CD steps
@@ -722,8 +645,10 @@ class RBM(object):
 
         chain_end = visibleActRec[-1]
 
-        cost = theano.tensor.mean(self.free_energy(self.x)) - theano.tensor.mean(
-            self.free_energy(chain_end))
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
 
         # We must not compute the gradient through the gibbs sampling
         gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
@@ -737,19 +662,21 @@ class RBM(object):
 
         monitoring_cost = self.reconstructionCost(linearSumN[-1])
 
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
         train_rbm = theano.function(
-            [miniBatchIndex, steps],
-            monitoring_cost,
-            updates=updates,
-            givens={
-                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-            },
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
             name='train_rbm_cd'
         )
 
         return train_rbm
 
-    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters=''):
+    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters='', printCompacto=False):
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
@@ -765,149 +692,116 @@ class RBM(object):
         trainer = None
 
         if pcd:
+            print("Entrenando con Divergencia Contrastiva Persistente.")
             trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
         else:
+            print("Entrenando con Divergencia Contrastiva.")
             trainer = self.ConstrastiveDivergence(miniBatchSize, sharedData)
 
         if plotFilters is not None:
             # plot los filtros iniciales (sin entrenamiento)
-            self.plot_filters(  filename='filtros_iniciales.pdf',
+            self.plot_filters(  filename='filtros_epoca_0.pdf',
                                 path=plotFilters)
 
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
-        mean_cost = numpy.Inf
-        unaLineaPrint = False
+        costo = numpy.Inf
+        mse = numpy.Inf
+        fEnergy = numpy.Inf
         finLinea='\n'
-        finLinea = '\r' if unaLineaPrint else '\n'
+        finLinea = '\r' if printCompacto else '\n'
 
         for epoch in range(0, self.params['maxepoch']):
             # imprimo algo de informacion sobre la terminal
-            print(str('Starting Epoch {:>3d} '
-                    + 'of {:>3d}, '
-                    + 'errorTrn:{:>7.5f}, '
-                    + 'errorVal:{:>7.5f}, '
-                    + 'freeEnergy:{:>7.5f}').format(
+            print(str('Epoca {:>3d} '
+                    + 'de {:>3d}, '
+                    + 'error<TrnSet>:{:> 8.5f}, '
+                    + 'MSE<ejemplo> :{:> 8.5f}, '
+                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
                         epoch+1,
                         self.params['maxepoch'],
-                        mean_cost,
-                        0.0,
-                        0.0),
+                        costo,
+                        mse,
+                        fEnergy),
                     end=finLinea)
 
-            mean_cost = []
+            costo = []
+            mse = []
+            fEnergy = []
             for batch in range(0, indexCount):
-                mean_cost += [trainer(batch, gibbsSteps)]
+                # salida[monitoring_cost, mse, deltafreeEnergy]
+                salida = trainer(batch, gibbsSteps)
 
-            mean_cost = numpy.mean(mean_cost)
+                costo.append(salida[0])
+                mse.append(salida[1])
+                fEnergy.append(salida[2])
 
-            self.addStatistics({'errorTraining': mean_cost,
-                                'errorValidating': 0.0,
-                                'errorTesting': 0.0,
-                                'freeEnergy': 0.0})
+
+            costo = numpy.mean(costo)
+            mse = numpy.mean(mse)
+            fEnergy = numpy.mean(fEnergy)
+
+            #TODO mal guardado
+            self.addStatistics({'errorEntrenamiento': costo,
+                                'errorValidacion': mse,
+                                'errorTesteo': 0.0,
+                                'energiaLibreEntrenamiento': fEnergy})
 
             if plotFilters is not None:
-                self.plot_filters(filename='filters_at_epoch_{}.pdf'.format(epoch),
+                self.plot_filters(filename='filtros_epoca_{}.pdf'.format(epoch+1),
                                   path=plotFilters)
 
             # END SET
         # END epcoh
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
 
-        #print(self.statistics)
+        print(self.statistics)
         return 1
 
+    def reconstruccion(self, vsample, gibbsSteps=1):
+        """
+        realiza la reconstruccion a partir de un ejemplo, efectuando una cadena
+        de markov con x pasos de gibbs sobre la misma
 
-    def train2(self, data, miniBatchSize=10, gibbsSteps=1, validationData=None, plotFilters=''):
+        puedo pasarle un solo ejemplo o una matrix con varios de ellos por fila
+        """
 
-        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
-        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+        if vsample.ndim == 1:
+            # es un vector, debo cambiar el root 'x' antes de armar el grafo
+            # para que coincida con la entrada
+            viejoRoot = self.x
+            self.x = theano.tensor.fvector('x')
 
-        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
-        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+        data  = theano.shared(numpy.asarray(a=vsample,dtype=theanoFloat), name='datoReconstruccion')
 
-        # para la validacion
-        if validationData is not None:
-            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+        # realizar la cadena de markov k veces
+        (   [visibleActRec, # actualiza la cadena
+            _,
+            _,
+            probabilityN,
+            _,
+            _], # linear sum es la que se plotea
+            updates        ) = self.markovChain(gibbsSteps)
 
-        # Theano NODES.
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-        # initialize storage for the persistent chain (state = hidden
-        # layer of chain)
-        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
-                                                     dtype=theanoFloat),
-                                         borrow=True)
-        #cost, updates = self.get_cost_updates(persistent=None, k=steps)
-        cost, updates = self.get_cost_updates(persistent=persistent_chain, k=steps)
-
-        train_rbm = theano.function(
-            [miniBatchIndex, steps],
-            cost,
-            updates=updates,
-            givens={
-                self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-            },
-            name='train_rbm'
+        reconstructor = theano.function(
+                        inputs=[],
+                        outputs=[probabilityN, visibleActRec],
+                        updates=updates,
+                        givens={self.x: data},
+                        name='reconstructor'
         )
 
+        salida = reconstructor()[0]
 
-        if plotFilters is not None:
-            # plot los filtros iniciales (sin entrenamiento)
-            self.plot_filters(  filename='filtros_iniciales.pdf',
-                                path=plotFilters)
+        if vsample.ndim == 1:
+            # hago el swap
+            self.x = viejoRoot
 
-        # cantidad de indices... para recorrer el set
-        indexCount = int(data.shape[0]/miniBatchSize)
-        mean_cost = numpy.Inf
-
-        for epoch in range(0, self.params['maxepoch']):
-            # imprimo algo de informacion sobre la terminal
-            print(str('Starting Epoch {:>3d} '
-                    + 'of {:>3d}, '
-                    + 'errorTrn:{:>7.5f}, '
-                    + 'errorVal:{:>7.5f}, '
-                    + 'freeEnergy:{:>7.5f}').format(
-                        epoch+1,
-                        self.params['maxepoch'],
-                        mean_cost,
-                        0.0,
-                        0.0),
-                    end='\r')
-
-            mean_cost = []
-            for batch in range(0, indexCount):
-                mean_cost += [train_rbm(batch, gibbsSteps)]
-
-            mean_cost = numpy.mean(mean_cost)
-
-            self.addStatistics({'errorTraining': mean_cost,
-                                'errorValidating': 0.0,
-                                'errorTesting': 0.0,
-                                'freeEnergy': 0.0})
-
-            if plotFilters is not None:
-                self.plot_filters(filename='filters_at_epoch_{}.pdf'.format(epoch),
-                                  path=plotFilters)
-
-            # END SET
-        # END epcoh
-        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
-
-        #print(self.statistics)
-        return 1
+        return salida
 
     def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000,
                 patchesDim=(28,28), binary=False):
         """
-        # TODO
-        cambiar el gibbsSteps por una variable como en train...ver que pasa
-
-
-
-
-
         Realiza un 'sampleo' de los datos con los parametros 'aprendidos'
         El proposito de la funcion es ejemplificar como una serie de ejemplos
         se muestrean a traves de la red ejecuntado sucesivas cadenas de markov
@@ -985,7 +879,7 @@ class RBM(object):
             #genero muestras y visualizo cada gibssSteps, ya que las muestras intermedias
             # estan muy correlacionadas, se visializa la probabilidad de activacion de
             # las unidades ocultas (NO la muestra binomial)
-            probabilityN, _ = muestreo()
+            probabilityN, visiblerecons = muestreo()
 
             print(' ... plotting sample {}'.format(idx))
             imageResults[(alto+1) * idx:(ancho+1) * idx + ancho, :] \
@@ -1227,15 +1121,21 @@ if __name__ == "__main__":
     red.setParams({'epsilonhb':0.1})
     red.setParams({'initialmomentum':0.5})
     red.setParams({'weightcost':0.0002})
-    red.setParams({'maxepoch':5})
+    red.setParams({'maxepoch':2})
 
 
     T = timer2()
     inicio = T.tic()
 
+    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]
+    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0], gibbsSteps=1)
+    #MNIST.plot_one_digit((train_img/255.0).astype(numpy.float32)[0])
+    #MNIST.plot_one_digit(salida)
+
+
     red.train(  data=(train_img/255.0).astype(numpy.float32),   # los datos los binarizo y convierto a float
                 miniBatchSize=batchSize,
-                pcd=False,
+                pcd=True,
                 gibbsSteps=1,
                 validationData=(val_img/255.0).astype(numpy.float32),
                 plotFilters=fullPath)
