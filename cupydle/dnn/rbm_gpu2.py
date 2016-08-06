@@ -56,6 +56,8 @@ except ImportError:
 from cupydle.dnn.utils import scale_to_unit_interval
 from cupydle.dnn.utils import tile_raster_images
 
+import matplotlib.pyplot
+
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
@@ -165,7 +167,8 @@ class RBM(object):
         self._initParams()
 
         # for allocate statistics
-        self.statistics = []
+        self.estadisticos = {}
+        self._initStatistics()
     # END INIT
 
     def _initParams(self):
@@ -221,32 +224,44 @@ class RBM(object):
         return 1
 
     def _initStatistics(self):
-        dic = {}
-        dic['errorEntrenamiento'] = 0.0
-        dic['errorValidacion'] = 0.0
-        dic['errorTesteo'] = 0.0
-        dic['energiaLibreEntrenamiento'] = 0.0
+        # incializo el diccionario con los estadisticos
+        dic = {
+                'errorEntrenamiento':[],
+                'errorValidacion':[],
+                'errorValidacion':[],
+                'mseEntrenamiento':[],
+                'errorTesteo':[],
+                'energiaLibreEntrenamiento':[],
+                'energiaLibreValidacion': []
+                }
 
-        self.statistics.append(dic)
+        self.estadisticos = dic
+        del dic
         return 1
 
-    def addStatistics(self, estadistico):
+    def agregarEstadistico(self, estadistico):
+        # cuando agrega un estadistico (ya sea uno solo) se considera como una epoca nueva
+        # por lo tanto se setea el resto de los estadisitcos con 0.0 los cuales no fueron
+        # provistos
+
         if not isinstance(estadistico, dict):
             assert False, str(repr('estadistico') + " debe ser un tipo diccionario")
 
-        dic = {}
-        dic['errorEntrenamiento'] = 0.0
-        dic['errorValidacion'] = 0.0
-        dic['errorTesteo'] = 0.0
-        dic['energiaLibreEntrenamiento'] = 0.0
+        # copio para manipular sin cambiar definitivamente
+        viejo = self.estadisticos
 
-        for key, val in estadistico.items():
-            if key in dic:
-                dic[key] = estadistico[key]
+        for key, _ in estadistico.items():
+            bandera=True
+            if key in viejo:
+                viejo[key] += [estadistico[key]]
+                bandera = False
             else:
                 assert False, str("No exite el key " + repr(key))
+            if bandera:
+                viejo[key]+=[0.0]
 
-        self.statistics.append(dic)
+        self.estadisticos = viejo
+        del viejo
         return
 
 
@@ -419,33 +434,51 @@ class RBM(object):
         hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
         return -hidden_term - vbias_term
 
-    def plotStatics(self, save=True, path=None):
-        errorTrn = self.statistics['errorTraining']
-        errorVal = self.statistics['errorValidation']
-        freeEner = self.statistics['energyValidation']
+    def crearDibujo(self, datos, axe=None, titulo='', estilo='b-'):
+        #debo asignar la vuelta de axe al axes del dibujo, solo que lo pase por puntero que todavia no se
 
-        if errorTrn != []:
-            fig1 = self.plot_error(errorTrn, tipo='training', show=False, save=save, path=path)
-        if errorVal != []:
-            fig2 = self.plot_error(errorVal, tipo='validation', show=False, save=save, path=path)
-        if freeEner != []:
-            fig3 = self.plot_error(freeEner, tipo='validation', show=False, save=save, path=path)
+        # linestyle or ls   [ '-' | '--' | '-.' | ':' | 'steps' | ...]
+        #marker  [ '+' | ',' | '.' | '1' | '2' | '3' | '4' ]
+        if axe is None:
+            axe = matplotlib.pyplot.gca()
 
-        #fig = plt.figure('Statics').clear()
-        assert False
-        """
-        # Two subplots, the axes array is 1-d
-        f, axarr = plt.subplots(3, sharex=True)
-        axarr[0].plot(x, y)
-        axarr[0].set_title('Sharing X axis')
-        axarr[1].scatter(x, y)
-        # Fine-tune figure; hide x ticks for top plots and y ticks for right plots
-        plt.setp([a.get_xticklabels() for a in axarr[0, :]], visible=False)
-        plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
-        """
+        ejeXepocas = range(1,len(datos)+1)
+        axe.plot(ejeXepocas, datos, estilo)
+        axe.set_title(titulo)
+        axe.set_xticks(ejeXepocas) # los ticks del eje de las x solo en los enteros
+        return axe
+
+    def dibujarEstadisticos(self, show=False, save=None):
+
+        errorEntrenamiento = self.estadisticos['errorEntrenamiento']
+        errorValidacion = self.estadisticos['errorValidacion']
+        errorTesteo = self.estadisticos['errorTesteo']
+        mseEntrenamiento = self.estadisticos['mseEntrenamiento']
+        energiaLibreEntrenamiento = self.estadisticos['energiaLibreEntrenamiento']
+        energiaLibreValidacion = self.estadisticos['energiaLibreValidacion']
+
+        f, axarr = matplotlib.pyplot.subplots(2, 3, sharex='col', sharey='row')
+
+        axarr[0, 0] = self.crearDibujo(errorEntrenamiento, axarr[0, 0], titulo='Error de Entrenamiento', estilo='r-')
+        axarr[0, 1] = self.crearDibujo(errorValidacion, axarr[0, 1], titulo='Error de Validacion', estilo='b-')
+        axarr[0, 2] = self.crearDibujo(errorTesteo, axarr[0, 2], titulo='Error de Testeo')
+
+        axarr[1, 0] = self.crearDibujo(mseEntrenamiento, axarr[1, 0], titulo='MSE de Entrenamiento')
+        axarr[1, 1] = self.crearDibujo(energiaLibreEntrenamiento, axarr[1, 1], titulo='Energia Libre Entrenamiento')
+        axarr[1, 2] = self.crearDibujo(energiaLibreValidacion, axarr[1, 2], titulo='Energia Libre Validacion')
+
+        matplotlib.pyplot.tight_layout()
+
+        if save is not None:
+            print("guardando los estadisticos en: " + save)
+            matplotlib.pyplot.savefig(save, bbox_inches='tight')
+            #matplotlib.pyplot.savefig("estadisticos.png")
+
+        if show:
+            matplotlib.pyplot.show()
         return
 
-    def plot_filters(self, filename, path, binary=False):
+    def dibujarFiltros(self, nombreArchivo, ruta, binary=False):
         # plot los filtros iniciales (sin entrenamiento)
         image = Image.fromarray(
             tile_raster_images(
@@ -465,7 +498,7 @@ class RBM(object):
             # Now we put it back in Pillow/PIL land
             image = Image.fromarray(bw)
 
-        image.save(path + filename)
+        image.save(ruta + nombreArchivo)
 
         return 1
 
@@ -700,8 +733,8 @@ class RBM(object):
 
         if plotFilters is not None:
             # plot los filtros iniciales (sin entrenamiento)
-            self.plot_filters(  filename='filtros_epoca_0.pdf',
-                                path=plotFilters)
+            self.dibujarFiltros(  nombreArchivo='filtros_epoca_0.pdf',
+                                ruta=plotFilters)
 
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
@@ -741,21 +774,21 @@ class RBM(object):
             mse = numpy.mean(mse)
             fEnergy = numpy.mean(fEnergy)
 
-            #TODO mal guardado
-            self.addStatistics({'errorEntrenamiento': costo,
-                                'errorValidacion': mse,
-                                'errorTesteo': 0.0,
-                                'energiaLibreEntrenamiento': fEnergy})
+            self.agregarEstadistico(
+                {'errorEntrenamiento': costo,
+                 'mseEntrenamiento': mse,
+                 'errorValidacion': 0.0,
+                 'errorTesteo': 0.0,
+                 'energiaLibreEntrenamiento': fEnergy,
+                 'energiaLibreValidacion': 0.0})
 
             if plotFilters is not None:
-                self.plot_filters(filename='filtros_epoca_{}.pdf'.format(epoch+1),
-                                  path=plotFilters)
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
+                                  ruta=plotFilters)
 
             # END SET
-        # END epcoh
+        # END epoch
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
-
-        print(self.statistics)
         return 1
 
     def reconstruccion(self, vsample, gibbsSteps=1):
@@ -892,8 +925,8 @@ class RBM(object):
         # construct image
         image = Image.fromarray(imageResults)
 
-        filename = "samples_" + str(labels[lista])
-        filename = filename.replace(" ", "_")
+        nombreArchivo = "samples_" + str(labels[lista])
+        nombreArchivo = nombreArchivo.replace(" ", "_")
 
         # poner las etiquetas sobre la imagen
         watermark = False
@@ -917,9 +950,9 @@ class RBM(object):
             bw[bw >= 128] = 255 # White
             # Now we put it back in Pillow/PIL land
             image2 = Image.fromarray(bw)
-            image2.save(filename + '_binary.pdf')
+            image2.save(nombreArchivo + '_binary.pdf')
 
-        image.save(filename + '.pdf')
+        image.save(nombreArchivo + '.pdf')
 
         return 1
 
@@ -992,50 +1025,50 @@ class RBM(object):
 
 
 
-    def save(self, filename=None, method='simple', compression=None, layerN=0, absolutName=False):
+    def save(self, nombreArchivo=None, method='simple', compression=None, layerN=0, absolutName=False):
         """
         guarda a disco la instancia de la RBM
         method is simple, no guardo como theano
-        :param filename:
+        :param nombreArchivo:
         :param compression:
         :param layerN: numero de capa a la cual pertence la rbm (DBN)
-        :param absolutName: si es true se omite los parametros a excepto el filename
+        :param absolutName: si es true se omite los parametros a excepto el nombreArchivo
         :return:
         """
         #from cupydle.dnn.utils import save as saver
 
-        #if filename is not set
+        #if nombreArchivo is not set
         if absolutName is False:
-            if filename is None:
-                filename = "V_" + str(self.n_visible) + "H_" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M')
+            if nombreArchivo is None:
+                nombreArchivo = "V_" + str(self.n_visible) + "H_" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M')
             else:
-                filename = filename + "_" + time.strftime('%Y-%m-%d_%H%M')
+                nombreArchivo = nombreArchivo + "_" + time.strftime('%Y-%m-%d_%H%M')
 
             if layerN != 0:
-                filename = "L_" + str(layerN) + filename
+                nombreArchivo = "L_" + str(layerN) + nombreArchivo
         else:
-            filename = filename
+            nombreArchivo = nombreArchivo
 
         if method != 'theano':
             from cupydle.dnn.utils import save as saver
-            saver(objeto=self, filename=filename, compression=compression)
+            saver(objeto=self, filename=nombreArchivo, compression=compression)
         else:
-            with open(filename + '.zip','wb') as f:
+            with open(nombreArchivo + '.zip','wb') as f:
                 # arreglar esto
                 from cupydle.dnn.utils_theano import save as saver
-                saver(objeto=self, filename=filename, compression=compression)
+                saver(objeto=self, filename=nombreArchivo, compression=compression)
 
         return
     # END SAVE
 
     @staticmethod
-    def load(filename=None, method='simple', compression=None):
+    def load(nombreArchivo=None, method='simple', compression=None):
         """
         Carga desde archivo un objeto RBM guardado. Se distinguen los metodos
         de guardado, pickle simple o theano.
 
-        :type filename: string
-        :param filename: ruta completa al archivo donde se aloja la RBM
+        :type nombreArchivo: string
+        :param nombreArchivo: ruta completa al archivo donde se aloja la RBM
 
         :type method: string
         :param method: si es 'simple' se carga el objeto con los metodos estandar
@@ -1043,7 +1076,7 @@ class RBM(object):
                         correspondientes
 
         :type compression: string
-        :param compression: si es None se infiere la compresion segun 'filename'
+        :param compression: si es None se infiere la compresion segun 'nombreArchivo'
                             valores posibles 'zip', 'pgz' 'bzp2'
 
         url: http://deeplearning.net/software/theano/tutorial/loading_and_saving.html
@@ -1052,10 +1085,10 @@ class RBM(object):
         objeto = None
         if method != 'theano':
             from cupydle.dnn.utils import load
-            objeto = load(filename, compression)
+            objeto = load(nombreArchivo, compression)
         else:
             from cupydle.dnn.utils_theano import load
-            objeto = load(filename, compression)
+            objeto = load(nombreArchivo, compression)
         return objeto
     # END LOAD
 
@@ -1143,11 +1176,12 @@ if __name__ == "__main__":
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.elapsed(inicio, final)))
 
+    # guardo los estadisticos
+    #red.dibujarEstadisticos(show=True, save='estadisticos.png')
+    red.dibujarEstadisticos(show=True, save=fullPath+'estadisticos.png')
+
     red.sampleo(data=(train_img/255.0).astype(numpy.float32),
                 labels=train_labels)
-
-
-
 
     print('Guardando el modelo en ...', fullPath + modelName)
     inicio = T.tic()
