@@ -76,6 +76,7 @@ class rbmParams(object):
                 numEpoch,
                 batchSize,
                 epsilonw,        # Learning rate for weights
+                w=None,
                 epsilonvb=None,  # Learning rate for biases of visible units
                 epsilonhb=None,  # Learning rate for biases of hidden units
                 weightcost=None, # Weigth punishment
@@ -85,6 +86,7 @@ class rbmParams(object):
         self.n_hidden=n_hidden
         self.numEpoch=numEpoch
         self.epsilonw=epsilonw
+        self.w=w
         self.epsilonvb=epsilonvb
         self.epsilonhb=epsilonhb
         self.weightcost=weightcost
@@ -167,6 +169,7 @@ class dbn(object):
                 numEpoch,
                 batchSize,
                 epsilonw,        # Learning rate for weights
+                w=None,
                 epsilonvb=None,  # Learning rate for biases of visible units
                 epsilonhb=None,  # Learning rate for biases of hidden units
                 weightcost=None, # Weigth punishment
@@ -175,7 +178,7 @@ class dbn(object):
         # agrego una capa de rbm a la dbn, con los parametros que le paso
         self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
                                     numEpoch=numEpoch, batchSize=batchSize,
-                                    epsilonw=epsilonw, epsilonvb=epsilonvb,
+                                    epsilonw=epsilonw, w=w, epsilonvb=epsilonvb,
                                     epsilonhb=epsilonhb, weightcost=weightcost,
                                     initialmomentum=initialmomentum, finalmomentum=finalmomentum))
         self.n_layers += 1
@@ -212,7 +215,8 @@ class dbn(object):
 
             # Construct an RBM that shared weights with this layer
             rbm_layer = RBM(n_visible=self.params[i].n_visible,
-                                n_hidden=self.params[i].n_hidden)
+                            n_hidden=self.params[i].n_hidden,
+                            w=self.params[i].w)
 
             # configuro la capa, la rbm
             rbm_layer.setParams({'epsilonw':self.params[i].epsilonw})
@@ -256,6 +260,47 @@ class dbn(object):
         # FIN FOR
         return
     # FIN TRAIN
+
+    def fit(self, lista_pesos, mn, n_epochs=1000):
+        classifier = MLP(   task="clasificacion",
+                            rng=None)
+
+        classifier.addLayer(
+                            unitsIn=784,
+                            unitsOut=500,
+                            classification=False,
+                            activation=Sigmoid(),
+                            weight=lista_pesos[0],
+                            bias=None)
+
+        classifier.addLayer(
+                            unitsIn=500,
+                            unitsOut=100,
+                            classification=False,
+                            weight=lista_pesos[1],
+                            bias=None)
+
+        classifier.addLayer(
+                            unitsIn=100,
+                            unitsOut=10,
+                            classification=True,
+                            activation=Sigmoid(),
+                            weight=lista_pesos[2],
+                            bias=None)
+
+        T = timer2()
+        inicio = T.tic()
+
+        classifier.train(
+                        trainSet=mn.get_training(),
+                        validSet=mn.get_validation(),
+                        testSet=mn.get_testing(),
+                        batch_size=20,
+                        n_epochs=n_epochs)
+
+        final = T.toc()
+        print("Tiempo total para entrenamiento DBN: {}".format(T.elapsed(inicio, final)))
+        return
 
     def save2(self, filename, compression='zip'):
         """
@@ -349,6 +394,63 @@ if __name__ == "__main__":
     #modelName = 'capa1.pgz'
     verbose = True
 
+    if mlp :
+        print("S E C C I O N        M L P")
+
+        # Dependencias Externas
+        from cupydle.dnn.mlp import MLP
+        from cupydle.test.mnist.mnist import MNIST
+        from cupydle.test.mnist.mnist import open4disk
+        from cupydle.test.mnist.mnist import save2disk
+
+
+        # se leen de disco la base de datos
+        mn = open4disk(filename=dataPath + setName, compression='bzip2')
+        #mn.info                                        # muestra alguna informacion de la base de datos
+
+        classifier = MLP(   task="clasificacion",
+                            rng=None)
+
+        classifier.addLayer(
+                            unitsIn=784,
+                            unitsOut=500,
+                            classification=False,
+                            activation=Sigmoid(),
+                            weight=None,
+                            bias=None)
+
+        classifier.addLayer(
+                            unitsIn=500,
+                            unitsOut=100,
+                            classification=False,
+                            weight=None,
+                            bias=None)
+
+        classifier.addLayer(
+                            unitsIn=100,
+                            unitsOut=10,
+                            classification=True,
+                            activation=Sigmoid(),
+                            weight=None,
+                            bias=None)
+
+        T = timer2()
+        inicio = T.tic()
+
+        numpy.save(fullPath + "pesos1",classifier.capas[0].W.get_value())
+        numpy.save(fullPath + "pesos2",classifier.capas[1].W.get_value())
+        numpy.save(fullPath + "pesos3",classifier.capas[2].W.get_value())
+
+        classifier.train(
+                        trainSet=mn.get_training(),
+                        validSet=mn.get_validation(),
+                        testSet=mn.get_testing(),
+                        batch_size=20,
+                        n_epochs=1000)
+
+        final = T.toc()
+        print("Tiempo total para entrenamiento MLP: {}".format(T.elapsed(inicio, final)))
+
     if rbm :
         print("S E C C I O N        R B M")
 
@@ -365,28 +467,34 @@ if __name__ == "__main__":
         test_img,   test_labels = mnData.get_testing()
         val_img,    val_labels  = mnData.get_validation()
 
-        # TODO solo deberia quedar el nombre
         dbn0 = dbn(name=None)
+
+        pesos1 = numpy.load(fullPath + "pesos1.npy")
+        pesos2 = numpy.load(fullPath + "pesos2.npy")
+        pesos3 = numpy.load(fullPath + "pesos3.npy")
 
         # agrego una capa..
         dbn0.addLayer(n_visible=784,
                       n_hidden=500,
-                      numEpoch=1,
+                      numEpoch=100,
                       batchSize=20,
-                      epsilonw=0.1)
+                      epsilonw=0.1,
+                      w=pesos1)
         # otra capa mas
         dbn0.addLayer(n_visible=500, # coincide con las ocultas de las anteriores
                       n_hidden=100,
-                      numEpoch=1,
+                      numEpoch=100,
                       batchSize=20,
-                      epsilonw=0.1)
+                      epsilonw=0.1,
+                      w=pesos2)
 
         # clasificacion
         dbn0.addLayer(n_visible=100, # coincide con las ocultas de las anteriores
                       n_hidden=10,
-                      numEpoch=1,
+                      numEpoch=100,
                       batchSize=20,
-                      epsilonw=0.1)
+                      epsilonw=0.1,
+                      w=pesos3)
 
         T = timer2()
         inicio = T.tic()
@@ -401,81 +509,6 @@ if __name__ == "__main__":
 
         dbn0.save(fullPath + "dbnMNIST", compression='zip')
 
-    if mlp :
-        print("S E C C I O N        M L P")
-
-        miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
-        print(miDBN)
-
-        red_capas = load_dbn_weigths(fullPath, miDBN.name)
-
-        # Dependencias Externas
-        from cupydle.dnn.mlp import MLP
-        from cupydle.test.mnist.mnist import MNIST
-        from cupydle.test.mnist.mnist import open4disk
-        from cupydle.test.mnist.mnist import save2disk
-
-        def label_to_vector(label, n_classes):
-            lab = numpy.zeros((n_classes, 1), dtype=numpy.int8)
-            label = int(label)
-            lab[label] = 1
-            return numpy.array(lab).transpose()
-
-
-        # se leen de disco la base de datos
-        mn = open4disk(filename=dataPath + setName, compression='bzip2')
-        #mn.info                                        # muestra alguna informacion de la base de datos
-
-        # obtengo todos los subconjuntos
-        train_img,  train_labels= mn.get_training()
-        test_img,   test_labels = mn.get_testing()
-        val_img,    val_labels  = mn.get_validation()
-
-
-
-        binaryTrnData = (train_img/255.0).astype(numpy.float32)
-        binaryValData = (val_img/255.0).astype(numpy.float32)
-        binaryTstData = (test_img/255.0).astype(numpy.float32)
-
-
-        classifier = MLP(   task="clasificacion",
-                            rng=None)
-
-        classifier.addLayer(
-                            unitsIn=784,
-                            unitsOut=500,
-                            classification=False,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=500,
-                            unitsOut=100,
-                            classification=False,
-                            weight=None,
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=100,
-                            unitsOut=10,
-                            classification=True,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
-
-        T = timer2()
-        inicio = T.tic()
-
-        classifier.train(
-                        trainSet=mn.get_training(),
-                        validSet=mn.get_validation(),
-                        testSet=mn.get_testing(),
-                        batch_size=20)
-
-        final = T.toc()
-        print("Tiempo total para entrenamiento MLP: {}".format(T.elapsed(inicio, final)))
-
     if dbnn:
         print("S E C C I O N        D B N")
         miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
@@ -489,12 +522,6 @@ if __name__ == "__main__":
         from cupydle.test.mnist.mnist import open4disk
         from cupydle.test.mnist.mnist import save2disk
 
-        def label_to_vector(label, n_classes):
-            lab = numpy.zeros((n_classes, 1), dtype=numpy.int8)
-            label = int(label)
-            lab[label] = 1
-            return numpy.array(lab).transpose()
-
 
         # se leen de disco la base de datos
         mn = open4disk(filename=dataPath + setName, compression='bzip2')
@@ -505,71 +532,10 @@ if __name__ == "__main__":
         test_img,   test_labels = mn.get_testing()
         val_img,    val_labels  = mn.get_validation()
 
-        # umbral para la binarizacion
-        threshold = 128
-
-        binaryTrnData = (train_img/255.0).astype(numpy.float32)
-        binaryValData = (val_img/255.0).astype(numpy.float32)
-        binaryTstData = (test_img/255.0).astype(numpy.float32)
-
-        y_tr = [label_to_vector(y, 10)[0] for y in train_labels]
-        training_data = [(x, y) for x, y in zip(binaryTrnData, y_tr)]
-
-        y_val = [label_to_vector(y, 10)[0] for y in val_labels]
-        validation_data = [(x, y) for x, y in zip(binaryValData, y_val)]
-
-        y_tst = numpy.reshape(numpy.array(test_labels, dtype=float), (len(test_labels), 1))
-        testing_data = [(x, y) for x, y in zip(binaryTstData, y_tst)]
-        #testing_data = [(x, y) for x, y in zip(binaryTstData, test_labels)]
-
-
-        # cargo los pesos solamente de la red, ojo que deben estar transpuestos
-        # (salida, entrada) por la nomeclatura adoptada en los multilayer perceptrons
         #lista_pesos = [rbm.w.get_value().transpose() for rbm in red_capas]
         lista_pesos = [rbm.w.get_value() for rbm in red_capas]
 
-        # parametros de la red
-        n_visible = 784
-        batchSize = 50
-        capas_tmp = [pesos.shape[0] for pesos in lista_pesos]
-        capas = [n_visible]
-        capas.extend(capas_tmp)
+        miDBN.fit(lista_pesos, mn, n_epochs=1000)
 
-        classifier = MLP(   task="clasificacion",
-                            rng=None)
 
-        classifier.addLayer(
-                            unitsIn=784,
-                            unitsOut=500,
-                            classification=False,
-                            activation=Sigmoid(),
-                            weight=lista_pesos[0],
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=500,
-                            unitsOut=100,
-                            classification=False,
-                            weight=lista_pesos[1],
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=100,
-                            unitsOut=10,
-                            classification=True,
-                            activation=Sigmoid(),
-                            weight=lista_pesos[2],
-                            bias=None)
-
-        T = timer2()
-        inicio = T.tic()
-
-        classifier.train(
-                        trainSet=mn.get_training(),
-                        validSet=mn.get_validation(),
-                        testSet=mn.get_testing(),
-                        batch_size=20)
-
-        final = T.toc()
-        print("Tiempo total para entrenamiento MLP: {}".format(T.elapsed(inicio, final)))
 

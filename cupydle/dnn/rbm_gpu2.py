@@ -142,6 +142,10 @@ class RBM(object):
             visbiases = theano.shared(value=_visbiases, name='visbiases', borrow=True)
             del _visbiases
 
+
+        if w is not None and isinstance(w, numpy.ndarray):
+            w = theano.shared(value=w, name='w', borrow=True)
+
         ########
         self.visbiases  = visbiases
         self.hidbiases  = hidbiases

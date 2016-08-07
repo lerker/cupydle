@@ -180,7 +180,8 @@ class MLP(object):
         return self.capas[-1].predict()
 
 
-    def train(self, trainSet, validSet, testSet, batch_size):
+    def train(self, trainSet, validSet, testSet, batch_size,
+        learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000):
         assert len(self.capas) != 0, "No hay capas cargadas en la red, <<addLayer()>>"
 
         # allocate symbolic variables for the data
@@ -188,7 +189,7 @@ class MLP(object):
         y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
                                         # [int] labels
 
-        learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001; n_epochs=1000
+        #learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001; n_epochs=1000
 
         trainX, trainY  = shared_dataset(trainSet)
         validX, validY  = shared_dataset(validSet)
@@ -288,7 +289,6 @@ class MLP(object):
 
         epoch = 0
         done_looping = False
-        n_epochs = 10000
         while (epoch < n_epochs) and (not done_looping):
             epoch = epoch + 1
             for minibatch_index in range(n_train_batches):
@@ -304,7 +304,7 @@ class MLP(object):
                     this_validation_loss = numpy.mean(validation_losses)
 
                     print(
-                        'epoch %i, minibatch %i/%i, validation error %f %%' %
+                        'epoca %i, minibatch %i/%i, error validacion %f %%' %
                         (
                             epoch,
                             minibatch_index + 1,
@@ -330,8 +330,8 @@ class MLP(object):
                                        in range(n_test_batches)]
                         test_score = numpy.mean(test_losses)
 
-                        print(('     epoch %i, minibatch %i/%i, test error of '
-                               'best model %f %%') %
+                        print(('     epoca %i, minibatch %i/%i, error test de '
+                               'mejor del modelo %f %%') %
                               (epoch, minibatch_index + 1, n_train_batches,
                                test_score * 100.))
 
@@ -340,12 +340,12 @@ class MLP(object):
                     break
 
         end_time = timeit.default_timer()
-        print(('Optimization complete. Best validation score of %f %% '
-               'obtained at iteration %i, with test performance %f %%') %
+        print(('Optimizacion Completada. Mejor puntaje de validacion: %f %% '
+               'obtenida en la iteracion %i, con un performance en el test de %f %%') %
               (best_validation_loss * 100., best_iter + 1, test_score * 100.))
-        print(('The code for file ' +
+        print(('El codido del archivo ' +
                os.path.split(__file__)[1] +
-               ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
+               ' se ejecuto por %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
 
         print("reales", predictor()[1][0:10])
         print("predic", predictor()[0][0:10])
