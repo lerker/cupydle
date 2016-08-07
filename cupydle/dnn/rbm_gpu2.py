@@ -709,7 +709,7 @@ class RBM(object):
 
         return train_rbm
 
-    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters='', printCompacto=False):
+    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters=None, printCompacto=False):
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
@@ -825,6 +825,44 @@ class RBM(object):
         )
 
         salida = reconstructor()[0]
+
+        if vsample.ndim == 1:
+            # hago el swap
+            self.x = viejoRoot
+
+        return salida
+
+    def activacionesOcultas(self, vsample, gibbsSteps=1):
+        """
+        retornar las activaciones de las ocultas, para las dbn
+        """
+
+        if vsample.ndim == 1:
+            # es un vector, debo cambiar el root 'x' antes de armar el grafo
+            # para que coincida con la entrada
+            viejoRoot = self.x
+            self.x = theano.tensor.fvector('x')
+
+        data  = theano.shared(numpy.asarray(a=vsample,dtype=theanoFloat), name='datoReconstruccion')
+
+        # realizar la cadena de markov k veces
+        (   [_, # actualiza la cadena
+            hiddenActData,
+            _,
+            _,
+            _,
+            _], # linear sum es la que se plotea
+            updates        ) = self.markovChain(gibbsSteps)
+
+        activador = theano.function(
+                        inputs=[],
+                        outputs=[hiddenActData],
+                        updates=updates,
+                        givens={self.x: data},
+                        name='activador'
+        )
+
+        salida = activador()[0]
 
         if vsample.ndim == 1:
             # hago el swap
