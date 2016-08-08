@@ -4,8 +4,9 @@
 **CU**da**PY**thon**D**eep**LE**arning Machine Learning
 
 Introducción
-============
+------------
 _cupydle_ es una libreria simple y sencilla, que provee todas las funcionalidades necesarias para la ejecucion de Redes de Creencia Profunda (DBN) sobre placas de procesamiento grafico para proposito general (GP-GPU).
+
 _cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecutado de forma transparente tanto en GPU como en CPU gracias a Theano (http://deeplearning.net/software/theano/).
 
 
@@ -20,7 +21,7 @@ _cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecuta
 
 
 Funcionalidades:
-================
+----------------
 
 - Maquinas de Boltzmann Restringidas (RBM)
   - Entrenamiento
@@ -66,7 +67,7 @@ Funcionalidades:
     - [x] Muestreo de varios ejemplos a traves de sucesivas cadenas de Markov.
 
 Notas GP-GPU
-============
+------------
 En la maquina Host debe estar instalado el driver correspondiente Nvidia al modelo de la placa, en el caso de pruebas es Nvidia
 
 ```bash
@@ -82,88 +83,84 @@ DMA Mask:        0xffffffffff
 Bus Location:    0000:01:00.0
 ```
 
+```bash
+~$: cat /proc/driver/nvidia/version
 
-
-
-cat /proc/driver/nvidia/version
 NVRM version: NVIDIA UNIX x86_64 Kernel Module  340.29  Thu Jul 31 20:23:19 PDT 2014
 GCC version:  gcc version 4.6.4 (Ubuntu/Linaro 4.6.4-6ubuntu2)
+```
 
+Pasos, en ubuntu, fue requerido por cuestiones de compatibilidad por la placa la version de CUDA 6.0, aunque versiones mas recientes (7.5) funcionan con normalidad:
 
-In host must be installed nvidia's driver correcpond to device model (e.i Tesla 1060 == _nvidia driver 340_)
-In ubuntu
-- sudo apt-get install nvidia-340 nvidia-340-uvm libcuda1-340
- - wget http://developer.download.nvidia.com/compute/cuda/6_5/rel/installers/cuda_6.5.14_linux_64.run
+```bash
 
-Cuda toolkit 6.5 is required as minimum _gcc 4.6_
-./cuda_6.5.14_linux_64.run --silent --driver
-./NVIDIA_CUDA-6.5_Samples/bin/x86_64/linux/release/deviceQuery
-controlar las variables de entorno
-export PATH=/usr/local/cuda/bin:${PATH}
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
+:$ wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run
 
-cat /proc/driver/nvidia/version
-nvidia-smi
-nvcc --version
+# o bien la 6.5
+:$ wget http://developer.download.nvidia.com/compute/cuda/6_5/rel/installers/cuda_6.5.14_linux_64.run
+```
 
+Cuda Toolkit requiere como a lo mas la version de compilador __GCC 4.6__
+```bash
+:$ chmod a+x cuda_6.0.37_linux_64.run
+:$ ./cuda_6.0.37_linux_64.run
+
+# controlar las variables de entorno
+:$ export PATH=/usr/local/cuda/bin:${PATH}
+:$ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+:$ export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
+
+# probar el correcto funcionamiento
+:$ cd [ruta de los ejemplos]/NVIDIA_CUDA-6.0_Samples/deviceQuery ; make ; ./deviceQuery
+
+:$ cat /proc/driver/nvidia/version
+:$ nvidia-smi
+:$ nvcc --version
+```
 
 Docker Notes
-============
-# para que cuda funcione se debe correr en el host deviceQuery una vez (carga las dev)
-# crear la imagen (evidentemente no funciona con docker solo desde el dockerfile debido a que los devices no son conectados en el build), crear un contenedor de ubuntu 14.04 y correr linea por linea del dockerfile
-# docker build -t "ubuntu/cuda/theano/python3" .
-## sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu:14.04 /bin/bash
-# correr en modo previligiado y cargar los devices (probar con docker-nvidia o docker solo)
-# sudo nvidia-docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu/cuda/theano/python3 /bin/bash
+------------
+La libreria fue probada sobre un entorno 'virtualizado' del estilo Docker.
 
-# contenedores (-q solo ids)
-docker ps -a
-# imagenes
-docker images -a
-# borrar contenedor [ docker rm $(docker ps -aq) ]
-docker rm <id>
-# borrar imagen
-docker rmi <id>
-# crear imagen
-docker build -t "nombre/de/mi/imagen/:tag" /path:dockerfile
-#correr contenedor (iterativo -i, borrar contenedor al salir --rm)
-sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia <imagen_id> /bin/bash
-# _salir sin exit_ ctrl p y luego ctrl q
-# se sale, buscar el id del docker
-docker ps -q
-# commitear los cambios
-docker commit <id> <nombre>
+A continuacion se detallan algunos pasos para su correcta intalación, los pasos se encuentran en el 'Dockerfile'.
 
-#volver al container
-docker attach <id>
+1. Se debe ejecutar siempre antes del inicio del Docker Container el ejecutable deviceQuery para que la unidad GPU sea visible.
 
-# copiar un archivo del container en ejecucion
-docker cp <id>:absolut/path/to/file destination/path/in/host
+2. Crear la imagen a partir del Dockerfile, en el caso de que sea necesario ejecutar si o si el paso anterior este no funcionara, se debera realizar la instalacion manual (debido a que las unidades no son cargadas al inicio con el build). Alguno de los siguientes pasos:
+  1. docker build -t "ubuntu/cuda/theano/python3" .
+  2. sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu:14.04 /bin/bash
+
+      correr en modo previligiado y cargar los devices (probar con docker-nvidia o docker solo)
+
+      sudo nvidia-docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu/cuda/theano/python3 /bin/bash
+
+3. Cheat Sheet
+  + contenedores (-q solo ids)
+    docker ps -a
+  + imagenes
+    docker images -a
+  + borrar contenedor [ docker rm $(docker ps -aq) ]
+    docker rm <id>
+  + borrar imagen
+    docker rmi <id>
+  + crear imagen
+    docker build -t "nombre/de/mi/imagen/:tag" /path:dockerfile
+  + correr contenedor (iterativo -i, borrar contenedor al salir --rm)
+    sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia <imagen_id> /bin/bash
+  + salir sin exit del contenedor
+    ctrl+p y luego ctrl+q
+  + commitear los cambios
+    docker commit <id> <nombre>
+  + volver al container
+    docker attach <id>
+  + copiar un archivo del container en ejecucion
+    docker cp <id>:absolut/path/to/file destination/path/in/host
 
 
-Authors and Contributors
-========================
+Autor
+------------------------
 Ponzoni Cuadra, Nelson E. (@lerker)
 
-Support or Contact
-==================
-Having trouble? Mail me npcuadra@gmail.com
-
-
-
-#modificaciones nuevas. solo anda con cuda 6.0
-
-./usr/local/cuda-6.5/bin/uninstall_cuda_6.5.pl
-
-wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run
-
-chmod a+x cuda_6.0.37_linux_64.run
-./cuda_6.0.37_linux_64.run
-
-pip3 uninstall Theano
-
-export PATH=/usr/local/cuda/bin:${PATH}
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
-
+Contacto y Soporte
+------------------
+Algun problema? Mandame un mail a npcuadra@gmail.com
