@@ -1,1 +1,9 @@
-
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
