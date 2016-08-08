@@ -236,7 +236,7 @@ class dbn(object):
             rbm_layer.train(    data=layer_input,   # los datos los binarizo y convierto a float
                                 miniBatchSize=self.params[i].batchSize,
                                 pcd=True,
-                                gibbsSteps=1,
+                                gibbsSteps=15,
                                 validationData=dataVal,
                                 plotFilters=filtrosss)
 
@@ -267,21 +267,21 @@ class dbn(object):
 
         classifier.addLayer(
                             unitsIn=784,
-                            unitsOut=500,
+                            unitsOut=1000,
                             classification=False,
                             activation=Sigmoid(),
                             weight=lista_pesos[0],
                             bias=None)
 
         classifier.addLayer(
-                            unitsIn=500,
-                            unitsOut=100,
+                            unitsIn=1000,
+                            unitsOut=1000,
                             classification=False,
                             weight=lista_pesos[1],
                             bias=None)
 
         classifier.addLayer(
-                            unitsIn=100,
+                            unitsIn=1000,
                             unitsOut=10,
                             classification=True,
                             activation=Sigmoid(),
@@ -295,7 +295,7 @@ class dbn(object):
                         trainSet=mn.get_training(),
                         validSet=mn.get_validation(),
                         testSet=mn.get_testing(),
-                        batch_size=20,
+                        batch_size=10,
                         n_epochs=n_epochs)
 
         final = T.toc()
@@ -413,21 +413,21 @@ if __name__ == "__main__":
 
         classifier.addLayer(
                             unitsIn=784,
-                            unitsOut=500,
+                            unitsOut=1000,
                             classification=False,
                             activation=Sigmoid(),
                             weight=None,
                             bias=None)
 
         classifier.addLayer(
-                            unitsIn=500,
-                            unitsOut=100,
+                            unitsIn=1000,
+                            unitsOut=1000,
                             classification=False,
                             weight=None,
                             bias=None)
 
         classifier.addLayer(
-                            unitsIn=100,
+                            unitsIn=1000,
                             unitsOut=10,
                             classification=True,
                             activation=Sigmoid(),
@@ -445,7 +445,7 @@ if __name__ == "__main__":
                         trainSet=mn.get_training(),
                         validSet=mn.get_validation(),
                         testSet=mn.get_testing(),
-                        batch_size=20,
+                        batch_size=10,
                         n_epochs=1000)
 
         final = T.toc()
@@ -475,25 +475,25 @@ if __name__ == "__main__":
 
         # agrego una capa..
         dbn0.addLayer(n_visible=784,
-                      n_hidden=500,
+                      n_hidden=1000,
                       numEpoch=100,
-                      batchSize=20,
-                      epsilonw=0.1,
+                      batchSize=10,
+                      epsilonw=0.01,
                       w=pesos1)
         # otra capa mas
         dbn0.addLayer(n_visible=500, # coincide con las ocultas de las anteriores
-                      n_hidden=100,
-                      numEpoch=100,
-                      batchSize=20,
-                      epsilonw=0.1,
+                      n_hidden=1000,
+                      numEpoch=1000,
+                      batchSize=10,
+                      epsilonw=0.01,
                       w=pesos2)
 
         # clasificacion
         dbn0.addLayer(n_visible=100, # coincide con las ocultas de las anteriores
                       n_hidden=10,
                       numEpoch=100,
-                      batchSize=20,
-                      epsilonw=0.1,
+                      batchSize=10,
+                      epsilonw=0.01,
                       w=pesos3)
 
         T = timer2()
