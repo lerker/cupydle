@@ -1,2 +1,10 @@
-numpy
-matplotlib
+pip>=1.5.4
+numpy>=1.7.1
+scipy>=0.11.0
+matplotlib>=1.3.1
+Theano>=0.8.2
+Pillow>=2.3.0
+g++>=4.2
+six>=1.5.2
+dev>=3.4.0
+nose>=1.3.1-2
