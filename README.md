@@ -140,22 +140,39 @@ A continuacion se detallan algunos pasos para su correcta intalación, los pasos
       docker ps -a
 
   + imagenes
+
       docker images -a
+
   + borrar contenedor [ docker rm $(docker ps -aq) ]
+
       docker rm <id>
+
   + borrar imagen
+
       docker rmi <id>
+
   + crear imagen
+
       docker build -t "nombre/de/mi/imagen/:tag" /path:dockerfile
+
   + correr contenedor (iterativo -i, borrar contenedor al salir --rm)
+
       sudo docker run -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia <imagen_id> /bin/bash
+
   + salir sin exit del contenedor
+
       ctrl+p y luego ctrl+q
+
   + commitear los cambios
+
       docker commit <id> <nombre>
+
   + volver al container
+
       docker attach <id>
+
   + copiar un archivo del container en ejecucion
+
       docker cp <id>:absolut/path/to/file destination/path/in/host
 
 
