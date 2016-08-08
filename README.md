@@ -118,7 +118,7 @@ Cuda Toolkit requiere como a lo mas la version de compilador __GCC 4.6__
 :$ nvcc --version
 ```
 
-Docker Notes
+Notas Docker
 ------------
 La libreria fue probada sobre un entorno 'virtualizado' del estilo Docker.
 
