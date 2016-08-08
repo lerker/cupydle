@@ -136,7 +136,9 @@ A continuacion se detallan algunos pasos para su correcta intalación, los pasos
 
 3. Cheat Sheet
   + contenedores (-q solo ids)
+
       docker ps -a
+
   + imagenes
       docker images -a
   + borrar contenedor [ docker rm $(docker ps -aq) ]
