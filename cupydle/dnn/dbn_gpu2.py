@@ -481,15 +481,15 @@ if __name__ == "__main__":
                       epsilonw=0.01,
                       w=pesos1)
         # otra capa mas
-        dbn0.addLayer(n_visible=500, # coincide con las ocultas de las anteriores
+        dbn0.addLayer(n_visible=1000, # coincide con las ocultas de las anteriores
                       n_hidden=1000,
-                      numEpoch=1000,
+                      numEpoch=100,
                       batchSize=10,
                       epsilonw=0.01,
                       w=pesos2)
 
         # clasificacion
-        dbn0.addLayer(n_visible=100, # coincide con las ocultas de las anteriores
+        dbn0.addLayer(n_visible=1000, # coincide con las ocultas de las anteriores
                       n_hidden=10,
                       numEpoch=100,
                       batchSize=10,
