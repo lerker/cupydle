@@ -1,4 +1,5 @@
-# cupydle [![Build Status](https://travis-ci.org/lerker/cupydle.svg?branch=master)](https://travis-ci.org/lerker/cupydle) [![GitHub issues](https://img.shields.io/github/issues/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/issues) [![GitHub license](https://img.shields.io/badge/license-Apache%202-blue.svg?style=plastic)](https://raw.githubusercontent.com/lerker/cupydle/master/LICENSE) [![GitHub forks](https://img.shields.io/github/forks/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/network) [![todofy badge](https://todofy.org/b/lerker/cupydle)](https://todofy.org/r/lerker/cupydle)
+# CUPYDLE
+[![Build Status](https://travis-ci.org/lerker/cupydle.svg?branch=master)](https://travis-ci.org/lerker/cupydle) [![GitHub issues](https://img.shields.io/github/issues/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/issues) [![GitHub license](https://img.shields.io/badge/license-Apache%202-blue.svg?style=plastic)](https://raw.githubusercontent.com/lerker/cupydle/master/LICENSE) [![GitHub forks](https://img.shields.io/github/forks/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/network) [![todofy badge](https://todofy.org/b/lerker/cupydle)](https://todofy.org/r/lerker/cupydle)
 
 **CU**da**PY**thon**D**eep**LE**arning Machine Learning
 
@@ -19,50 +20,76 @@ _cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecuta
 
 
 Funcionalidades:
+================
 
-- Maquinas de Boltzmann Restringidas
+- Maquinas de Boltzmann Restringidas (RBM)
   - Entrenamiento
     - [x] Algoritmo de Divergencia Constrastiva de n pasos de Gibbs (CD_n)
     - [x] Algoritmo de Divergencia Constrastiva Persistente de n pasos de Gibbs (PCD_n)
-    - [:interrobang:] Weight decay, momentum, batch-learning
+    - [ ] Weight decay, momento, batch-learning
     - [x] Unidades Ocultas Binarias.
     - [ ] Unidades Ocultas Gausianas.
+    - [x] Función de costo, error cuadratico medio (MSE).
+    - [x] Función de costo, entropia cruzada.
+    - [x] Función de costo, Energia Libre.
+
+  - Evaluación
+    - [x] Muestreo desde el modelo.
+    - [x] Visialización de Filtros.
+    - [x] Almacenamiento y recuperación de las representaciones ocultas.
+
+- Redes de Creencia Profunda (DBN)
+  - Entrenamiento (_no supervisado_)
+    - [x] Apilado de RBMs en capas.
+    - [ ] Almacenamiento.
+  - Entrenamiento (_supervisado_)
+    - [x] Recuperacion de las capas, pesos ya entrenados.
+    - [x] Ajuste de los pesos por medio de un Perceptron Multi-Capa (MLP).
+      - [x] Inicialización de los pesos.
+
+- Redes Neuronales Generales (MLP)
+  - Entrenamiento
+    - [x] Numero variable de capas, capas logisticas, softmax.
+    - [x] Funciones de activacion varias, Sigmoid.
+    - [x] Algoritmo del Gradiente Descendiente Estocastico (SGD)
+      - [x] Calculo de gradientes, retropropagacion del error.
+      - [ ] Tecnicas, 'patience'....
+    - [x] Weight decay, momentum, batch-learning.
+    - [x] Función de costo, entropia cruzada.
+    - [x] Función de costo, error cuadratico medio (MSE).
+
+- Pruebas
+  - MNIST
+    - [x] Preparación de los datos, descarga y manipulación.
+    - [x] Visualización de los datos.
+    - [x] Visualización de los filtros. :interrobang: (realizar la funcion en rbm que genere los filtro a partir de patches cuadrados...)
+    - [x] Muestreo de varios ejemplos a traves de sucesivas cadenas de Markov.
+
+Notas GP-GPU
+============
+En la maquina Host debe estar instalado el driver correspondiente Nvidia al modelo de la placa, en el caso de pruebas es Nvidia
+
+```bash
+~$: /proc/driver/nvidia/gpus/0000\:01\:00.0/information
+
+Model:           Tesla C1060
+IRQ:             46
+GPU UUID:        GPU-ffb9af25-05ad-7d83-5e0b-a397677ec9fe
+Video BIOS:      62.00.7a.00.05
+Bus Type:        PCIe
+DMA Size:        40 bits
+DMA Mask:        0xffffffffff
+Bus Location:    0000:01:00.0
+```
 
 
-- Restricted Boltzmann Machine Training
-  - [x] With n-step Contrastive Divergence (CD)
-  - [ ] :interrobang: With n-step Persistent Contrastive Divergence (PCD)
-  - [ ] :interrobang: Weight decay, momentum, batch-learning
-  - [ ] :interrobang: Binary or gaussian visible nodes
-
-- Restricted Boltzmann Machine Evaluation
-  - [x] :white_check_mark: Sampling from the model
-  - [x] :white_check_mark: Visualizing Filters
-  - [ ] Annealed Importance Sampling for approximating the partition function
-  - [ ] Calculating the partition function exactly
-  - [x] :interrobang: Visualization and saving of hidden representations
-
-- Stacking RBMs to Deep Belief Networks
-  - :negative_squared_cross_mark: Sampling from DBNs
 
 
-- Neural Network Traing
-  - [x] :white_check_mark: Backpropagation of error
-  - [] RPROP
-  - [x] :interrobang: Weight decay, momentum, batch-learning
-  - [x] :white_check_mark: Variable number of layers
-  - [ ] Cross entropy training
+cat /proc/driver/nvidia/version
+NVRM version: NVIDIA UNIX x86_64 Kernel Module  340.29  Thu Jul 31 20:23:19 PDT 2014
+GCC version:  gcc version 4.6.4 (Ubuntu/Linaro 4.6.4-6ubuntu2)
 
-- Finetuning
-  - [x] :white_check_mark: Initalizing a Neural Network with an RBM
-  - All of the above functionality can be used
 
-- Training on Image Data
-  - [x] :interrobang: Visualization of input, filters and samples from the model
-  - on-the-fly modifications to trainingset via gaussian noise or translations
-
-GPU Notes
-=========
 In host must be installed nvidia's driver correcpond to device model (e.i Tesla 1060 == _nvidia driver 340_)
 In ubuntu
 - sudo apt-get install nvidia-340 nvidia-340-uvm libcuda1-340
