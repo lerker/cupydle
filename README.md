@@ -4,12 +4,8 @@
 
 Introducción
 ============
-_cupydle_ is the fastest and easiest way to use Restricted Boltzmann
-Machines (RBMs). RBMs are a class of probabilistic models that can discover
-hidden patterns in your data. _cupydle_ provides all the necessary methods with
-a pythonic interface, and moreover, all methods call blazing fast C code. The
-code can also run transparently on GPU thanks to
-Theano (http://deeplearning.net/software/theano/).
+_cupydle_ es una libreria simple y sencilla, que provee todas las funcionalidades necesarias para la ejecucion de Redes de Creencia Profunda (DBN) sobre placas de procesamiento grafico para proposito general (GP-GPU).
+_cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecutado de forma transparente tanto en GPU como en CPU gracias a Theano (http://deeplearning.net/software/theano/).
 
 
 :white_check_mark: finished
@@ -22,7 +18,16 @@ Theano (http://deeplearning.net/software/theano/).
 
 
 
-Functionality:
+Funcionalidades:
+
+- Maquinas de Boltzmann Restringidas
+  - Entrenamiento
+    - [x] Algoritmo de Divergencia Constrastiva de n pasos de Gibbs (CD_n)
+    - [x] Algoritmo de Divergencia Constrastiva Persistente de n pasos de Gibbs (PCD_n)
+    - [:interrobang:] Weight decay, momentum, batch-learning
+    - [x] Unidades Ocultas Binarias.
+    - [ ] Unidades Ocultas Gausianas.
+
 
 - Restricted Boltzmann Machine Training
   - [x] With n-step Contrastive Divergence (CD)
