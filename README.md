@@ -2,7 +2,7 @@
 
 **CU**da**PY**thon**D**eep**LE**arning Machine Learning
 
-Introduction
+Introducción
 ============
 _cupydle_ is the fastest and easiest way to use Restricted Boltzmann
 Machines (RBMs). RBMs are a class of probabilistic models that can discover
@@ -117,3 +117,21 @@ Ponzoni Cuadra, Nelson E. (@lerker)
 Support or Contact
 ==================
 Having trouble? Mail me npcuadra@gmail.com
+
+
+
+#modificaciones nuevas. solo anda con cuda 6.0
+
+./usr/local/cuda-6.5/bin/uninstall_cuda_6.5.pl
+
+wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run
+
+chmod a+x cuda_6.0.37_linux_64.run
+./cuda_6.0.37_linux_64.run
+
+pip3 uninstall Theano
+
+export PATH=/usr/local/cuda/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
+
