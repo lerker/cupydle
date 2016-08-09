@@ -1,26 +1,31 @@
-sudo: True
-
+sudo: false
+dist: trusty
+cache:
+  directories:
+    - $HOME/download
+    - $HOME/.cache/pip
+compiler:
+    - gcc
 language: python
-
 python:
   - "3.3"
 
 before_install:
-- sudo apt-get update
-- sudo apt-get install wget
-- sudo apt-get install build-essential
-- sudo apt-get install python3-numpy
-- sudo apt-get install python3-scipy
-- sudo apt-get install python3-dev
+- apt-get update
+- apt-get install wget
+- apt-get install build-essential
+- apt-get install python3-numpy
+- apt-get install python3-scipy
+- apt-get install python3-dev
 #- sudo apt-get install python3-pip
-- sudo apt-get install python3-nose
+- apt-get install python3-nose
 #- sudo apt-get install python3-matplotlib
-- sudo apt-get install libopenblas-dev
-- sudo apt-get install linux-headers-`uname -r`
-- sudo apt-get install git
-- sudo apt-get install g++-4.6
-- sudo apt-get install gcc-4.6
-- sudo pip install Theano
+- apt-get install libopenblas-dev
+- apt-get install linux-headers-`uname -r`
+- apt-get install git
+- apt-get install g++-4.6
+- apt-get install gcc-4.6
+- pip install Theano
 
 
 notifications:
