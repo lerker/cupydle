@@ -1,0 +1,5 @@
+gpu<->cpu
+
+alamcenamiento de los datos...
+    debe ser del tipo numpy?
+        NO CudaNarray

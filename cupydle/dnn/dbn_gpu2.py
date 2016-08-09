@@ -19,11 +19,7 @@ __status__      = "Production"
 # There are 2 other implementations based on MRG31k3p and CURAND.
 # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
 
-# sistema basico
-# sistema basico
-import time # tiempo requedo por iteracion, se puede eliminar
-import sys  # llamadas al sistema en errores
-from subprocess import call # para ejecutar programas
+
 import numpy
 
 ### THEANO
@@ -49,14 +45,13 @@ from cupydle.dnn.activations import Sigmoid
 
 
 """
-from cupydle.dnn.utils import timer as timer2
 try:
     import PIL.Image as Image
 except ImportError:
     import Image
 
-from cupydle.dnn.utils import scale_to_unit_interval
-from cupydle.dnn.utils import tile_raster_images
+from cupydle.dnn.graficos import scale_to_unit_interval
+from cupydle.dnn.graficos import tile_raster_images
 
 import matplotlib.pyplot
 
@@ -65,8 +60,11 @@ from cupydle.dnn.rbm_gpu2 import RBM
 
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
+from cupydle.dnn.utils import temporizador
+from cupydle.dnn.mlp import MLP
 
 import glob# load_dbn_weight
+verbose = True
 
 class rbmParams(object):
     # sirve para guardar el estado nomas
@@ -114,7 +112,9 @@ class rbmParams(object):
 
 class dbn(object):
 
-    def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None):
+    verbose = True
+
+    def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None, ruta=''):
         """This class is made to support a variable number of layers.
 
         :type numpy_rng: numpy.random.RandomState
@@ -138,9 +138,6 @@ class dbn(object):
         :type name: string
         :param name: name of model, for save files in disk
         """
-        self.params = []
-
-        self.n_layers = 0
 
         if not numpy_rng:
             numpy_rng = numpy.random.RandomState(1234)
@@ -154,7 +151,12 @@ class dbn(object):
         self.x = theano.tensor.matrix('samples')  # the data is presented as rasterized images
         self.y = theano.tensor.ivector('labels')  # the labels are presented as 1D vector
                                                   # of [int] labels
-        self.layers = []
+
+        self.params = []
+        self.n_layers = 0
+        self.layersHidAct = [] # activaciones de las capas ocultas intermedias
+        self.pesos = [] #pesos almacenados en una lista, una vez entrenados se guardan aca
+                        # para utilizarse en el fit o prediccion...
 
         if name is None:
             name="dbnTest"
@@ -163,18 +165,26 @@ class dbn(object):
         self.numpy_rng = numpy_rng
         self.theano_rng = theano_rng
 
+        self.ruta = ruta
+
+
     def addLayer(self,
-                n_visible,
                 n_hidden,
                 numEpoch,
                 batchSize,
                 epsilonw,        # Learning rate for weights
+                n_visible=None,
                 w=None,
                 epsilonvb=None,  # Learning rate for biases of visible units
                 epsilonhb=None,  # Learning rate for biases of hidden units
                 weightcost=None, # Weigth punishment
                 initialmomentum=None,
                 finalmomentum=None):
+
+        if n_visible is None:
+            assert self.params != [], "Debe prover de unidades de entrada para esta capa."
+            n_visible = self.params[-1].n_hidden
+
         # agrego una capa de rbm a la dbn, con los parametros que le paso
         self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
                                     numEpoch=numEpoch, batchSize=batchSize,
@@ -185,7 +195,7 @@ class dbn(object):
 
         return
 
-    def train(self, dataTrn, dataVal, path='./', saveInitialWeights=False):
+    def train(self, dataTrn, dataVal, saveInitialWeights=False):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -193,15 +203,12 @@ class dbn(object):
         :type dataVal: narray
         :param dataTrn: datos de validacion
 
-        :type path: string
-        :param path: directorio donde almacenar los resultados, archivos
-
         :type saveInitialWeigths: boolean
         :param saveInitialWeights: si se requiere almacenar los pesos iniciales antes de aplicar la rbm
         """
         assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
-        filtrosss = path
+        filtrosss = self.ruta
 
         for i in range(self.n_layers):
             # the input to this layer is either the activation of the
@@ -210,7 +217,7 @@ class dbn(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.layers[-1]
+                layer_input = self.layersHidAct[-1]
                 filtrosss=None
 
             # Construct an RBM that shared weights with this layer
@@ -230,7 +237,7 @@ class dbn(object):
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
             if saveInitialWeights:
-                filename = path + self.name + "_capaInicial" + str(i+1) + ".pgz"
+                filename = self.ruta + self.name + "_capaInicial" + str(i+1) + ".pgz"
                 rbm_layer.save(filename)
 
             rbm_layer.train(    data=layer_input,   # los datos los binarizo y convierto a float
@@ -241,7 +248,7 @@ class dbn(object):
                                 plotFilters=filtrosss)
 
             print("Guardando la capa..") if verbose else None
-            filename = path + self.name + "_capa" + str(i+1) + ".pgz"
+            filename = self.ruta + self.name + "_capa" + str(i+1) + ".pgz"
             rbm_layer.save(filename, absolutName=True)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
@@ -250,56 +257,80 @@ class dbn(object):
             dataVal = rbm_layer.activacionesOcultas(dataVal)
 
             print("Guardando las muestras para la siguiente capa..") if verbose else None
-            filename_samples = path + self.name + "_capaSample" + str(i+1)
+            filename_samples = self.ruta + self.name + "_capaSample" + str(i+1)
             save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
 
             # guardo la salida de la capa para la proxima iteracion
-            self.layers.append(hiddenActPos)
+            self.layersHidAct.append(hiddenActPos)
 
             del rbm_layer
         # FIN FOR
+
+        # una vez terminado el entrenamiento guardo los pesos para su futura utilizacion
+        self.pesos = self.load_dbn_weigths(dbnNombre=self.name, ruta=self.ruta)
         return
     # FIN TRAIN
 
-    def fit(self, lista_pesos, mn, n_epochs=1000):
+    def fit(self, datos, listaPesos=None, fnActivacion=Sigmoid(),
+            n_epochs=1000, semillaRandom=None):
+        """
+        construye un perceptron multicapa, y ajusta los pesos por medio de un
+        entrenamiento supervisado.
+        """
+        if listaPesos is None:
+            if self.pesos == []:
+                self.pesos = self.load_dbn_weigths(dbnNombre=self.name, ruta=self.ruta)
+        else:
+            self.pesos = listaPesos
+
+        assert self.pesos!=[], "Error al obtener los pesos"
+
+        activaciones = []
+        if fnActivacion is not None:
+            if isinstance(fnActivacion, list):
+                assert len(fnActivacion) == len(self.pesos), "No son suficientes funciones de activacion"
+                activaciones = fnActivacion
+            else:
+                activaciones = [fnActivacion] * len(self.pesos)
+        else:
+            assert False, "Debe proveer una funcion de activacion"
+
+
         classifier = MLP(   task="clasificacion",
-                            rng=None)
+                            rng=semillaRandom)
+
+        # cargo en el perceptron multicapa los pesos en cada capa
+        # como el fit es de clasificacion, las primeras n-1 capas son del tipo
+        # 'logisticas' luego la ultima es un 'softmax'
+        for i in range(0,len(self.pesos)-1):
+            classifier.addLayer(
+                                unitsIn=self.pesos[i].shape[0],
+                                unitsOut=self.pesos[i].shape[1],
+                                classification=False,
+                                activation=activaciones[i],
+                                weight=self.pesos[i],
+                                bias=None)
 
         classifier.addLayer(
-                            unitsIn=784,
-                            unitsOut=1000,
-                            classification=False,
-                            activation=Sigmoid(),
-                            weight=lista_pesos[0],
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=1000,
-                            unitsOut=1000,
-                            classification=False,
-                            weight=lista_pesos[1],
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=1000,
-                            unitsOut=10,
+                            unitsIn=self.pesos[-1].shape[0],
+                            unitsOut=self.pesos[-1].shape[1],
                             classification=True,
-                            activation=Sigmoid(),
-                            weight=lista_pesos[2],
+                            activation=activaciones[-1],
+                            weight=self.pesos[-1],
                             bias=None)
 
-        T = timer2()
+        T = temporizador()
         inicio = T.tic()
 
         classifier.train(
-                        trainSet=mn.get_training(),
-                        validSet=mn.get_validation(),
-                        testSet=mn.get_testing(),
+                        trainSet=datos[0],
+                        validSet=datos[1],
+                        testSet=datos[2],
                         batch_size=10,
                         n_epochs=n_epochs)
 
         final = T.toc()
-        print("Tiempo total para entrenamiento DBN: {}".format(T.elapsed(inicio, final)))
+        print("Tiempo total para entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
         return
 
     def save2(self, filename, compression='zip'):
@@ -348,194 +379,17 @@ class dbn(object):
         print("Cantidad de capas:", self.n_layers)
         return 0
 
-def load_dbn_weigths(path, dbnName):
-    """
-    carga las primeras 10 capas de la dbn segun su nombre y directorio (ordenadas por nombre)
-    http://stackoverflow.com/questions/6773584/how-is-pythons-glob-glob-ordered
-    """
-    capas = []
-    for file in sorted(glob.glob(path + dbnName + "_capa[0-9].*")):
-        print("Cargando capa: ",file) if verbose else None
-        capas.append(RBM.load(str(file)))
-    return capas
+    @staticmethod
+    def load_dbn_weigths(dbnNombre, ruta):
+        """
+        carga las primeras 10 capas de la dbn segun su nombre y directorio (ordenadas por nombre)
+        http://stackoverflow.com/questions/6773584/how-is-pythons-glob-glob-ordered
+        """
+        capas = []
+        for file in sorted(glob.glob(ruta + dbnNombre + "_capa[0-9].*")):
+            print("Cargando capa: ",file) if verbose else None
+            capas.append(RBM.load(str(file)).w.get_value())
+        return capas
 
 if __name__ == "__main__":
-    from cupydle.dnn.utils import timer as timer2
-    import os
-    currentPath = os.getcwd()                               # directorio actual de ejecucion
-    testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
-    dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
-    testFolder  = 'test1/'                                  # carpeta a crear para los tests
-    fullPath    = testPath + testFolder
-
-    if not os.path.exists(fullPath):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',fullPath)
-        os.makedirs(fullPath)
-
-    import subprocess
-    subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
-
-    from cupydle.test.mnist.mnist import MNIST
-    setName = "mnist"
-    MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
-
-    import argparse
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
-    parser.add_argument('-r', '--rbm', action="store_true", dest="rbm", help="ejecutar las rbm", default=False)
-    parser.add_argument('-m', '--mlp', action="store_true", dest="mlp", help="mlp simple", default=False)
-    parser.add_argument('-d', '--dbn', action="store_true", dest="dbn", help="dbn", default=False)
-    parser.add_argument('-e', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
-    args = parser.parse_args()
-
-    rbm = args.rbm
-    mlp = args.mlp
-    dbnn = args.dbn
-    modelName = args.modelo
-    #modelName = 'capa1.pgz'
-    verbose = True
-
-    if mlp :
-        print("S E C C I O N        M L P")
-
-        # Dependencias Externas
-        from cupydle.dnn.mlp import MLP
-        from cupydle.test.mnist.mnist import MNIST
-        from cupydle.test.mnist.mnist import open4disk
-        from cupydle.test.mnist.mnist import save2disk
-
-
-        # se leen de disco la base de datos
-        mn = open4disk(filename=dataPath + setName, compression='bzip2')
-        #mn.info                                        # muestra alguna informacion de la base de datos
-
-        classifier = MLP(   task="clasificacion",
-                            rng=None)
-
-        classifier.addLayer(
-                            unitsIn=784,
-                            unitsOut=1000,
-                            classification=False,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=1000,
-                            unitsOut=1000,
-                            classification=False,
-                            weight=None,
-                            bias=None)
-
-        classifier.addLayer(
-                            unitsIn=1000,
-                            unitsOut=10,
-                            classification=True,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
-
-        T = timer2()
-        inicio = T.tic()
-
-        numpy.save(fullPath + "pesos1",classifier.capas[0].W.get_value())
-        numpy.save(fullPath + "pesos2",classifier.capas[1].W.get_value())
-        numpy.save(fullPath + "pesos3",classifier.capas[2].W.get_value())
-
-        classifier.train(
-                        trainSet=mn.get_training(),
-                        validSet=mn.get_validation(),
-                        testSet=mn.get_testing(),
-                        batch_size=10,
-                        n_epochs=1000)
-
-        final = T.toc()
-        print("Tiempo total para entrenamiento MLP: {}".format(T.elapsed(inicio, final)))
-
-    if rbm :
-        print("S E C C I O N        R B M")
-
-        from cupydle.test.mnist.mnist import MNIST
-        from cupydle.test.mnist.mnist import open4disk
-        from cupydle.test.mnist.mnist import save2disk
-
-        # se leen de disco los datos
-        mnData = open4disk(filename=dataPath + setName, compression='bzip2')
-        #mn.info  # muestra alguna informacion de la base de datos
-
-        # obtengo todos los subconjuntos
-        train_img,  train_labels= mnData.get_training()
-        test_img,   test_labels = mnData.get_testing()
-        val_img,    val_labels  = mnData.get_validation()
-
-        dbn0 = dbn(name=None)
-
-        pesos1 = numpy.load(fullPath + "pesos1.npy")
-        pesos2 = numpy.load(fullPath + "pesos2.npy")
-        pesos3 = numpy.load(fullPath + "pesos3.npy")
-
-        # agrego una capa..
-        dbn0.addLayer(n_visible=784,
-                      n_hidden=1000,
-                      numEpoch=100,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos1)
-        # otra capa mas
-        dbn0.addLayer(n_visible=1000, # coincide con las ocultas de las anteriores
-                      n_hidden=1000,
-                      numEpoch=100,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos2)
-
-        # clasificacion
-        dbn0.addLayer(n_visible=1000, # coincide con las ocultas de las anteriores
-                      n_hidden=10,
-                      numEpoch=100,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos3)
-
-        T = timer2()
-        inicio = T.tic()
-
-        #entrena la red
-        dbn0.train(dataTrn=(train_img/255.0).astype(numpy.float32),
-                   dataVal=(val_img/255.0).astype(numpy.float32),
-                   path=fullPath)
-
-        final = T.toc()
-        print("Tiempo total para entrenamiento DBN: {}".format(T.elapsed(inicio, final)))
-
-        dbn0.save(fullPath + "dbnMNIST", compression='zip')
-
-    if dbnn:
-        print("S E C C I O N        D B N")
-        miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
-        print(miDBN)
-
-        red_capas = load_dbn_weigths(fullPath, miDBN.name)
-
-        # Dependencias Externas
-        from cupydle.dnn.mlp import MLP
-        from cupydle.test.mnist.mnist import MNIST
-        from cupydle.test.mnist.mnist import open4disk
-        from cupydle.test.mnist.mnist import save2disk
-
-
-        # se leen de disco la base de datos
-        mn = open4disk(filename=dataPath + setName, compression='bzip2')
-        #mn.info                                        # muestra alguna informacion de la base de datos
-
-        # obtengo todos los subconjuntos
-        train_img,  train_labels= mn.get_training()
-        test_img,   test_labels = mn.get_testing()
-        val_img,    val_labels  = mn.get_validation()
-
-        #lista_pesos = [rbm.w.get_value().transpose() for rbm in red_capas]
-        lista_pesos = [rbm.w.get_value() for rbm in red_capas]
-
-        miDBN.fit(lista_pesos, mn, n_epochs=1000)
-
-
-
+    assert False, str(__file__ + " No es un modulo")

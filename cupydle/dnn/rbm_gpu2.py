@@ -3,6 +3,9 @@
 
 """Implementation of restricted Boltzmann machine on GP-GPU."""
 
+# https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
+#
+
 __author__      = "Ponzoni, Nelson"
 __copyright__   = "Copyright 2015"
 __credits__     = ["Ponzoni Nelson"]
@@ -47,14 +50,14 @@ from cupydle.dnn.activations import Sigmoid
 
 
 """
-from cupydle.dnn.utils import timer as timer2
+from cupydle.dnn.utils import temporizador
 try:
     import PIL.Image as Image
 except ImportError:
     import Image
 
-from cupydle.dnn.utils import scale_to_unit_interval
-from cupydle.dnn.utils import tile_raster_images
+from cupydle.dnn.graficos import scale_to_unit_interval
+from cupydle.dnn.graficos import tile_raster_images
 
 import matplotlib.pyplot
 
@@ -483,6 +486,8 @@ class RBM(object):
         return
 
     def dibujarFiltros(self, nombreArchivo, ruta, binary=False):
+        # mirar
+        # http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
         # plot los filtros iniciales (sin entrenamiento)
         image = Image.fromarray(
             tile_raster_images(
@@ -714,6 +719,12 @@ class RBM(object):
         return train_rbm
 
     def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters=None, printCompacto=False):
+        # mirar:
+        # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
+        #
+        #
+        #
+        # ahi esta la actualziacion como lo hace hinton
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
@@ -1199,7 +1210,7 @@ if __name__ == "__main__":
     red.setParams({'maxepoch':2})
 
 
-    T = timer2()
+    T = temporizador()
     inicio = T.tic()
 
     #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]

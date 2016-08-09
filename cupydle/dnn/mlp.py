@@ -144,13 +144,17 @@ class MLP(object):
 
 
 
-    def addLayer(self, unitsIn, unitsOut, classification, activation=Sigmoid(), weight=None, bias=None):
+    def addLayer(self, unitsOut, classification, unitsIn=None, activation=Sigmoid(), weight=None, bias=None):
         if not self.capas:
             # primer capa, es la entrada de mlp, osea x, para iniciar el arbol
             entrada = self.x
         else:
             # la entrada es la salida de la ultima capa hasta ahora...
             entrada = self.capas[-1].activate()
+
+        if unitsIn is None: # las entradas deben ser las salidas de la anterior
+            assert self.capas != [], "Debe prover de unidades de entrada para esta capa."
+            unitsIn = self.capas[-1].get_weights().get_value(borrow=True).shape[1]
 
         if not classification:
             capa = Layer(nIn = unitsIn,
