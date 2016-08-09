@@ -64,12 +64,14 @@ target/
 # IDE
 .idea/
 
-# test y relacionados a ejecucion
-cupydle/test/mnist/test[0-1]/*
-cupydle/data/DB_mnist/*
+# comprimidos
 *.pkl
 *.gz
 *.zip
+*.pgz
+
+# test y relacionados a ejecucion
+cupydle/test/mnist/test[0-1]/*
+cupydle/data/DB_mnist/*
 *.png
 *.pdf
-

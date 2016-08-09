@@ -72,7 +72,8 @@ class RBM(object):
                 visbiases=None,     # vector de biases visibles
                 hidbiases=None,     # vector de biases ocultos
                 numpy_rng=None,     # seed para numpy random
-                theano_rng=None):   #seed para theano random
+                theano_rng=None,    #seed para theano random
+                ruta=''):
         """
         RBM constructor. Defines the parameters of the model along with
         basic operations for inferring hidden from visible (and vice-versa),
@@ -176,6 +177,8 @@ class RBM(object):
         # for allocate statistics
         self.estadisticos = {}
         self._initStatistics()
+
+        self.ruta = ruta
     # END INIT
 
     def _initParams(self):
@@ -435,7 +438,9 @@ class RBM(object):
         return ([visibleActRec[-1], hiddenActData[-1], probabilityP[-1], probabilityN[-1], linearSumP[-1], linearSumN[-1]], updates)
 
     def energiaLibre(self, vsample):
-        ''' Function to compute the free energy '''
+        """
+        Function to compute the free energy
+        """
         wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
         vbias_term = theano.tensor.dot(vsample, self.visbiases)
         hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
@@ -457,12 +462,12 @@ class RBM(object):
 
     def dibujarEstadisticos(self, show=False, save=None):
 
-        errorEntrenamiento = self.estadisticos['errorEntrenamiento']
-        errorValidacion = self.estadisticos['errorValidacion']
-        errorTesteo = self.estadisticos['errorTesteo']
-        mseEntrenamiento = self.estadisticos['mseEntrenamiento']
+        errorEntrenamiento  = self.estadisticos['errorEntrenamiento']
+        errorValidacion     = self.estadisticos['errorValidacion']
+        errorTesteo         = self.estadisticos['errorTesteo']
+        mseEntrenamiento    = self.estadisticos['mseEntrenamiento']
         energiaLibreEntrenamiento = self.estadisticos['energiaLibreEntrenamiento']
-        energiaLibreValidacion = self.estadisticos['energiaLibreValidacion']
+        energiaLibreValidacion  = self.estadisticos['energiaLibreValidacion']
 
         f, axarr = matplotlib.pyplot.subplots(2, 3, sharex='col', sharey='row')
 

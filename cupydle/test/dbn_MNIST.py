@@ -1,3 +1,24 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
+
+
+"""
+Implementacion de una Red de Creencia Profunda en GP-GPU/CPU (Theano)
+Aplicado a la base de datos de 'benchmark' MNIST
+
+http://yann.lecun.com/exdb/mnist/
+
+"""
 import numpy
 import time
 import os
@@ -39,7 +60,7 @@ if __name__ == "__main__":
     MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
 
 
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
+    parser = argparse.ArgumentParser(description='Prueba de una DBN sobre MNIST.')
     parser.add_argument('-r', '--rbm', action="store_true", dest="rbm", help="ejecutar las rbm", default=False)
     parser.add_argument('-m', '--mlp', action="store_true", dest="mlp", help="mlp simple", default=False)
     parser.add_argument('-d', '--dbnf', action="store_true", dest="dbnf", help="dbn fit", default=False)
