@@ -27,6 +27,7 @@ image from a set of samples or weights.
 
 import numpy
 import os
+import matplotlib.pylab as plt
 
 def display_avalible():
     """
@@ -164,3 +165,55 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
                         tile_col * (W + Ws): tile_col * (W + Ws) + W
                     ] = this_img * c
         return out_array
+
+def filtrosConstructor(images, titulo, formaFiltro, nombreArchivo=None, mostrar=False, forzar=False):
+        # la forma de la imagen es inferida, debe ser cuadrada
+        # para el mnist es de 28,28 en la primer capa..
+        # si no es cuadra (cantidad de unidades no tiene raiz cuadrada exacta..)
+        # debe fallar, solo a que fuerce el plot
+
+        # TODO hace lo de formaImagen adaptativo... en caso de que no sea cuadrada perfecto agarrar lo que corresponda
+
+        entrada = images.shape[1] # 784 mnist
+        # cuadrado perfecto?
+        check = int(numpy.floor(numpy.mod(entrada,numpy.floor(numpy.power(entrada,1/2))**2)))
+        assert not (check!=0 and forzar), "Forma de la imagen no corresponde"
+        #tmp = int(numpy.floor(numpy.mod(entrada,numpy.floor(numpy.power(entrada,1/2))**2)))
+        #formaImagen = (tmp, tmp)
+
+        formaImagen = (int(numpy.power(entrada,1/2)) ,int(numpy.power(entrada,1/2)))
+
+
+        n_col, n_row = formaFiltro
+
+        #plt.figure(figsize=(2. * n_col, 2. * n_row))
+        plt.cla()   # Clear axis
+        plt.clf()   # Clear figure
+        plt.close("all") # Close a figure window
+        plt.figure(figsize=(12,12))
+        plt.title(titulo, size=16)
+        fig = plt.gcf()
+        DPI = fig.get_dpi()
+        fig.set_size_inches(1024.0/float(DPI),1024.0/float(DPI))
+        for i, comp in enumerate(images):
+            plt.subplot(n_row, n_col, i + 1)
+            plt.gca().set_aspect('equal', adjustable='box')
+
+            vmax = max(comp.max(), -comp.min())
+            plt.imshow(comp.reshape(formaImagen), cmap=plt.cm.gray,
+                       vmin=-vmax, vmax=vmax)
+            plt.xticks(())
+            plt.yticks(())
+        #matplotlib.pyplot.tight_layout()
+        #plt.subplots_adjust(hspace = .001, wspace=.001, left=0.001)
+        #plt.subplots_adjust(wspace=.01, hspace=.01)
+        plt.subplots_adjust(0,0,1,1,0,0)
+        if nombreArchivo is not None:
+            #print("guardando los filtros en: " + nombreArchivo)
+            plt.savefig(nombreArchivo, bbox_inches='tight')
+
+        if mostrar:
+            plt.show()
+
+        return plt
+

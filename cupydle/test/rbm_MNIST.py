@@ -92,6 +92,8 @@ if __name__ == "__main__":
     # creo la red
     red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
 
+    #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
+
     red.setParams({'epsilonw':0.1})
     red.setParams({'epsilonvb':0.1})
     red.setParams({'epsilonhb':0.1})
@@ -114,17 +116,17 @@ if __name__ == "__main__":
                 pcd=True,
                 gibbsSteps=1,
                 validationData=datos[1][0],
-                plotFilters=rutaCompleta)
+                filtros=True)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
     # guardo los estadisticos
     #red.dibujarEstadisticos(show=True, save='estadisticos.png')
-    red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
+    #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
 
-    red.sampleo(data=datos[0][0],
-                labels=datos[0][1])
+    #red.sampleo(data=datos[0][0],
+    #            labels=datos[0][1])
 
     print('Guardando el modelo en ...', rutaCompleta + modelName)
     inicio = T.tic()

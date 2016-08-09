@@ -58,6 +58,7 @@ except ImportError:
 
 from cupydle.dnn.graficos import scale_to_unit_interval
 from cupydle.dnn.graficos import tile_raster_images
+from cupydle.dnn.graficos import filtrosConstructor
 
 import matplotlib.pyplot
 
@@ -335,76 +336,6 @@ class RBM(object):
 
         return 1
 
-    def plot_error(self, error, tipo='validation', show=True, save=None, path=None):
-        # importo aca para no sobrecargar.. si no es necesario
-        import matplotlib
-        import matplotlib.pyplot as plt
-
-        if type(error) is not dict and type(error) is not list:
-            print("No se reconoce el contenedor del error")
-            sys.exit(0)
-
-
-        fig = plt.figure('Error').clear()
-
-        # si el error viene en forma de lista considero un error/epoca
-        # si el error viene en un diccionario, considero que es el error de validacion
-        # el que quiero plotear, caso contrario debo especificar en el parametro 'tipo'
-        if type(error) == dict:
-            if tipo == 'validation':
-                y = error['errorValidation']
-            elif tipo == 'training':
-                y = error['errorTraining']
-            else:
-                print("No se reconoce el parametro 'tipo'")
-                sys.exit(0)
-        elif type(error) == list:
-            y = error
-
-        if tipo == 'validation':
-            ylabel = 'Validation Set Error'
-        elif tipo == 'training':
-            ylabel = 'Training Set Error'
-        else:
-            print("No se reconoce el parametro 'tipo'")
-            sys.exit(0)
-
-        if tipo == 'validation':
-            marker = 'or'   # bolita roja
-        else:
-            marker = 'og'   # bolita verde
-
-        xlabel = 'Epoch'
-        x = list(range(1, len(y)+1))
-
-        plt.plot(x, error, marker)
-        plt.ylabel(ylabel)
-        plt.xlabel(xlabel)
-        plt.title(ylabel)
-
-        if show:
-            plt.show()
-
-
-        if save is not None and path is None:   # corrigo la direccion en caso de no proporcionarla y si guardar
-            path = ''
-        if save == 'png' or save is True:
-            route = path + ylabel.replace(' ', '_') + ".png"
-            plt.savefig(route, format='png')
-            print('Guardando la imagen en la ruta:',route)
-        elif save == 'eps':
-            route = path + ylabel.replace(' ', '_') + '.eps'
-            plt.savefig(route, format='eps', dpi=1000)
-            print('Guardando la imagen en la ruta:',route)
-        elif save == 'svg':
-            route = path + ylabel.replace(' ', '_') + '.svg'
-            plt.savefig(route, format='svg', dpi=1000)
-            print('Guardando la imagen en la ruta:',route)
-        else:
-            pass
-
-        return plt
-
     def markovChain(self, steps):
         """
         Ejecuta una cadena de Markov de 'k=steps' pasos
@@ -490,10 +421,23 @@ class RBM(object):
             matplotlib.pyplot.show()
         return
 
-    def dibujarFiltros(self, nombreArchivo, ruta, binary=False):
+
+    def dibujarFiltros(self, nombreArchivo='filtros.png', formaFiltro = (10,10), binary=False, mostrar=False):
         # mirar
         # http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
         # plot los filtros iniciales (sin entrenamiento)
+        cantidad = formaFiltro[0]*formaFiltro[1]
+        ima = self.w.get_value(borrow=True).T[:cantidad]
+
+        figura = filtrosConstructor(images=ima,
+                                    titulo=nombreArchivo,
+                                    formaFiltro=formaFiltro,
+                                    nombreArchivo=self.ruta+nombreArchivo,
+                                    mostrar=mostrar)
+
+        #figura.show()
+        """
+        # con el tile_raster...
         image = Image.fromarray(
             tile_raster_images(
                 X=self.w.get_value(borrow=True).T,
@@ -512,7 +456,8 @@ class RBM(object):
             # Now we put it back in Pillow/PIL land
             image = Image.fromarray(bw)
 
-        image.save(ruta + nombreArchivo)
+        image.save(self.ruta + nombreArchivo)
+        """
 
         return 1
 
@@ -723,7 +668,7 @@ class RBM(object):
 
         return train_rbm
 
-    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, plotFilters=None, printCompacto=False):
+    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
         # mirar:
         # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
         #
@@ -745,16 +690,17 @@ class RBM(object):
         trainer = None
 
         if pcd:
-            print("Entrenando con Divergencia Contrastiva Persistente.")
+            print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
         else:
-            print("Entrenando con Divergencia Contrastiva.")
+            print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.ConstrastiveDivergence(miniBatchSize, sharedData)
 
-        if plotFilters is not None:
+        if filtros:
             # plot los filtros iniciales (sin entrenamiento)
-            self.dibujarFiltros(  nombreArchivo='filtros_epoca_0.pdf',
-                                ruta=plotFilters)
+            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf')
+
+
 
         # cantidad de indices... para recorrer el set
         indexCount = int(data.shape[0]/miniBatchSize)
@@ -802,9 +748,8 @@ class RBM(object):
                  'energiaLibreEntrenamiento': fEnergy,
                  'energiaLibreValidacion': 0.0})
 
-            if plotFilters is not None:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
-                                  ruta=plotFilters)
+            if filtros:
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1))
 
             # END SET
         # END epoch
@@ -1152,106 +1097,4 @@ class RBM(object):
 
 
 if __name__ == "__main__":
-
-    import os
-    currentPath = os.getcwd()                               # directorio actual de ejecucion
-    testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
-    dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
-    testFolder  = 'test0/'                                   # carpeta a crear para los tests
-    fullPath    = testPath + testFolder
-
-    if not os.path.exists(fullPath):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',fullPath)
-        os.makedirs(fullPath)
-
-    if not os.path.exists(dataPath):
-        print("Creando la base de datos en:", dataPath)
-        os.makedirs(dataPath)
-
-    import subprocess
-    subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
-
-    from cupydle.test.mnist.mnist import MNIST
-    setName = "mnist"
-    MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
-
-    import argparse
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
-    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
-    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
-    args = parser.parse_args()
-
-    guardar = args.guardar
-    modelName = args.modelo
-    #modelName = 'capa1.pgz'
-
-    # para la prueba...
-    from cupydle.test.mnist.mnist import MNIST
-    from cupydle.test.mnist.mnist import open4disk
-    from cupydle.test.mnist.mnist import save2disk
-
-    # se leen de disco los datos
-    mn = open4disk(filename=dataPath + setName, compression='bzip2')
-    #mn.info                                        # muestra alguna informacion de la base de datos
-
-    # obtengo todos los subconjuntos
-    train_img,  train_labels= mn.get_training()
-    test_img,   test_labels = mn.get_testing()
-    val_img,    val_labels  = mn.get_validation()
-
-    # parametros de la red
-    n_visible = 784
-    n_hidden  = 500
-    batchSize = 20
-
-    # creo la red
-    red = RBM(n_visible=n_visible, n_hidden=n_hidden)
-
-    red.setParams({'epsilonw':0.1})
-    red.setParams({'epsilonvb':0.1})
-    red.setParams({'epsilonhb':0.1})
-    red.setParams({'initialmomentum':0.5})
-    red.setParams({'weightcost':0.0002})
-    red.setParams({'maxepoch':2})
-
-
-    T = temporizador()
-    inicio = T.tic()
-
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0], gibbsSteps=1)
-    #MNIST.plot_one_digit((train_img/255.0).astype(numpy.float32)[0])
-    #MNIST.plot_one_digit(salida)
-
-
-    red.train(  data=(train_img/255.0).astype(numpy.float32),   # los datos los binarizo y convierto a float
-                miniBatchSize=batchSize,
-                pcd=True,
-                gibbsSteps=1,
-                validationData=(val_img/255.0).astype(numpy.float32),
-                plotFilters=fullPath)
-
-    final = T.toc()
-    print("Tiempo total para entrenamiento: {}".format(T.elapsed(inicio, final)))
-
-    # guardo los estadisticos
-    #red.dibujarEstadisticos(show=True, save='estadisticos.png')
-    red.dibujarEstadisticos(show=True, save=fullPath+'estadisticos.png')
-
-    red.sampleo(data=(train_img/255.0).astype(numpy.float32),
-                labels=train_labels)
-
-    print('Guardando el modelo en ...', fullPath + modelName)
-    inicio = T.tic()
-    red.save(fullPath + modelName, absolutName=True)
-    final = T.toc()
-    print("Tiempo total para guardar: {}".format(T.elapsed(inicio, final)))
-
-    red2 = RBM.load(fullPath + "coso.pgz")
-
-    if numpy.allclose(red.w.get_value(), red2.w.get_value()):
-        assert False
-    else:
-        print("no son iguales")
-
-    print("FIN")
+    assert False, str(__file__ + " No es un modulo")

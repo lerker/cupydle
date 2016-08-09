@@ -3,3 +3,6 @@ gpu<->cpu
 alamcenamiento de los datos...
     debe ser del tipo numpy?
         NO CudaNarray
+
+mirar para el ploteo
+http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
