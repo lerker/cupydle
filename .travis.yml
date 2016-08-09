@@ -1,3 +1,8 @@
+notifications:
+  email:
+    on_success: always
+    on_failure: never
+
 sudo: false
 dist: trusty
 cache:
@@ -11,32 +16,38 @@ python:
   - "3.3"
 
 before_install:
-- apt-get update
-- apt-get install wget
-- apt-get install build-essential
-- apt-get install python3-numpy
-- apt-get install python3-scipy
-- apt-get install python3-dev
-#- sudo apt-get install python3-pip
-- apt-get install python3-nose
-#- sudo apt-get install python3-matplotlib
-- apt-get install libopenblas-dev
-- apt-get install linux-headers-`uname -r`
-- apt-get install git
-- apt-get install g++-4.6
-- apt-get install gcc-4.6
-- pip install Theano
-
-
-notifications:
-  email:
-    on_success: always
-    on_failure: never
-
-install:
-  - sudo pip install -r requirements.txt
-  - pip install coveralls
+  - apt-get update
+  - apt-get install wget
+  - apt-get install build-essential
+  - apt-get install python3-numpy
+  - apt-get install python3-scipy
+  - apt-get install python3-dev
+  #- sudo apt-get install python3-pip
+  - apt-get install python3-nose
+  #- sudo apt-get install python3-matplotlib
+  - apt-get install libopenblas-dev
+  - apt-get install linux-headers-`uname -r`
+  - apt-get install git
+  - apt-get install g++-4.6
+  - apt-get install gcc-4.6
+  - pip install Theano
+  # Install miniconda to avoid compiling scipy
+  - mkdir -p download
+  - cd download
+  - wget -c https://repo.continuum.io/miniconda/Miniconda2-3.19.0-Linux-x86_64.sh -O miniconda.sh
+  - git clone http://github.com/lerker/cupydle.git
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - cd ..
+  - export PATH=/home/travis/miniconda2/bin:$PATH
+  - cd download/cupydle/
+  - pip install -r requirements.txt
   - python setup.py install
+
+#install:
+#  - sudo pip install -r requirements.txt
+#  - pip install coveralls
+#  - python setup.py install
 
 before_script:
   - wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run
