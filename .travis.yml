@@ -3,7 +3,7 @@ notifications:
     on_success: always
     on_failure: never
 
-sudo: false
+sudo: true
 dist: trusty
 cache:
   directories:
@@ -16,7 +16,7 @@ python:
   - "3.3"
 
 before_install:
-  - apt-get update
+  - sudo apt-get update
   - apt-get install wget
   - apt-get install build-essential
   - apt-get install python3-numpy
