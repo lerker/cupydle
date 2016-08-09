@@ -29,8 +29,8 @@ notifications:
     on_failure: never
 
 install:
-  - pip3 install -r requirements.txt
-  - pip3 install coveralls
+  - sudo pip install -r requirements.txt
+  - pip install coveralls
   - python setup.py install
 
 before_script:
