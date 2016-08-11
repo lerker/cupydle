@@ -45,7 +45,7 @@ if __name__ == "__main__":
     currentPath = os.getcwd()                               # directorio actual de ejecucion
     testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
     dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
-    testFolder  = 'test1/'                                  # carpeta a crear para los tests
+    testFolder  = 'test_DBN/'                                  # carpeta a crear para los tests
     fullPath    = testPath + testFolder
 
     if not os.path.exists(fullPath):        # si no existe la crea
@@ -93,96 +93,105 @@ if __name__ == "__main__":
 
     if mlp :
         print("S E C C I O N        M L P")
+        n_epochs=1
+        batch_size=10
 
-        classifier = MLP(   task="clasificacion",
+        clasificador = MLP( task="clasificacion",
                             rng=None)
 
-        classifier.addLayer(
-                            unitsIn=unidadesCapas[0],
-                            unitsOut=unidadesCapas[1],
-                            classification=False,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
+        clasificador.addLayer(  unitsIn=unidadesCapas[0],
+                                unitsOut=unidadesCapas[1],
+                                classification=False,
+                                activation=Sigmoid(),
+                                weight=None,
+                                bias=None)
 
-        classifier.addLayer(
-                            #unitsIn=500,
-                            unitsOut=unidadesCapas[2],
-                            classification=False,
-                            weight=None,
-                            bias=None)
+        clasificador.addLayer(  #unitsIn=500,
+                                unitsOut=unidadesCapas[2],
+                                classification=False,
+                                weight=None,
+                                bias=None)
 
-        classifier.addLayer(
-                            #unitsIn=100,
-                            unitsOut=unidadesCapas[3],
-                            classification=True,
-                            activation=Sigmoid(),
-                            weight=None,
-                            bias=None)
+        clasificador.addLayer( #unitsIn=100,
+                                unitsOut=unidadesCapas[3],
+                                classification=True,
+                                activation=Sigmoid(),
+                                weight=None,
+                                bias=None)
 
         T = temporizador()
         inicio = T.tic()
 
-        numpy.save(fullPath + "pesos1",classifier.capas[0].W.get_value())
-        numpy.save(fullPath + "pesos2",classifier.capas[1].W.get_value())
-        numpy.save(fullPath + "pesos3",classifier.capas[2].W.get_value())
+        # se almacenan los pesos para propositos de comparacion con la dbn
+        numpy.save(fullPath + "pesos1",clasificador.capas[0].W.get_value())
+        numpy.save(fullPath + "pesos2",clasificador.capas[1].W.get_value())
+        numpy.save(fullPath + "pesos3",clasificador.capas[2].W.get_value())
 
-        classifier.train(
-                        trainSet=datos[0],
-                        validSet=datos[1],
-                        testSet=datos[2],
-                        batch_size=10,
-                        n_epochs=1)
+        clasificador.train( trainSet=datos[0],
+                            validSet=datos[1],
+                            testSet=datos[2],
+                            batch_size=batch_size,
+                            n_epochs=n_epochs)
 
         final = T.toc()
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
 
     if rbm :
         print("S E C C I O N        R B M")
+        pasosGibbs=2
+        numEpoch=1
+        batchSize=10
 
-        dbn0 = dbn(name=None, ruta=fullPath)
+        miDBN = dbn(name=None, ruta=fullPath)
 
+
+        # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
         pesos1 = numpy.load(fullPath + "pesos1.npy")
         pesos2 = numpy.load(fullPath + "pesos2.npy")
         pesos3 = numpy.load(fullPath + "pesos3.npy")
 
         # agrego una capa..
-        dbn0.addLayer(n_visible=unidadesCapas[0],
-                      n_hidden=unidadesCapas[1],
-                      numEpoch=1,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos1)
+        miDBN.addLayer( n_visible=unidadesCapas[0],
+                        n_hidden=unidadesCapas[1],
+                        numEpoch=numEpoch,
+                        batchSize=batchSize,
+                        epsilonw=0.01,
+                        pasosGibbs=pasosGibbs,
+                        w=pesos1)
         # otra capa mas
-        dbn0.addLayer(#n_visible=500, # coincide con las ocultas de las anteriores
-                      n_hidden=unidadesCapas[2],
-                      numEpoch=1,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos2)
+        miDBN.addLayer( #n_visible=500, # coincide con las ocultas de las anteriores
+                        n_hidden=unidadesCapas[2],
+                        numEpoch=numEpoch,
+                        batchSize=batchSize,
+                        epsilonw=0.01,
+                        pasosGibbs=pasosGibbs,
+                        w=pesos2)
 
         # clasificacion
-        dbn0.addLayer(#n_visible=100, # coincide con las ocultas de las anteriores
-                      n_hidden=unidadesCapas[3],
-                      numEpoch=1,
-                      batchSize=10,
-                      epsilonw=0.01,
-                      w=pesos3)
+        miDBN.addLayer( #n_visible=100, # coincide con las ocultas de las anteriores
+                        n_hidden=unidadesCapas[3],
+                        numEpoch=numEpoch,
+                        batchSize=batchSize,
+                        epsilonw=0.01,
+                        pasosGibbs=pasosGibbs,
+                        w=pesos3)
 
         T = temporizador()
         inicio = T.tic()
 
         #entrena la red
-        dbn0.train(dataTrn=datos[0][0], # imagenes de entrenamiento
-                   dataVal=datos[1][0]) # imagenes de validacion
+        miDBN.train(dataTrn=datos[0][0], # imagenes de entrenamiento
+                    dataVal=datos[1][0]) # imagenes de validacion
 
         final = T.toc()
-        print("Tiempo total para entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
+        print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
 
-        dbn0.save(fullPath + "dbnMNIST", compression='zip')
+        miDBN.save(fullPath + "dbnMNIST", compression='zip')
 
     if dbnf:
         print("S E C C I O N        D B N")
+        n_epochs=1
+
         miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
         print(miDBN)
         miDBN.pesos=[]
@@ -191,7 +200,7 @@ if __name__ == "__main__":
         miDBN.fit(  datos=datos,
                     listaPesos=None,
                     fnActivacion=Sigmoid(),
-                    n_epochs=1,
+                    n_epochs=n_epochs,
                     semillaRandom=None)
 
 else:

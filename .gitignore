@@ -69,6 +69,7 @@ target/
 *.gz
 *.zip
 *.pgz
+*.npy
 
 # test y relacionados a ejecucion
 cupydle/test/mnist/test[0-1]/*

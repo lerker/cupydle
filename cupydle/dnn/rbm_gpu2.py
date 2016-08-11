@@ -76,24 +76,7 @@ class RBM(object):
                 theano_rng=None,    #seed para theano random
                 ruta=''):
         """
-        RBM constructor. Defines the parameters of the model along with
-        basic operations for inferring hidden from visible (and vice-versa),
-        as well as for performing CD updates.
 
-        :param n_visible: number of visible units
-
-        :param n_hidden: number of hidden units
-
-        :param w: None for standalone RBMs or symbolic variable pointing to a
-        shared weight matrix in case RBM is part of a DBN network; in a DBN,
-        the weights are shared between RBMs and layers of a MLP
-
-        :param hidbiases: None for standalone RBMs or symbolic variable pointing
-        to a shared hidden units bias vector in case RBM is part of a
-        different network
-
-        :param visbiases: None for standalone RBMs or a symbolic variable
-        pointing to a shared visible units bias
         """
 
         self.n_visible      = n_visible
@@ -112,11 +95,7 @@ class RBM(object):
 
         # TODO agregar agregar el borrow
         if w is None:
-            # w is initialized with `initial_W` which is uniformely
-            # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
-            # 4*sqrt(6./(n_visible+n_hidden)) the output of uniform if
-            # converted using asarray to dtype theano.config.floatX so
-            # that the code is runable on GPU
+            # inicializacion mejorarada de los pesos
             _w = numpy.asarray(
                     numpy_rng.uniform(
                         low= -4 * numpy.sqrt(6. / (self.n_visible + self.n_hidden)),
@@ -130,8 +109,6 @@ class RBM(object):
 
         # create shared variable for hidden units bias
         if hidbiases is None:
-            #_hidbiases = numpy.zeros(shape=(1, self.n_hidden),
-            #                         dtype=theanoFloat)
             _hidbiases = numpy.zeros(shape=(self.n_hidden),
                                      dtype=theanoFloat)
             hidbiases = theano.shared(value=_hidbiases, name='hidbiases', borrow=True)
@@ -140,8 +117,6 @@ class RBM(object):
 
         # create shared variable for visible units bias
         if visbiases is None:
-            #_visbiases = numpy.zeros(shape=(1, self.n_visible),
-            #                         dtype=theanoFloat)
             _visbiases = numpy.zeros(shape=(self.n_visible),
                                      dtype=theanoFloat)
             visbiases = theano.shared(value=_visbiases, name='visbiases', borrow=True)
@@ -188,8 +163,7 @@ class RBM(object):
         self.params['epsilonvb'] = 0.0
         self.params['epsilonhb'] = 0.0
         self.params['weightcost'] = 0.0
-        self.params['initialmomentum'] = 0.0
-        self.params['finalmomentum'] = 0.0
+        self.params['momentum'] = 0.0
         self.params['maxepoch'] = 0.0
         self.params['activationfuntion'] = Sigmoid()
         return 1
@@ -276,64 +250,18 @@ class RBM(object):
         return
 
 
-    def plot_weigth(self, weight=None, save=None, path=None):
+    def dibujarPesos(self, weight=None, save=None, path=None):
         """
         Grafica la matriz de pesos de (n_visible x n_ocultas) unidades
 
         :param weight: matriz de pesos asociada a una RBM, cualquiera
         """
-        import matplotlib
-        import matplotlib.pyplot as plt
-
-        if weight is None:
-            weight = self.w.get_value()
-
-        if not type(weight) == numpy.array:
-            weight = numpy.asarray(weight)
-
-        # convert a vector array (weight) to matrix sample => (self.n_visible, self.n_hidden)
-        if weight.shape == (self.n_visible + self.n_hidden,): # se recorre con un solo indice, i=#
-            weight = numpy.reshape(weight, (self.n_visible, self.n_hidden))
-        elif weight.shape == (self.n_visible + self.n_hidden,1): # se recorre la weightn con dos indices, j=0
-            weight = numpy.reshape(weight, (self.n_visible, self.n_hidden))
-        elif weight.shape == (self.n_visible, self.n_hidden):
-            pass
-        else:
-            sys.exit("No se reconoce la dimesion de la matriz de pesos")
-
-        """
-        fig = plt.figure('Pesos')
-        ax = fig.add_subplot(2, 1, 1)
-        ax.matshow(weight, cmap = matplotlib.cm.binary)
-        plt.xticks(numpy.array([]))
-        plt.yticks(numpy.array([]))
-        #plt.title(label)
-        """
-        fig, ax = plt.subplots()
-        cax = ax.imshow(weight, interpolation='nearest', cmap=matplotlib.cm.binary)
-        plt.xticks([0,weight.shape[1]/4, weight.shape[1]/2, 3*weight.shape[1]/4, weight.shape[1]])
-        plt.yticks([0,weight.shape[0]/4, weight.shape[0]/2, 3*weight.shape[0]/4, weight.shape[0]])
-        plt.xlabel('# Hidden Neurons')
-        plt.ylabel('# Visible Neurons')
-        # Add colorbar, make sure to specify tick locations to match desired ticklabels
-        cbar = fig.colorbar(cax)
-        cbar.ax.set_yticklabels(['0', '','','','','','','','1']) # el color bar tiene 10 posiciones para los ticks
-
-        plt.title('Weight Matrix')
-
-        if save is not None and path is None:   # corrigo la direccion en caso de no proporcionarla y si guardar
-            path = ''
-        if save == 'png' or save is True:
-            plt.savefig(path + "weightMatrix" + ".png", format='png')
-        elif save == 'eps':
-            plt.savefig(path + 'weightMatrix' + '.eps', format='eps', dpi=1000)
-        elif save == 'svg':
-            plt.savefig(path + 'weightMatrix' + '.svg', format='svg', dpi=1000)
-        else:
-            pass
-
-        plt.show()
-
+        from cupydle.dnn.graficos import pesosConstructor
+        assert False, "el plot son los histogramas"
+        pesos = numpy.asarray(a=self.get_w())
+        pesos = numpy.tile(A=pesos, reps=(20,1))
+        print(self.get_w().shape, pesos.shape)
+        pesosConstructor(pesos=pesos)
         return 1
 
     def markovChain(self, steps):
@@ -391,7 +319,7 @@ class RBM(object):
         axe.set_xticks(ejeXepocas) # los ticks del eje de las x solo en los enteros
         return axe
 
-    def dibujarEstadisticos(self, show=False, save=None):
+    def dibujarEstadisticos(self, mostrar=False, guardar=True):
 
         errorEntrenamiento  = self.estadisticos['errorEntrenamiento']
         errorValidacion     = self.estadisticos['errorValidacion']
@@ -412,13 +340,12 @@ class RBM(object):
 
         matplotlib.pyplot.tight_layout()
 
-        if save is not None:
-            print("guardando los estadisticos en: " + save)
-            matplotlib.pyplot.savefig(save, bbox_inches='tight')
-            #matplotlib.pyplot.savefig("estadisticos.png")
+        if guardar:
+            nombreArchivo= self.ruta + 'rbm_estadisticos.pdf'
+            matplotlib.pyplot.savefig(nombreArchivo, bbox_inches='tight')
 
-        if show:
-            matplotlib.pyplot.show()
+        if mostrar:
+            matplotlib.pyplot.mostrar()
         return
 
 
@@ -426,6 +353,7 @@ class RBM(object):
         # mirar
         # http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
         # plot los filtros iniciales (sin entrenamiento)
+        """
         cantidad = formaFiltro[0]*formaFiltro[1]
         ima = self.w.get_value(borrow=True).T[:cantidad]
 
@@ -434,9 +362,9 @@ class RBM(object):
                                     formaFiltro=formaFiltro,
                                     nombreArchivo=self.ruta+nombreArchivo,
                                     mostrar=mostrar)
-
-        #figura.show()
         """
+        #figura.show()
+        #"""
         # con el tile_raster...
         image = Image.fromarray(
             tile_raster_images(
@@ -457,7 +385,7 @@ class RBM(object):
             image = Image.fromarray(bw)
 
         image.save(self.ruta + nombreArchivo)
-        """
+        #"""
 
         return 1
 
@@ -495,6 +423,67 @@ class RBM(object):
         return cost
 
     def PersistentConstrastiveDivergence(self, miniBatchSize, sharedData):
+
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # initialize storage for the persistent chain (state = hidden
+        # layer of chain)
+        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
+                                                     dtype=theanoFloat),
+                                         borrow=True)
+
+        # un paso de CD es H->V->H
+        def oneStep(hsample, wG, vbiasG, hbiasG):
+            #negative
+            linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
+            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            # positive
+            linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
+            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
+
+        ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
+          updates) = theano.scan(   fn           = oneStep,
+                                    outputs_info = [persistent_chain, None, None, None, None, None],
+                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                    n_steps      = steps,
+                                    strict       = True,
+                                    name         = 'scan_oneStepHVH')
+
+
+        chain_end = visibleActRec[-1]
+
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
+
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
+
+        # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
+
+        updates[persistent_chain] = hiddenActData[-1]
+
+        monitoring_cost = self.pseudoLikelihoodCost(updates)
+
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+                        name='train_rbm_pcd'
+        )
+
+        return train_rbm
+
+    def PersistentConstrastiveDivergence2(self, miniBatchSize, sharedData):
 
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
@@ -642,14 +631,9 @@ class RBM(object):
 
         deltaEnergia = cost
 
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
-        # constructs the update dictionary
-        for gparam, param in zip(gparams, self.internalParams):
-            # make sure that the learning rate is of the right dtype
-            updates[param] = param - gparam * theano.tensor.cast(
-                self.params['epsilonw'], dtype=theanoFloat
-            )
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
 
 
         monitoring_cost = self.reconstructionCost(linearSumN[-1])
@@ -668,6 +652,62 @@ class RBM(object):
 
         return train_rbm
 
+
+    def buildUpdates(self, updates, cost, constant):
+        """
+        calcula las actualizaciones de la red sobre sus parametros w hb y vh
+        con momento
+        tasa de aprendizaje para los pesos, y los biases visibles y ocultos
+        """
+        # arreglo los parametros en caso de que no se hayan establecidos, considero las
+        # tasa de aprendizaje para los bias igual al de los pesos
+        if self.params['epsilonvb'] is None:
+            self.params['epsilonvb'] = self.params['epsilonw']
+        if self.params['epsilonvb'] == 0.0:
+            self.params['epsilonvb'] = self.params['epsilonw']
+
+        if self.params['epsilonhb'] is None:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        if self.params['epsilonhb'] == 0.0:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
+
+
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
+        #gparams = theano.tensor.grad(cost, self.internalParams)
+
+        # creo una lista con las actualizaciones viejas (shared guardadas)
+        oldUpdates = [self.vishidinc, self.hidbiasinc, self.visbiasinc]
+
+        # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
+        parametersTuples = zip(self.internalParams, gparams, oldUpdates)
+
+        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
+        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
+        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
+
+        otherUpdates = []
+
+        for param, delta, oldUpdate in parametersTuples:
+            # segun el paramerto tengo diferentes learning rates
+            if param.name == self.w.name:
+                paramUpdate = momentum * oldUpdate - lr_pesos * delta
+            if param.name == self.visbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_vbias * delta
+            if param.name == self.hidbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_hbias * delta
+            #param es la variable o paramatro
+            #paramUpdate son los incrementos
+            #newParam es la variable mas su incremento
+            newParam = param + paramUpdate
+            otherUpdates.append((param, newParam)) # w-> w+inc ...
+            otherUpdates.append((oldUpdate, paramUpdate))  #winc_old -> winc_new
+
+        updates.update(otherUpdates)
+        return updates
+
     def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
         # mirar:
         # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
@@ -685,7 +725,6 @@ class RBM(object):
         # para la validacion
         if validationData is not None:
             sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
-
 
         trainer = None
 
@@ -754,6 +793,8 @@ class RBM(object):
             # END SET
         # END epoch
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
+
+        self.dibujarEstadisticos()
         return 1
 
     def reconstruccion(self, vsample, gibbsSteps=1):
@@ -959,76 +1000,7 @@ class RBM(object):
 
         return 1
 
-    def buildUpdates(self, updates, cost, constant):
-        # TODO aca le quite le constante (en el tutorial estaba), parece que anda pero no se, preferia dejarlo
-        # parece que anda mucho mas lento... si lo saco
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
-        #gparams = theano.tensor.grad(cost, self.internalParams)
-
-        # creo una lista con las actualizaciones viejas (shared guardadas)
-        oldUpdates = [self.vishidinc, self.hidbiasinc, self.visbiasinc]
-
-        # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
-        parametersTuples = zip(self.internalParams, gparams, oldUpdates)
-
-        momentum = self.params['initialmomentum']
-        otherUpdates = []
-
-        for param, delta, oldUpdate in parametersTuples:
-            # segun el paramerto tengo diferentes learning rates
-            if param.name == self.w.name:
-                paramUpdate = momentum * oldUpdate \
-                            - theano.tensor.cast( self.params['epsilonw'],
-                                dtype=theanoFloat) * delta
-            if param.name == self.visbiases.name:
-                paramUpdate = momentum * oldUpdate \
-                            - theano.tensor.cast(self.params['epsilonvb'],
-                                dtype=theanoFloat) * delta
-            if param.name == self.hidbiases.name:
-                paramUpdate = momentum * oldUpdate \
-                            - theano.tensor.cast(self.params['epsilonhb'],
-                                dtype=theanoFloat) * delta
-
-            newParam = param + paramUpdate
-            otherUpdates.append((param, newParam))
-            otherUpdates.append((oldUpdate, paramUpdate))
-
-        updates.update(otherUpdates)
-        return updates
-
-    def buildUpdates2(self, updates, cost, constant):
-        # TODO en la version1 agregue el momento,.. ver si anda
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
-
-        # TODO add Momentum
-        # constructs the update dictionary
-        for gparam, param in zip(gparams, self.internalParams):
-            # make sure that the learning rate is of the right dtype
-            if param.name == self.w.name:
-                updates[param] = (param
-                                  - gparam
-                                  * theano.tensor.cast(self.params['epsilonw'],
-                                        dtype=theanoFloat)
-                                  - param
-                                  * theano.tensor.cast(self.params['weightcost'],
-                                        dtype=theanoFloat))
-            if param.name == self.visbiases.name:
-                updates[param] = (param
-                                  - gparam
-                                  * theano.tensor.cast(self.params['epsilonvb'],
-                                        dtype=theanoFloat))
-            if param.name == self.hidbiases.name:
-                updates[param] = (param
-                                  - gparam
-                                  * theano.tensor.cast(self.params['epsilonhb'],
-                                        dtype=theanoFloat))
-        return updates
-
-
-
-    def save(self, nombreArchivo=None, method='simple', compression=None, layerN=0, absolutName=False):
+    def guardar(self, nombreArchivo=None, method='simple', compression=None):
         """
         guarda a disco la instancia de la RBM
         method is simple, no guardo como theano
@@ -1040,23 +1012,19 @@ class RBM(object):
         """
         #from cupydle.dnn.utils import save as saver
 
-        #if nombreArchivo is not set
-        if absolutName is False:
-            if nombreArchivo is None:
-                nombreArchivo = "V_" + str(self.n_visible) + "H_" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M')
-            else:
-                nombreArchivo = nombreArchivo + "_" + time.strftime('%Y-%m-%d_%H%M')
+        ruta = self.ruta
+        import time
 
-            if layerN != 0:
-                nombreArchivo = "L_" + str(layerN) + nombreArchivo
+        if nombreArchivo is None:
+            nombreArchivo = ruta + "RBM_V" + str(self.n_visible) + "H" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M') + '.zip'
         else:
-            nombreArchivo = nombreArchivo
+            nombreArchivo = ruta + nombreArchivo
 
         if method != 'theano':
             from cupydle.dnn.utils import save as saver
             saver(objeto=self, filename=nombreArchivo, compression=compression)
         else:
-            with open(nombreArchivo + '.zip','wb') as f:
+            with open(nombreArchivo,'wb') as f:
                 # arreglar esto
                 from cupydle.dnn.utils_theano import save as saver
                 saver(objeto=self, filename=nombreArchivo, compression=compression)

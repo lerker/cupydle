@@ -73,23 +73,23 @@ class rbmParams(object):
                 n_hidden,
                 numEpoch,
                 batchSize,
-                epsilonw,        # Learning rate for weights
+                epsilonw,
+                pasosGibbs=1,
                 w=None,
-                epsilonvb=None,  # Learning rate for biases of visible units
-                epsilonhb=None,  # Learning rate for biases of hidden units
-                weightcost=None, # Weigth punishment
-                initialmomentum=None,
-                finalmomentum=None):
+                epsilonvb=None,
+                epsilonhb=None,
+                weightcost=None,
+                momentum=0.0):
         self.n_visible=n_visible
         self.n_hidden=n_hidden
         self.numEpoch=numEpoch
         self.epsilonw=epsilonw
+        self.pasosGibbs=pasosGibbs
         self.w=w
         self.epsilonvb=epsilonvb
         self.epsilonhb=epsilonhb
         self.weightcost=weightcost
-        self.initialmomentum=initialmomentum
-        self.finalmomentum=finalmomentum
+        self.momentum=momentum
         self.batchSize=batchSize
 
         return
@@ -101,10 +101,10 @@ class rbmParams(object):
         print("Tasa de aprendizaje para los pesos:",self.epsilonw)
         print("Tasa de aprendizaje para las unidades visibles",self.epsilonvb)
         print("Tasa de aprendizaje para las unidades ocultas:",self.epsilonhb)
+        print("Tasa de momento:",self.momentum)
         print("Castigo pesos:",self.weightcost)
-        print("Tasa de momento inicial:",self.initialmomentum)
-        print("Tasa de momento final:",self.finalmomentum)
-        print("Tamanio del batch:",self.batchSize)
+        print("Pasos de Gibss:", self.pasosGibbs)
+        print("Tamaño del batch:",self.batchSize)
         return str("")
 
     #def __call__(self):
@@ -174,12 +174,12 @@ class dbn(object):
                 batchSize,
                 epsilonw,        # Learning rate for weights
                 n_visible=None,
+                pasosGibbs=1,
                 w=None,
                 epsilonvb=None,  # Learning rate for biases of visible units
                 epsilonhb=None,  # Learning rate for biases of hidden units
                 weightcost=None, # Weigth punishment
-                initialmomentum=None,
-                finalmomentum=None):
+                momentum=0.0):
 
         if n_visible is None:
             assert self.params != [], "Debe prover de unidades de entrada para esta capa."
@@ -188,14 +188,14 @@ class dbn(object):
         # agrego una capa de rbm a la dbn, con los parametros que le paso
         self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
                                     numEpoch=numEpoch, batchSize=batchSize,
-                                    epsilonw=epsilonw, w=w, epsilonvb=epsilonvb,
-                                    epsilonhb=epsilonhb, weightcost=weightcost,
-                                    initialmomentum=initialmomentum, finalmomentum=finalmomentum))
+                                    epsilonw=epsilonw, pasosGibbs=pasosGibbs,
+                                    w=w, epsilonvb=epsilonvb, epsilonhb=epsilonhb,
+                                    weightcost=weightcost, momentum=momentum))
         self.n_layers += 1
 
         return
 
-    def train(self, dataTrn, dataVal, saveInitialWeights=False):
+    def train(self, dataTrn, dataVal, guardarPesosIniciales=False):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -203,17 +203,15 @@ class dbn(object):
         :type dataVal: narray
         :param dataTrn: datos de validacion
 
-        :type saveInitialWeigths: boolean
-        :param saveInitialWeights: si se requiere almacenar los pesos iniciales antes de aplicar la rbm
+        :type guardarPesosIniciales: boolean
+        :param guardarPesosIniciales: si se requiere almacenar los pesos iniciales antes de aplicar la rbm
         """
         assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
-        filtrosss = self.ruta
+        filtrosss = True
 
         for i in range(self.n_layers):
-            # the input to this layer is either the activation of the
-            # hidden layer below or the input of the DBN if you are on
-            # the first layer
+            # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
             if i == 0:
                 layer_input = self.x
             else:
@@ -223,33 +221,39 @@ class dbn(object):
             # Construct an RBM that shared weights with this layer
             rbm_layer = RBM(n_visible=self.params[i].n_visible,
                             n_hidden=self.params[i].n_hidden,
-                            w=self.params[i].w)
+                            w=self.params[i].w,
+                            ruta=self.ruta)
 
             # configuro la capa, la rbm
             rbm_layer.setParams({'epsilonw':self.params[i].epsilonw})
             rbm_layer.setParams({'epsilonvb':self.params[i].epsilonvb})
             rbm_layer.setParams({'epsilonhb':self.params[i].epsilonhb})
-            rbm_layer.setParams({'initialmomentum':self.params[i].initialmomentum})
+            rbm_layer.setParams({'momentum':self.params[i].momentum})
             rbm_layer.setParams({'weightcost':self.params[i].weightcost})
             rbm_layer.setParams({'maxepoch':self.params[i].numEpoch})
             # activation function?
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            if saveInitialWeights:
-                filename = self.ruta + self.name + "_capaInicial" + str(i+1) + ".pgz"
-                rbm_layer.save(filename)
+            if guardarPesosIniciales:
+                filename = self.ruta + self.name + "_pesos" + str(i+1) + ".npy"
+                # TODO... implemetar los pesos como funcion de rbm
+                #rbm_layer.save(filename)
+                print(type(rbm_layer.get_w()))
+
+                numpy.save(filename, rbm_layer.get_w())
+                assert False
 
             rbm_layer.train(    data=layer_input,   # los datos los binarizo y convierto a float
                                 miniBatchSize=self.params[i].batchSize,
                                 pcd=True,
-                                gibbsSteps=15,
+                                gibbsSteps=self.params[i].pasosGibbs,
                                 validationData=dataVal,
-                                plotFilters=filtrosss)
+                                filtros=filtrosss)
 
             print("Guardando la capa..") if verbose else None
-            filename = self.ruta + self.name + "_capa" + str(i+1) + ".pgz"
-            rbm_layer.save(filename, absolutName=True)
+            filename = self.name + "_capa" + str(i+1) + ".pgz"
+            rbm_layer.guardar(nombreArchivo=filename)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # TODO aca debo tener las activaciones de las ocultas

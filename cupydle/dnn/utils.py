@@ -102,6 +102,10 @@ def save(objeto, filename=None, compression=None):
             with bz2.BZ2File(filename, 'w') as f:
                 pickle.dump(objeto, f)
                 f.close()
+        elif filename.find('.zip') != -1:
+            with gzip.GzipFile(filename, 'w') as f:
+                pickle.dump(objeto, f)
+                f.close()
         else:
             try:
                 with open(filename + '.pkl', "wb") as f:
@@ -110,6 +114,7 @@ def save(objeto, filename=None, compression=None):
             except:
                 print("Archivo no encontrado", filename)
                 sys.exit(0)
+
     elif compression == 'gzip':
         with gzip.GzipFile(filename + '.pgz', 'w') as f:
             pickle.dump(objeto, f)
@@ -184,6 +189,10 @@ class temporizador(object):
         return cls.instance
 
     def tiempo(self):
+        return timeit.default_timer()
+
+    @staticmethod
+    def time():
         return timeit.default_timer()
 
     def tic(cls):

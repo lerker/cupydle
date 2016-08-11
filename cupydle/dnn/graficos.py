@@ -217,3 +217,42 @@ def filtrosConstructor(images, titulo, formaFiltro, nombreArchivo=None, mostrar=
 
         return plt
 
+def pesosConstructor(pesos, nombreArchivo='pesos.png', mostrar=False):
+    """
+    Grafica la matriz de pesos de (n_visible x n_ocultas) unidades
+
+    :param weight: matriz de pesos asociada a una RBM, cualquiera
+    """
+    if not type(pesos) == numpy.array:
+        pesos = numpy.asarray(pesos)
+
+
+    from PIL import Image
+
+    image = Image.fromarray(pesos * 256).show()
+    assert False
+
+    fig, ax = plt.subplots()
+    cax = ax.imshow(weight, interpolation='nearest', cmap=matplotlib.cm.binary)
+    plt.xlabel('# Hidden Neurons')
+    plt.ylabel('# Visible Neurons')
+    # Add colorbar, make sure to specify tick locations to match desired ticklabels
+    cbar = fig.colorbar(cax)
+    cbar.ax.set_yticklabels(['0', '','','','','','','','1']) # el color bar tiene 10 posiciones para los ticks
+
+    plt.title('Weight Matrix')
+
+    if save is not None and path is None:   # corrigo la direccion en caso de no proporcionarla y si guardar
+        path = ''
+    if save == 'png' or save is True:
+        plt.savefig(path + "weightMatrix" + ".png", format='png')
+    elif save == 'eps':
+        plt.savefig(path + 'weightMatrix' + '.eps', format='eps', dpi=1000)
+    elif save == 'svg':
+        plt.savefig(path + 'weightMatrix' + '.svg', format='svg', dpi=1000)
+    else:
+        pass
+
+    plt.show()
+
+    return 1

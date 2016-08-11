@@ -91,15 +91,15 @@ if __name__ == "__main__":
 
     # creo la red
     red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
-
+    #red.dibujarPesos(red.get_pesos... )
     #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
 
     red.setParams({'epsilonw':0.1})
     red.setParams({'epsilonvb':0.1})
     red.setParams({'epsilonhb':0.1})
-    red.setParams({'initialmomentum':0.5})
-    red.setParams({'weightcost':0.0002})
-    red.setParams({'maxepoch':2})
+    red.setParams({'momentum':0.0})
+    red.setParams({'weightcost':0.0})
+    red.setParams({'maxepoch':3})
 
 
     T = temporizador()
@@ -128,22 +128,11 @@ if __name__ == "__main__":
     #red.sampleo(data=datos[0][0],
     #            labels=datos[0][1])
 
-    print('Guardando el modelo en ...', rutaCompleta + modelName)
+    print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
-    red.save(rutaCompleta + modelName, absolutName=True)
+    red.guardar(nombreArchivo="rbm_mnist.zip")
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
-
-    """
-    red2 = RBM.load(rutaCompleta + "coso.pgz")
-
-    if numpy.allclose(red.w.get_value(), red2.w.get_value()):
-        assert False
-    else:
-        print("no son iguales")
-
-    print("FIN")
-    """
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
