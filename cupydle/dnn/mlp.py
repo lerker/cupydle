@@ -58,43 +58,8 @@ from cupydle.dnn.utils_theano import shared_dataset
 
 verbose = False
 class MLP(object):
-    """Multi-Layer Perceptron Class
-
-    A multilayer perceptron is a feedforward artificial neural network model
-    that has one layer or more of hidden units and nonlinear activations.
-    Intermediate layers usually have as activation function tanh or the
-    sigmoid function (defined here by a ``HiddenLayer`` class)  while the
-    top layer is a softmax layer (defined here by a ``LogisticRegression``
-    class).
-    """
 
     def __init__(self, task, rng=None):
-        """Initialize the parameters for the multilayer perceptron
-
-        :type rng: numpy.random.RandomState
-        :param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.TensorType
-        :param input: symbolic variable that describes the input of the
-        architecture (one minibatch)
-
-        :type n_in: int
-        :param n_in: number of input units, the dimension of the space in
-        which the datapoints lie
-
-        :type n_hidden: int
-        :param n_hidden: number of hidden units
-
-        :type n_out: int
-        :param n_out: number of output units, the dimension of the space in
-        which the labels lie
-
-        """
-
-        # Since we are dealing with a one hidden layer MLP, this will translate
-        # into a HiddenLayer with a tanh activation function connected to the
-        # LogisticRegression layer; the activation function can be replaced by
-        # sigmoid or any other nonlinear function
 
         # no le di semilla?
         if rng is None:
@@ -308,11 +273,9 @@ class MLP(object):
                     this_validation_loss = numpy.mean(validation_losses)
 
                     print(
-                        'epoca %i, minibatch %i/%i, error validacion %f %%' %
+                        'epoca %i, error validacion %f %%' %
                         (
                             epoch,
-                            minibatch_index + 1,
-                            n_train_batches,
                             this_validation_loss * 100.
                         )
                     )
@@ -334,10 +297,8 @@ class MLP(object):
                                        in range(n_test_batches)]
                         test_score = numpy.mean(test_losses)
 
-                        print(('     epoca %i, minibatch %i/%i, error test de '
-                               'mejor del modelo %f %%') %
-                              (epoch, minibatch_index + 1, n_train_batches,
-                               test_score * 100.))
+                        print(('     epoca %i, error test del modelo %f %%') %
+                              (epoch, test_score * 100.))
 
                 if patience <= iter:
                     done_looping = True
@@ -345,8 +306,8 @@ class MLP(object):
 
         end_time = timeit.default_timer()
         print(('Optimizacion Completada. Mejor puntaje de validacion: %f %% '
-               'obtenida en la iteracion %i, con un performance en el test de %f %%') %
-              (best_validation_loss * 100., best_iter + 1, test_score * 100.))
+               'con un performance en el test de %f %%') %
+              (best_validation_loss * 100., test_score * 100.))
         print(('El codido del archivo ' +
                os.path.split(__file__)[1] +
                ' se ejecuto por %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
@@ -367,69 +328,4 @@ def load_dbn_weigths(path, dbnName):
     return capas
 
 if __name__ == '__main__':
-    # MNIST.plot_one_digit(train_img.get_value()[0])
-
-    currentPath = os.getcwd()                               # directorio actual de ejecucion
-    testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
-    dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
-    testFolder  = 'test2/'                                  # carpeta a crear para los tests
-    fullPath    = testPath + testFolder
-    if not os.path.exists(fullPath):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',fullPath)
-        os.makedirs(fullPath)
-
-    import subprocess
-    subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
-
-    from cupydle.test.mnist.mnist import MNIST
-    setName = "mnist"
-    MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
-
-    from cupydle.test.mnist.mnist import MNIST
-    from cupydle.test.mnist.mnist import open4disk
-
-    # se leen de disco los datos
-    mnData = open4disk(filename=dataPath + setName, compression='bzip2')
-
-    #MNIST.plot_one_digit(train_img.get_value()[0])
-    classifier = MLP(   task="clasificacion",
-                        rng=None)
-
-    """
-    currentPath2 = os.getcwd()
-    testPath2    = currentPath2 + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
-    testFolder2  = 'test1/'
-    fullPath2 = testPath2 + testFolder2
-    red_capas = load_dbn_weigths(fullPath2, 'dbnTest')
-    #classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
-    #print(classifier.capas[-1].W.get_value().shape)
-    #assert False
-
-    peso1 = red_capas[0].w.get_value()
-    peso2 = red_capas[1].w.get_value()
-    peso3 = red_capas[2].w.get_value()
-
-    #classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=peso1, bias=None)
-    #classifier.addLayer(unitsIn=500, unitsOut=100, classification=False, activation=Sigmoid(), weight=peso2, bias=None)
-    #classifier.addLayer(unitsIn=100, unitsOut=10, classification=True, weight=peso3, bias=None)
-    classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
-    classifier.addLayer(unitsIn=500, unitsOut=100, classification=False, activation=Sigmoid(), weight=None, bias=None)
-    classifier.addLayer(unitsIn=100, unitsOut=10, classification=True, weight=None, bias=None)
-
-    classifier.train(   trainSet=mnData.get_training(),
-                        validSet=mnData.get_validation(),
-                        testSet=mnData.get_testing(),
-                        batch_size=20)
-    assert False
-    """
-
-    #"""
-    classifier.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
-    classifier.addLayer(unitsIn=500, unitsOut=10, classification=True, weight=None, bias=None)
-
-    classifier.train(   trainSet=mnData.get_training(),
-                        validSet=mnData.get_validation(),
-                        testSet=mnData.get_testing(),
-                        batch_size=20)
-    #"""
-
+    assert False, str(__file__ + " No es un modulo")
