@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     if mlp :
         print("S E C C I O N        M L P")
-        n_epochs=1
+        n_epochs=1000
         batch_size=10
 
         clasificador = MLP( task="clasificacion",
@@ -138,8 +138,8 @@ if __name__ == "__main__":
 
     if rbm :
         print("S E C C I O N        R B M")
-        pasosGibbs=2
-        numEpoch=1
+        pasosGibbs=15
+        numEpoch=1000
         batchSize=10
 
         miDBN = dbn(name=None, ruta=fullPath)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
     if dbnf:
         print("S E C C I O N        D B N")
-        n_epochs=1
+        n_epochs=1000
 
         miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
         print(miDBN)
