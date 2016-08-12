@@ -30,3 +30,10 @@ cosito2 = MLP()
 cosito.coso()
 MLP.verbose=False
 cosito.coso()
+
+def check():
+    return 1
+
+if check():
+    print('Entre')
+

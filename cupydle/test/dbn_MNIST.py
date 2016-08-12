@@ -42,22 +42,22 @@ from cupydle.dnn.utils import temporizador
 
 if __name__ == "__main__":
 
-    currentPath = os.getcwd()                               # directorio actual de ejecucion
-    testPath    = currentPath + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
-    dataPath    = currentPath + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
-    testFolder  = 'test_DBN/'                                  # carpeta a crear para los tests
-    fullPath    = testPath + testFolder
+    directorioActual = os.getcwd()                               # directorio actual de ejecucion
+    rutaTest    = directorioActual + '/cupydle/test/mnist/'      # sobre el de ejecucion la ruta a los tests
+    rutaDatos    = directorioActual + '/cupydle/data/DB_mnist/'   # donde se almacenan la base de datos
+    carpetaTest  = 'test_DBN/'                                  # carpeta a crear para los tests
+    rutaCompleta    = rutaTest + carpetaTest
 
-    if not os.path.exists(fullPath):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',fullPath)
-        os.makedirs(fullPath)
+    if not os.path.exists(rutaCompleta):        # si no existe la crea
+        print('Creando la carpeta para el test en: ',rutaCompleta)
+        os.makedirs(rutaCompleta)
 
 
-    subprocess.call(testPath + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
+    subprocess.call(rutaTest + 'get_data.sh', shell=True)   # chequeo si necesito descargar los datos
 
 
     setName = "mnist"
-    MNIST.prepare(dataPath, nombre=setName, compresion='bzip2')
+    MNIST.prepare(rutaDatos, nombre=setName, compresion='bzip2')
 
 
     parser = argparse.ArgumentParser(description='Prueba de una DBN sobre MNIST.')
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     verbose = True
 
     # se leen de disco la base de datos
-    mn = open4disk(filename=dataPath + setName, compression='bzip2')
+    mn = open4disk(filename=rutaDatos + setName, compression='bzip2')
     #mn.info
 
     # obtengo todos los subconjuntos
@@ -93,45 +93,53 @@ if __name__ == "__main__":
 
     if mlp :
         print("S E C C I O N        M L P")
-        n_epochs=1000
+
         batch_size=10
 
-        clasificador = MLP( task="clasificacion",
-                            rng=None)
+        clasificador = MLP( clasificacion=True,
+                            rng=None,
+                            ruta=rutaCompleta)
 
-        clasificador.addLayer(  unitsIn=unidadesCapas[0],
-                                unitsOut=unidadesCapas[1],
-                                classification=False,
-                                activation=Sigmoid(),
-                                weight=None,
-                                bias=None)
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
+        clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
+        clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
+        clasificador.setParametroEntrenamiento({'momento':0.0})
+        clasificador.setParametroEntrenamiento({'epocas':1000})
+        clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
 
-        clasificador.addLayer(  #unitsIn=500,
-                                unitsOut=unidadesCapas[2],
-                                classification=False,
-                                weight=None,
-                                bias=None)
+        clasificador.agregarCapa(  unidadesEntrada=unidadesCapas[0],
+                                unidadesSalida=unidadesCapas[1],
+                                clasificacion=False,
+                                activacion=Sigmoid(),
+                                pesos=None,
+                                biases=None)
 
-        clasificador.addLayer( #unitsIn=100,
-                                unitsOut=unidadesCapas[3],
-                                classification=True,
-                                activation=Sigmoid(),
-                                weight=None,
-                                bias=None)
+        clasificador.agregarCapa(  #unidadesEntrada=500,
+                                unidadesSalida=unidadesCapas[2],
+                                clasificacion=False,
+                                activacion=Sigmoid(),
+                                pesos=None,
+                                biases=None)
+
+        clasificador.agregarCapa( #unidadesEntrada=100,
+                                unidadesSalida=unidadesCapas[3],
+                                clasificacion=True,
+                                activacion=Sigmoid(),
+                                pesos=None,
+                                biases=None)
 
         T = temporizador()
         inicio = T.tic()
 
         # se almacenan los pesos para propositos de comparacion con la dbn
-        numpy.save(fullPath + "pesos1",clasificador.capas[0].W.get_value())
-        numpy.save(fullPath + "pesos2",clasificador.capas[1].W.get_value())
-        numpy.save(fullPath + "pesos3",clasificador.capas[2].W.get_value())
+        numpy.save(rutaCompleta + "pesos1",clasificador.capas[0].W.get_value())
+        numpy.save(rutaCompleta + "pesos2",clasificador.capas[1].W.get_value())
+        numpy.save(rutaCompleta + "pesos3",clasificador.capas[2].W.get_value())
 
         clasificador.train( trainSet=datos[0],
                             validSet=datos[1],
                             testSet=datos[2],
-                            batch_size=batch_size,
-                            n_epochs=n_epochs)
+                            batch_size=batch_size)
 
         final = T.toc()
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
@@ -139,23 +147,23 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=15
-        numEpoch=1000
+        numEpoch=1
         batchSize=10
 
-        miDBN = dbn(name=None, ruta=fullPath)
+        miDBN = dbn(name=None, ruta=rutaCompleta)
 
 
         # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
-        pesos1 = numpy.load(fullPath + "pesos1.npy")
-        pesos2 = numpy.load(fullPath + "pesos2.npy")
-        pesos3 = numpy.load(fullPath + "pesos3.npy")
+        pesos1 = numpy.load(rutaCompleta + "pesos1.npy")
+        pesos2 = numpy.load(rutaCompleta + "pesos2.npy")
+        pesos3 = numpy.load(rutaCompleta + "pesos3.npy")
 
         # agrego una capa..
         miDBN.addLayer( n_visible=unidadesCapas[0],
                         n_hidden=unidadesCapas[1],
                         numEpoch=numEpoch,
                         batchSize=batchSize,
-                        epsilonw=0.01,
+                        epsilonw=0.1,
                         pasosGibbs=pasosGibbs,
                         w=pesos1)
         # otra capa mas
@@ -163,7 +171,7 @@ if __name__ == "__main__":
                         n_hidden=unidadesCapas[2],
                         numEpoch=numEpoch,
                         batchSize=batchSize,
-                        epsilonw=0.01,
+                        epsilonw=0.1,
                         pasosGibbs=pasosGibbs,
                         w=pesos2)
 
@@ -172,7 +180,7 @@ if __name__ == "__main__":
                         n_hidden=unidadesCapas[3],
                         numEpoch=numEpoch,
                         batchSize=batchSize,
-                        epsilonw=0.01,
+                        epsilonw=0.1,
                         pasosGibbs=pasosGibbs,
                         w=pesos3)
 
@@ -186,21 +194,17 @@ if __name__ == "__main__":
         final = T.toc()
         print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
 
-        miDBN.save(fullPath + "dbnMNIST", compression='zip')
+        miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
     if dbnf:
         print("S E C C I O N        D B N")
-        n_epochs=1000
 
-        miDBN = dbn.load(filename=fullPath + "dbnMNIST", compression='zip')
+        miDBN = dbn.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(miDBN)
-        miDBN.pesos=[]
-
 
         miDBN.fit(  datos=datos,
                     listaPesos=None,
                     fnActivacion=Sigmoid(),
-                    n_epochs=n_epochs,
                     semillaRandom=None)
 
 else:

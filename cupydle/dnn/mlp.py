@@ -27,7 +27,6 @@ References:
 
 import os
 import sys
-import timeit
 import pickle
 import gzip
 
@@ -265,7 +264,6 @@ class MLP(object):
         best_validation_loss = numpy.inf
         best_iter = 0
         test_score = 0.
-        start_time = timeit.default_timer()
 
         epoch = 0
         done_looping = False
@@ -317,13 +315,10 @@ class MLP(object):
                     done_looping = True
                     break
 
-        end_time = timeit.default_timer()
+
         print(('Optimizacion Completada. Mejor puntaje de validacion: %f %% '
                'con un performance en el test de %f %%') %
               (best_validation_loss * 100., test_score * 100.))
-        print(('El codido del archivo ' +
-               os.path.split(__file__)[1] +
-               ' se ejecuto por %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
 
         print("reales", predictor()[1][0:10])
         print("predic", predictor()[0][0:10])

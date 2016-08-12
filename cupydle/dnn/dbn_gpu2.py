@@ -250,7 +250,7 @@ class dbn(object):
                                 validationData=dataVal,
                                 filtros=filtrosss)
 
-            print("Guardando la capa..") if DBN.verbose else None
+            print("Guardando la capa..") if dbn.verbose else None
             filename = self.name + "_capa" + str(i+1) + ".pgz"
             rbm_layer.guardar(nombreArchivo=filename)
 
@@ -259,7 +259,7 @@ class dbn(object):
             hiddenActPos = rbm_layer.activacionesOcultas(layer_input)
             dataVal = rbm_layer.activacionesOcultas(dataVal)
 
-            print("Guardando las muestras para la siguiente capa..") if DBN.verbose else None
+            print("Guardando las muestras para la siguiente capa..") if dbn.verbose else None
             filename_samples = self.ruta + self.name + "_capaSample" + str(i+1)
             save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
 
@@ -274,8 +274,7 @@ class dbn(object):
         return
     # FIN TRAIN
 
-    def fit(self, datos, listaPesos=None, fnActivacion=Sigmoid(),
-            n_epochs=1000, semillaRandom=None):
+    def fit(self, datos, listaPesos=None, fnActivacion=Sigmoid(), semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.
@@ -299,38 +298,43 @@ class dbn(object):
             assert False, "Debe proveer una funcion de activacion"
 
 
-        classifier = MLP(   task="clasificacion",
-                            rng=semillaRandom)
+        clasificador = MLP( clasificacion=True,
+                            rng=semillaRandom,
+                            ruta=self.ruta)
+
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
+        clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
+        clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
+        clasificador.setParametroEntrenamiento({'momento':0.0})
+        clasificador.setParametroEntrenamiento({'epocas':1000})
+        clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
         for i in range(0,len(self.pesos)-1):
-            classifier.addLayer(
-                                unitsIn=self.pesos[i].shape[0],
-                                unitsOut=self.pesos[i].shape[1],
-                                classification=False,
-                                activation=activaciones[i],
-                                weight=self.pesos[i],
-                                bias=None)
+            clasificador.agregarCapa(  unidadesEntrada=self.pesos[i].shape[0],
+                                unidadesSalida=self.pesos[i].shape[1],
+                                clasificacion=False,
+                                activacion=activaciones[i],
+                                pesos=self.pesos[i],
+                                biases=None)
 
-        classifier.addLayer(
-                            unitsIn=self.pesos[-1].shape[0],
-                            unitsOut=self.pesos[-1].shape[1],
-                            classification=True,
-                            activation=activaciones[-1],
-                            weight=self.pesos[-1],
-                            bias=None)
+        clasificador.agregarCapa(  unidadesEntrada=self.pesos[-1].shape[0],
+                                unidadesSalida=self.pesos[-1].shape[1],
+                                clasificacion=True,
+                                activacion=activaciones[-1],
+                                pesos=self.pesos[-1],
+                                biases=None)
 
         T = temporizador()
         inicio = T.tic()
 
-        classifier.train(
+        clasificador.train(
                         trainSet=datos[0],
                         validSet=datos[1],
                         testSet=datos[2],
-                        batch_size=10,
-                        n_epochs=n_epochs)
+                        batch_size=10)
 
         final = T.toc()
         print("Tiempo total para entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
@@ -390,7 +394,7 @@ class dbn(object):
         """
         capas = []
         for file in sorted(glob.glob(ruta + dbnNombre + "_capa[0-9].*")):
-            print("Cargando capa: ",file) if DBN.verbose else None
+            print("Cargando capa: ",file) if dbn.verbose else None
             capas.append(RBM.load(str(file)).w.get_value())
         return capas
 
