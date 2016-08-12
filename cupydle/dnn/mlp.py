@@ -12,13 +12,7 @@ __version__     = "1.0.0"
 __status__      = "Production"
 
 """
-Implementacion de un 'Multi-layer Perceptron' en GP-GPU/CPU (Theano)
-
- A multilayer perceptron is a logistic regressor where
-instead of feeding the input to the logistic regression you insert a
-intermediate layer, called the hidden layer, that has a nonlinear
-activation function (usually tanh or sigmoid) . One can use many such
-hidden layers making the architecture deep.
+Implementacion de una red multi-capa en GP-GPU/CPU (Theano)
 
 .. math::
 
@@ -31,10 +25,6 @@ References:
 
 """
 
-#from __future__ import print_function
-#__docformat__ = 'restructedtext en'
-
-
 import os
 import sys
 import timeit
@@ -42,13 +32,14 @@ import pickle
 import gzip
 
 import numpy
+from numpy.random import RandomState as npRandom
 
 import theano
 
 from cupydle.dnn.activations import Sigmoid
 from cupydle.dnn.activations import Rectified
-from cupydle.dnn.layer import Layer
-from cupydle.dnn.layer import ClassificationLayer
+from cupydle.dnn.capas import Capa
+from cupydle.dnn.capas import CapaClasificacion
 from cupydle.dnn.rbm_gpu import rbm_gpu
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
@@ -63,31 +54,91 @@ class MLP(object):
     def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
         # semilla para el random
-        if rng is None:
-            rng = numpy.random.RandomState(1234)
-        self.rng = rng
+        self.rng = (npRandom(1234) if rng is None else npRandom(rng))
 
-        #self.clasificacion = (1 if tarea == "clasificacion" else 0)
+        # la red es para clasificacion o regresion?
         self.clasificacion = clasificacion
 
+        # se almacenan las layers por la que esta compuesta la red.
         self.capas = []
 
         # se guardan los parametros de la red a optimizar, W y b
         self.params = []
 
+        # parametros para el entrenamiento
         self.cost   = 0.0
-
         self.L1     = 0.0
         self.L2_sqr = 0.0
 
-        # para hacer el trakeo de la entrada en el grafo... self.x es el root de todo!!
+        # se guarda la raiz del grafo para theano
         self.x = theano.tensor.matrix('x')
 
-        self.ruta=ruta
-        if nombre is None:
-            nombre = 'mlp'
+        # nombre del objeto, por si lo quiero diferenciar de otros en la misma
+        # carpeta
+        self.nombre = ('mlp' if nombre is None else nombre)
 
-        self.nombre = nombre
+        # donde se alojan los datos
+        self.ruta = ruta
+
+    def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
+                    activacion=Sigmoid(), pesos=None, biases=None):
+        """
+        :type unidadesEntrada: int
+        :param unidadesEntrada: cantidad de nueronas en la entrada, por defecto
+                                es la cantidad de salida de la capa anterior
+
+        :type unidadesSalida: int
+        :param unidadesSalida: cantidad de neuronas en la salida
+
+        :type activacion: Class activations
+        :param activacion: funcion de activacion para la capa, Sigmoid, relu..
+
+        :type pesos: numpy.ndarray
+        :param pesos: matriz de pesos W a inicializar la capa
+
+        :type biases: numpy.ndarray
+        :param biases: matriz de biases b a inicializar la capa
+
+        """
+        # primer capa, es la entrada de mlp, osea x, para iniciar el arbol
+        if not self.capas:
+            entrada = self.x
+        else:
+            # la entrada es la salida de la ultima capa hasta ahora...
+            entrada = self.capas[-1].activate()
+
+        # las entradas deben ser las salidas de la anterior
+        if unidadesEntrada is None:
+            assert self.capas != [], "Unidades de entrada para esta capa?."
+            unidadesEntrada =   self.capas[-1].get_weights().\
+                                get_value(borrow=True).shape[1]
+        else:
+            if self.capas != []:    # solo si ya hay carga una capa
+                assert unidadesEntrada ==   self.capas[-1].get_weights().\
+                                            get_value(borrow=True).shape[1]
+
+        # si la capa no es de clasificacion, es de regresion logisctica
+        if not clasificacion:
+            capa = Capa(unidadesEntrada = unidadesEntrada,
+                        unidadesSalida = unidadesSalida,
+                        entrada = entrada,
+                        rng = self.rng,
+                        funcionActivacion = activacion,
+                        W = pesos,
+                        b = biases)
+        else:
+            capa = CapaClasificacion(unidadesEntrada = unidadesEntrada,
+                                     unidadesSalida = unidadesSalida,
+                                     entrada = entrada,
+                                     W = pesos,
+                                     b = biases)
+        # se guardan las capas
+        self.capas.append(capa)
+
+        # se guardan los parametros de las capas (w,b) para el entrenamiento
+        self.params += capa.params
+        # se borra forzadamente el objeto para liberar espacio
+        del capa, entrada
 
     def costos(self, y):
         """
@@ -117,39 +168,6 @@ class MLP(object):
         self.L1     = costo1
         self.L2_sqr = costo2
 
-
-    def addLayer(self, unitsOut, classification, unitsIn=None, activation=Sigmoid(), weight=None, bias=None):
-        if not self.capas:
-            # primer capa, es la entrada de mlp, osea x, para iniciar el arbol
-            entrada = self.x
-        else:
-            # la entrada es la salida de la ultima capa hasta ahora...
-            entrada = self.capas[-1].activate()
-
-        if unitsIn is None: # las entradas deben ser las salidas de la anterior
-            assert self.capas != [], "Debe prover de unidades de entrada para esta capa."
-            unitsIn = self.capas[-1].get_weights().get_value(borrow=True).shape[1]
-
-        if not classification:
-            capa = Layer(nIn = unitsIn,
-                         nOut = unitsOut,
-                         input = entrada,
-                         rng = self.rng,
-                         activationFn = activation,
-                         W = weight,
-                         b = bias)
-        else:
-            capa = ClassificationLayer(nIn = unitsIn,
-                                       nOut = unitsOut,
-                                       input = entrada,
-                                       W = weight,
-                                       b = bias)
-
-        self.capas.append(capa)
-
-        self.params += capa.params
-        del capa
-
     def netErrors(self, y):
         return self.capas[-1].errors(y)
 
@@ -160,7 +178,7 @@ class MLP(object):
 
     def train(self, trainSet, validSet, testSet, batch_size,
         learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000):
-        assert len(self.capas) != 0, "No hay capas cargadas en la red, <<addLayer()>>"
+        assert len(self.capas) != 0, "No hay capas cargadas en la red, <<agregarCapa()>>"
 
         # allocate symbolic variables for the data
         index = theano.tensor.lscalar() # index to a [mini]batch

@@ -89,12 +89,11 @@ if __name__ == "__main__":
     # creo la red
     #MNIST.plot_one_digit(train_img.get_value()[0])
     clasificador = MLP( clasificacion=True,
-                        rng=None)
+                        rng=None,
+                        ruta=rutaCompleta)
 
-
-
-    clasificador.addLayer(unitsIn=784, unitsOut=500, classification=False, activation=Sigmoid(), weight=None, bias=None)
-    clasificador.addLayer(unitsIn=500, unitsOut=10, classification=True, weight=None, bias=None)
+    clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=Sigmoid(), pesos=None, biases=None)
+    clasificador.agregarCapa(unidadesSalida=10, clasificacion=True, pesos=None, biases=None)
 
     T = temporizador()
     inicio = T.tic()

@@ -17,6 +17,13 @@ class MLP(object):
         print("es verdadero") if MLP.verbose else None
         return
 
+
+from numpy.random import RandomState as npRandom
+
+print(npRandom(1234))
+h=True
+cosa = (0 if h is None else 1)
+print(cosa)
 cosito = MLP()
 cosito2 = MLP()
 

@@ -22,19 +22,20 @@ import theano
 from cupydle.dnn.activations import Sigmoid
 
 
-class Layer(object):
-    def __init__(self, nIn, nOut, input, rng, activationFn, W=None, b=None):
-        self.activationFn = activationFn
+class Capa(object):
+    def __init__(self, unidadesEntrada, unidadesSalida, entrada, rng,
+                 funcionActivacion, W=None, b=None):
+        self.funcionActivacion = funcionActivacion
         if W is None:
             W_values = numpy.asarray(
                 rng.uniform(
-                    low=-numpy.sqrt(6. / (nIn + nOut)),
-                    high=numpy.sqrt(6. / (nIn + nOut)),
-                    size=(nIn, nOut)
+                    low=-numpy.sqrt(6. / (unidadesEntrada + unidadesSalida)),
+                    high=numpy.sqrt(6. / (unidadesEntrada + unidadesSalida)),
+                    size=(unidadesEntrada, unidadesSalida)
                 ),
                 dtype=theano.config.floatX
             )
-            if type(self.activationFn) == type(Sigmoid()):
+            if type(self.funcionActivacion) == type(Sigmoid()):
                 W_values *= 4
             W = theano.shared(value=W_values, name='W', borrow=True)
             del W_values
@@ -45,7 +46,7 @@ class Layer(object):
                 W = theano.shared(value=W, name='W', borrow=True)
 
         if b is None:
-            b_values = numpy.zeros((nOut,), dtype=theano.config.floatX)
+            b_values = numpy.zeros((unidadesSalida,), dtype=theano.config.floatX)
             b = theano.shared(value=b_values, name='b', borrow=True)
             del b_values
         else:
@@ -57,17 +58,17 @@ class Layer(object):
         self.W = W
         self.b = b
 
-        self.activationFn=activationFn
+        self.funcionActivacion=funcionActivacion
 
         # parameters of the model
         self.params = [self.W, self.b]
 
-        self.x = input
+        self.x = entrada
 
     def activate(self):
         lin_output = theano.tensor.dot(self.x, self.W) + self.b
-        #output = (lin_output if self.activationFn is None else self.activationFn.deterministic(lin_output))
-        output = self.activationFn.deterministic(lin_output)
+        #output = (lin_output if self.funcionActivacion is None else self.funcionActivacion.deterministic(lin_output))
+        output = self.funcionActivacion.deterministic(lin_output)
         return output
 
     # propiedades intrisecas de las capas
@@ -100,12 +101,12 @@ class Layer(object):
             assert False
 
 
-class ClassificationLayer(Layer):
-    def __init__(self, nIn, nOut, input, W=None, b=None):
-        # initialize with 0 the weights W as a matrix of shape (nIn, nout)
+class CapaClasificacion(Capa):
+    def __init__(self, unidadesEntrada, unidadesSalida, entrada, W=None, b=None):
+        # initialize with 0 the weights W as a matrix of shape (unidadesEntrada, unidadesSalida)
 
         if W is None:
-            W_values = numpy.zeros((nIn, nOut), dtype=theano.config.floatX)
+            W_values = numpy.zeros((unidadesEntrada, unidadesSalida), dtype=theano.config.floatX)
             W = theano.shared(value=W_values, name='W', borrow=True)
             del W_values
         else:
@@ -114,9 +115,9 @@ class ClassificationLayer(Layer):
             else:
                 W = theano.shared(value=W, name='W', borrow=True)
 
-        # initialize the biases b as a vector of nOut 0s
+        # initialize the biases b as a vector of unidadesSalida 0s
         if b is None:
-            b_values = numpy.zeros((nOut,), dtype=theano.config.floatX)
+            b_values = numpy.zeros((unidadesSalida,), dtype=theano.config.floatX)
             b = theano.shared(value=b_values, name='b', borrow=True)
             del b_values
         else:
@@ -131,7 +132,7 @@ class ClassificationLayer(Layer):
         # parameters of the model
         self.params = [self.W, self.b]
 
-        self.x = input
+        self.x = entrada
 
     def activate(self):
         # symbolic expression for computing the matrix of class-membership
