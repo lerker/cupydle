@@ -107,26 +107,26 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'epocas':1000})
         clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
 
-        clasificador.agregarCapa(  unidadesEntrada=unidadesCapas[0],
-                                unidadesSalida=unidadesCapas[1],
-                                clasificacion=False,
-                                activacion=Sigmoid(),
-                                pesos=None,
-                                biases=None)
+        clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
+                                 unidadesSalida=unidadesCapas[1],
+                                 clasificacion=False,
+                                 activacion=Sigmoid(),
+                                 pesos=None,
+                                 biases=None)
 
-        clasificador.agregarCapa(  #unidadesEntrada=500,
-                                unidadesSalida=unidadesCapas[2],
-                                clasificacion=False,
-                                activacion=Sigmoid(),
-                                pesos=None,
-                                biases=None)
+        clasificador.agregarCapa(#unidadesEntrada=500,
+                                 unidadesSalida=unidadesCapas[2],
+                                 clasificacion=False,
+                                 activacion=Sigmoid(),
+                                 pesos=None,
+                                 biases=None)
 
-        clasificador.agregarCapa( #unidadesEntrada=100,
-                                unidadesSalida=unidadesCapas[3],
-                                clasificacion=True,
-                                activacion=Sigmoid(),
-                                pesos=None,
-                                biases=None)
+        clasificador.agregarCapa(#unidadesEntrada=100,
+                                 unidadesSalida=unidadesCapas[3],
+                                 clasificacion=True,
+                                 activacion=Sigmoid(),
+                                 pesos=None,
+                                 biases=None)
 
         T = temporizador()
         inicio = T.tic()
@@ -159,30 +159,30 @@ if __name__ == "__main__":
         pesos3 = numpy.load(rutaCompleta + "pesos3.npy")
 
         # agrego una capa..
-        miDBN.addLayer( n_visible=unidadesCapas[0],
-                        n_hidden=unidadesCapas[1],
-                        numEpoch=numEpoch,
-                        batchSize=batchSize,
-                        epsilonw=0.1,
-                        pasosGibbs=pasosGibbs,
-                        w=pesos1)
+        miDBN.addLayer(n_visible=unidadesCapas[0],
+                       n_hidden=unidadesCapas[1],
+                       numEpoch=numEpoch,
+                       batchSize=batchSize,
+                       epsilonw=0.1,
+                       pasosGibbs=pasosGibbs,
+                       w=pesos1)
         # otra capa mas
-        miDBN.addLayer( #n_visible=500, # coincide con las ocultas de las anteriores
-                        n_hidden=unidadesCapas[2],
-                        numEpoch=numEpoch,
-                        batchSize=batchSize,
-                        epsilonw=0.1,
-                        pasosGibbs=pasosGibbs,
-                        w=pesos2)
+        miDBN.addLayer(#n_visible=500, # coincide con las ocultas de las anteriores
+                       n_hidden=unidadesCapas[2],
+                       numEpoch=numEpoch,
+                       batchSize=batchSize,
+                       epsilonw=0.1,
+                       pasosGibbs=pasosGibbs,
+                       w=pesos2)
 
         # clasificacion
-        miDBN.addLayer( #n_visible=100, # coincide con las ocultas de las anteriores
-                        n_hidden=unidadesCapas[3],
-                        numEpoch=numEpoch,
-                        batchSize=batchSize,
-                        epsilonw=0.1,
-                        pasosGibbs=pasosGibbs,
-                        w=pesos3)
+        miDBN.addLayer(#n_visible=100, # coincide con las ocultas de las anteriores
+                       n_hidden=unidadesCapas[3],
+                       numEpoch=numEpoch,
+                       batchSize=batchSize,
+                       epsilonw=0.1,
+                       pasosGibbs=pasosGibbs,
+                       w=pesos3)
 
         T = temporizador()
         inicio = T.tic()
@@ -202,10 +202,10 @@ if __name__ == "__main__":
         miDBN = dbn.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(miDBN)
 
-        miDBN.fit(  datos=datos,
-                    listaPesos=None,
-                    fnActivacion=Sigmoid(),
-                    semillaRandom=None)
+        miDBN.fit(datos=datos,
+                  listaPesos=None,
+                  fnActivacion=Sigmoid(),
+                  semillaRandom=None)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
