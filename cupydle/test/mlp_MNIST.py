@@ -92,6 +92,13 @@ if __name__ == "__main__":
                         rng=None,
                         ruta=rutaCompleta)
 
+    clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
+    clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
+    clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
+    clasificador.setParametroEntrenamiento({'momento':0.0})
+    clasificador.setParametroEntrenamiento({'epocas':1000})
+    clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
+
     clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=Sigmoid(), pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=10, clasificacion=True, pesos=None, biases=None)
 
@@ -103,8 +110,7 @@ if __name__ == "__main__":
     clasificador.train( trainSet=datos[0],
                         validSet=datos[1],
                         testSet=datos[2],
-                        batch_size=batchSize,
-                        n_epochs=n_epochs)
+                        batch_size=batchSize)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))

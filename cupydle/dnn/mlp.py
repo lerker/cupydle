@@ -201,8 +201,7 @@ class MLP(object):
         return self.capas[-1].predict()
 
 
-    def train(self, trainSet, validSet, testSet, batch_size,
-        learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000):
+    def train(self, trainSet, validSet, testSet, batch_size):
 
         assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
 
@@ -226,8 +225,8 @@ class MLP(object):
         updates = self.construirActualizaciones(costo=self.cost,
                                                 actualizaciones=updates)
         costo = (self.cost +
-                L1_reg * self.L1 +
-                L2_reg * self.L2_sqr)
+                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
+                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
 
         train_model, validate_model, test_model = self.construirFunciones(
                                         datosEntrenamiento=shared_dataset(trainSet),
@@ -270,7 +269,9 @@ class MLP(object):
 
         epoch = 0
         done_looping = False
-        while (epoch < n_epochs) and (not done_looping):
+
+
+        while (epoch < self.parametrosEntrenamiento['epocas']) and (not done_looping):
             epoch = epoch + 1
             for minibatch_index in range(n_train_batches):
 
@@ -328,10 +329,10 @@ class MLP(object):
         print("predic", predictor()[0][0:10])
 
     def construirActualizaciones(self, costo, actualizaciones):
-        learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001
+
         cost = (costo +
-                L1_reg * self.L1 +
-                L2_reg * self.L2_sqr)
+                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
+                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
 
         # compute the gradient of cost with respect to theta (sorted in params)
         # the resulting gradients will be stored in a list gparams
@@ -345,7 +346,7 @@ class MLP(object):
         # element is a pair formed from the two lists :
         #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
         updates = [
-            (param, param - learning_rate * gparam)
+            (param, param - self.parametrosEntrenamiento['tasaAprendizaje'] * gparam)
                 for param, gparam in zip(self.params, gparams)
             ]
 
