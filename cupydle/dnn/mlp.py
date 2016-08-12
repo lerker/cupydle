@@ -77,8 +77,33 @@ class MLP(object):
         # carpeta
         self.nombre = ('mlp' if nombre is None else nombre)
 
+        self.parametrosEntrenamiento = {}
+        self._initParametrosEntrenamiento()
+
         # donde se alojan los datos
         self.ruta = ruta
+
+    def _initParametrosEntrenamiento(self):
+        """ inicializa los parametros de la red, un diccionario"""
+        self.parametrosEntrenamiento['tasaAprendizaje'] = 0.0
+        self.parametrosEntrenamiento['regularizadorL1'] = 0.0
+        self.parametrosEntrenamiento['regularizadorL2'] = 0.0
+        self.parametrosEntrenamiento['momento'] = 0.0
+        self.parametrosEntrenamiento['epocas'] = 0.0
+        self.parametrosEntrenamiento['activationfuntion'] = Sigmoid()
+        return 1
+
+    def setParametroEntrenamiento(self, parametros):
+        if not isinstance(parametros, dict):
+            assert False, "Debe ser un diccionario"
+
+        for key, _ in parametros.items():
+            if key in self.parametrosEntrenamiento:
+                self.parametrosEntrenamiento[key] = parametros[key]
+            else:
+                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
+
+        return 1
 
     def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
                     activacion=Sigmoid(), pesos=None, biases=None):
@@ -172,20 +197,17 @@ class MLP(object):
         return self.capas[-1].errors(y)
 
     def predict(self):
-        assert self.clasificacion, "Funcion solo valida para tareas de clasificacion"
+        assert self.clasificacion,"Funcion valida para tareas de clasificacion"
         return self.capas[-1].predict()
 
 
     def train(self, trainSet, validSet, testSet, batch_size,
         learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000):
-        assert len(self.capas) != 0, "No hay capas cargadas en la red, <<agregarCapa()>>"
 
-        # allocate symbolic variables for the data
-        index = theano.tensor.lscalar() # index to a [mini]batch
+        assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
+
         y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
                                         # [int] labels
-
-        #learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001; n_epochs=1000
 
         trainX, trainY  = shared_dataset(trainSet)
         validX, validY  = shared_dataset(validSet)
@@ -195,64 +217,27 @@ class MLP(object):
         n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
         n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
 
-        # necesito actualizar los costos, si no hago este paso no tengo los valores requeridos
+        # necesito actualizar los costos, si no hago este paso no tengo
+        # los valores requeridos
         self.costos(y)
 
-        cost = (
-                self.cost +
+        # actualizaciones
+        updates = []
+        updates = self.construirActualizaciones(costo=self.cost,
+                                                actualizaciones=updates)
+        costo = (self.cost +
                 L1_reg * self.L1 +
                 L2_reg * self.L2_sqr)
 
-        # compute the gradient of cost with respect to theta (sorted in params)
-        # the resulting gradients will be stored in a list gparams
-        gparams = [theano.tensor.grad(cost, param) for param in self.params]
+        train_model, validate_model, test_model = self.construirFunciones(
+                                        datosEntrenamiento=shared_dataset(trainSet),
+                                        datosValidacion=shared_dataset(validSet),
+                                        datosTesteo=shared_dataset(testSet),
+                                        cost=costo,
+                                        batch_size=batch_size,
+                                        updates=updates,
+                                        y=y)
 
-        # specify how to update the parameters of the model as a list of
-        # (variable, update expression) pairs
-
-        # given two lists of the same length, A = [a1, a2, a3, a4] and
-        # B = [b1, b2, b3, b4], zip generates a list C of same size, where each
-        # element is a pair formed from the two lists :
-        #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
-        updates = [
-            (param, param - learning_rate * gparam)
-                for param, gparam in zip(self.params, gparams)
-            ]
-
-        # build functions
-        test_model = theano.function(
-                        inputs  = [index],
-                        outputs = self.netErrors(y),
-                        givens  = {
-                            self.x: testX[index * batch_size:(index + 1) * batch_size],
-                            y: testY[index * batch_size:(index + 1) * batch_size]
-                        },
-                        name = 'test_model'
-        )
-
-        validate_model = theano.function(
-                        inputs  = [index],
-                        outputs = self.netErrors(y),
-                        givens = {
-                            self.x: validX[index * batch_size:(index + 1) * batch_size],
-                            y: validY[index * batch_size:(index + 1) * batch_size]
-                        },
-                        name = 'validate_model'
-        )
-
-        # compiling a Theano function `train_model` that returns the cost, but
-        # in the same time updates the parameter of the model based on the rules
-        # defined in `updates`
-        train_model = theano.function(
-                        inputs = [index],
-                        outputs = cost,
-                        updates = updates,
-                        givens = {
-                            self.x: trainX[index * batch_size: (index + 1) * batch_size],
-                            y: trainY[index * batch_size: (index + 1) * batch_size]
-                        },
-                        name = 'train_model'
-        )
 
         k = self.predict()
         ll = trainY
@@ -341,6 +326,84 @@ class MLP(object):
 
         print("reales", predictor()[1][0:10])
         print("predic", predictor()[0][0:10])
+
+    def construirActualizaciones(self, costo, actualizaciones):
+        learning_rate=0.01; L1_reg=0.00; L2_reg=0.0001
+        cost = (costo +
+                L1_reg * self.L1 +
+                L2_reg * self.L2_sqr)
+
+        # compute the gradient of cost with respect to theta (sorted in params)
+        # the resulting gradients will be stored in a list gparams
+        gparams = [theano.tensor.grad(cost, param) for param in self.params]
+
+        # specify how to update the parameters of the model as a list of
+        # (variable, update expression) pairs
+
+        # given two lists of the same length, A = [a1, a2, a3, a4] and
+        # B = [b1, b2, b3, b4], zip generates a list C of same size, where each
+        # element is a pair formed from the two lists :
+        #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
+        updates = [
+            (param, param - learning_rate * gparam)
+                for param, gparam in zip(self.params, gparams)
+            ]
+
+        # si ya vienen con actualizaciones (updates previas)
+        #actualizaciones.append(updates)
+        #actualizaciones += updates
+        actualizaciones.extend(updates)
+        return actualizaciones
+
+    def construirFunciones(self, datosEntrenamiento, datosValidacion,
+                           datosTesteo, cost, batch_size, updates, y):
+        """
+        por cuestiones de legibilidad lo pase a una funcion aparte la construccion
+        de las funciones
+        """
+
+        trainX, trainY = datosEntrenamiento
+        validX, validY = datosValidacion
+        testX, testY = datosTesteo
+
+
+        # allocate symbolic variables for the data
+        index = theano.tensor.lscalar() # index to a [mini]batch
+
+        test_model = theano.function(
+                                    inputs=[index],
+                                    outputs=self.netErrors(y),
+                                    givens={
+                                            self.x: testX[index * batch_size:(index + 1) * batch_size],
+                                            y: testY[index * batch_size:(index + 1) * batch_size]
+                                            },
+                                    name='test_model'
+        )
+
+        validate_model = theano.function(
+                                        inputs  = [index],
+                                        outputs = self.netErrors(y),
+                                        givens = {
+                                            self.x: validX[index * batch_size:(index + 1) * batch_size],
+                                            y: validY[index * batch_size:(index + 1) * batch_size]
+                                        },
+                                        name = 'validate_model'
+        )
+
+        # compiling a Theano function `train_model` that returns the cost, but
+        # in the same time updates the parameter of the model based on the rules
+        # defined in `updates`
+        train_model = theano.function(
+                                    inputs = [index],
+                                    outputs = cost,
+                                    updates = updates,
+                                    givens = {
+                                        self.x: trainX[index * batch_size: (index + 1) * batch_size],
+                                        y: trainY[index * batch_size: (index + 1) * batch_size]
+                                    },
+                                    name = 'train_model'
+        )
+        return train_model, validate_model, test_model
 
 def load_dbn_weigths(path, dbnName):
     """
