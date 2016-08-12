@@ -30,6 +30,7 @@ import argparse
 # Dependencias Externas
 ## Core
 from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.unidades import UnidadBinaria
 ## Data
 from cupydle.test.mnist.mnist import MNIST
 from cupydle.test.mnist.mnist import open4disk
@@ -100,6 +101,8 @@ if __name__ == "__main__":
     red.setParams({'momentum':0.0})
     red.setParams({'weightcost':0.0})
     red.setParams({'maxepoch':3})
+    red.setParams({'unidadesEntrada':UnidadBinaria()})
+    red.setParams({'unidadesSalida':UnidadBinaria()})
 
 
     T = temporizador()

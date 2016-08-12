@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
+
+"""
+unidades para las rbm
+"""
+
+from theano import config as Tconfig
+import theano.tensor.nnet as Tnet
+from theano.tensor import erf as Terf
+from theano.tensor import sqrt as Tsqrt
+from theano.tensor import exp as Texp
+from numpy import tanh as npTanh
+from numpy import exp as npExp
+from numpy.random import RandomState as npRandom
+from numpy.random import randint as npRandint
+
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - GPU
+                                                                        #(parece que binomial no esta implementado, lo reemplaza por uniform)
+                                                                        # cambiar a: multinomial(size=None, n=1, pvals=None, ndim=None, dtype='int64', nstreams=None)[source]
+                                                                        # en activationFunction
+
+theanoFloat  = Tconfig.floatX
+
+class Unidad(object):
+    def __init__(self):
+        pass
+
+
+class UnidadBinaria(Unidad):
+    def __init__(self):
+        #self.theanoGenerator = theano.sandbox.cuda.rng_curand.CURAND_RandomStreams(seed=numpy.random.randint(1, 1000))
+        # o la version  MRG31k3p
+        self.theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+
+    def deterministico(self, x):
+        return Tnet.sigmoid(x)
+
+    def noDeterministico(self, x):
+        # TODO por lo visto la binomial no esta implementada en CUDA,
+        # por lo tanto lo lleva a la GPU a los datos
+        # luego calcula la binomial (la cual la trae a la CPU de nuevo los datos)
+        # y por ultimo lleva de nuevo a la GPU los datos calculado
+        ### SOLUCION
+        # deberia calcularse los numeros binomiales ({0,1}) en la GPU sin usar RandomStreams.binomial
+        # si se retorna val y al theano.tensor.nnet.sigmoid(x) se le agrega 'transfer('gpu')' de la
+        # activationProbability en el grafo se da cuenta de la optimizacion
+        ###$
+        # http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
+        # There are 2 other implementations based on MRG31k3p and CURAND.
+        # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
+        probability = self.deterministico(x)
+        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
+
+    def probabilidadActivacion(self, x):
+        return self.deterministico(x)
+
+    def activar(self, x):
+        probability = self.deterministico(x)
+        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
+
+
+    def __str__(self):
+        return ("Unidad Binaria Sigmoidea")
+

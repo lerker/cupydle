@@ -42,6 +42,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 theanoFloat  = theano.config.floatX
 
 from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.unidades import UnidadBinaria
 
 
 """
@@ -135,6 +136,10 @@ class RBM(object):
 
         # funcion de activacion sigmodea para cada neurona (porbabilidad->binomial)
         self.activationFunction = Sigmoid()
+        self.fnActivacionUnidEntrada = UnidadBinaria()
+        self.fnActivacionUnidEntrada = None
+        self.fnActivacionUnidSalida = UnidadBinaria()
+        self.fnActivacionUnidSalida = None
 
         # buffers para el almacenamiento temporal de las variables
         # momento-> incrementos, historicos
@@ -165,7 +170,8 @@ class RBM(object):
         self.params['weightcost'] = 0.0
         self.params['momentum'] = 0.0
         self.params['maxepoch'] = 0.0
-        self.params['activationfuntion'] = Sigmoid()
+        self.params['unidadesEntrada'] = UnidadBinaria()
+        self.params['unidadesSalida'] = UnidadBinaria()
         return 1
 
     def set_w(self, w):
@@ -280,10 +286,10 @@ class RBM(object):
             # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
             # bias (dimension), ya que lo hace automaticamente
             linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            hiddenActData, probabilityP = self.fnActivacionUnidEntrada.activar(linearSumP)
             #negative
             linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            visibleActRec, probabilityN = self.fnActivacionUnidSalida.activar(linearSumN)
             return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
 
         # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
@@ -437,10 +443,10 @@ class RBM(object):
         def oneStep(hsample, wG, vbiasG, hbiasG):
             #negative
             linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            visibleActRec, probabilityN = self.fnActivacionUnidEntrada.activar(linearSumN)
             # positive
             linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
-            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            hiddenActData, probabilityP = self.fnActivacionUnidSalida.activar(linearSumP)
             return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
 
         ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
@@ -498,10 +504,10 @@ class RBM(object):
         def oneStep(hsample, wG, vbiasG, hbiasG):
             #negative
             linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            visibleActRec, probabilityN = self.fnActivacionUnidEntrada.activar(linearSumN)
             # positive
             linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
-            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            hiddenActData, probabilityP = self.fnActivacionUnidSalida.activar(linearSumP)
             return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
 
         ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
@@ -609,10 +615,10 @@ class RBM(object):
             # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
             # bias (dimension), ya que lo hace automaticamente
             linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData, probabilityP = self.activationFunction.nonDeterminstic(linearSumP)
+            hiddenActData, probabilityP = self.fnActivacionUnidEntrada.activar(linearSumP)
             #negative
             linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.activationFunction.nonDeterminstic(linearSumN)
+            visibleActRec, probabilityN = self.fnActivacionUnidSalida.activar(linearSumN)
             return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
 
         # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
@@ -727,7 +733,8 @@ class RBM(object):
             sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
 
         trainer = None
-
+        self.fnActivacionUnidEntrada = self.params['unidadesEntrada']
+        self.fnActivacionUnidSalida = self.params['unidadesSalida']
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
