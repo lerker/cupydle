@@ -64,7 +64,6 @@ from cupydle.dnn.utils import temporizador
 from cupydle.dnn.mlp import MLP
 
 import glob# load_dbn_weight
-verbose = True
 
 class rbmParams(object):
     # sirve para guardar el estado nomas
@@ -251,7 +250,7 @@ class dbn(object):
                                 validationData=dataVal,
                                 filtros=filtrosss)
 
-            print("Guardando la capa..") if verbose else None
+            print("Guardando la capa..") if DBN.verbose else None
             filename = self.name + "_capa" + str(i+1) + ".pgz"
             rbm_layer.guardar(nombreArchivo=filename)
 
@@ -260,7 +259,7 @@ class dbn(object):
             hiddenActPos = rbm_layer.activacionesOcultas(layer_input)
             dataVal = rbm_layer.activacionesOcultas(dataVal)
 
-            print("Guardando las muestras para la siguiente capa..") if verbose else None
+            print("Guardando las muestras para la siguiente capa..") if DBN.verbose else None
             filename_samples = self.ruta + self.name + "_capaSample" + str(i+1)
             save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
 
@@ -391,7 +390,7 @@ class dbn(object):
         """
         capas = []
         for file in sorted(glob.glob(ruta + dbnNombre + "_capa[0-9].*")):
-            print("Cargando capa: ",file) if verbose else None
+            print("Cargando capa: ",file) if DBN.verbose else None
             capas.append(RBM.load(str(file)).w.get_value())
         return capas
 

@@ -54,30 +54,40 @@ from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset
 
-
-
-verbose = False
 class MLP(object):
+    # atributo estatico o de la clase, unico para todas las clases instanciadas
+    # para acceder a el -> MLP.verbose
+    # y no una instancia de el... mi_mlp.verbose
+    verbose=True
 
-    def __init__(self, task, rng=None):
+    def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
-        # no le di semilla?
+        # semilla para el random
         if rng is None:
             rng = numpy.random.RandomState(1234)
         self.rng = rng
 
-        self.task = (1 if task == "clasificacion" else 0)
+        #self.clasificacion = (1 if tarea == "clasificacion" else 0)
+        self.clasificacion = clasificacion
 
         self.capas = []
 
+        # se guardan los parametros de la red a optimizar, W y b
         self.params = []
 
         self.cost   = 0.0
+
         self.L1     = 0.0
         self.L2_sqr = 0.0
 
         # para hacer el trakeo de la entrada en el grafo... self.x es el root de todo!!
         self.x = theano.tensor.matrix('x')
+
+        self.ruta=ruta
+        if nombre is None:
+            nombre = 'mlp'
+
+        self.nombre = nombre
 
     def costos(self, y):
         """
@@ -88,7 +98,7 @@ class MLP(object):
         # the model plus the regularization terms (L1 and L2); cost is expressed
         # here symbolically
 
-        assert self.task, "Funcion solo valida para tareas de clasificacion"
+        assert self.clasificacion, "Funcion solo valida para tareas de clasificacion"
 
         # costo, puede ser el MSE o bien el logaritmo negativo de la entropia..
         costo0 = self.capas[-1].negative_log_likelihood(y)
@@ -106,7 +116,6 @@ class MLP(object):
         self.cost   = costo0
         self.L1     = costo1
         self.L2_sqr = costo2
-
 
 
     def addLayer(self, unitsOut, classification, unitsIn=None, activation=Sigmoid(), weight=None, bias=None):
@@ -145,7 +154,7 @@ class MLP(object):
         return self.capas[-1].errors(y)
 
     def predict(self):
-        assert self.task, "Funcion solo valida para tareas de clasificacion"
+        assert self.clasificacion, "Funcion solo valida para tareas de clasificacion"
         return self.capas[-1].predict()
 
 
@@ -237,7 +246,7 @@ class MLP(object):
                         name='predictor'
         )
 
-        print('... training')
+        print('Entrenando') if MLP.verbose else None
 
         # early-stopping parameters
         patience = 10000  # look as this many examples regardless
@@ -323,7 +332,7 @@ def load_dbn_weigths(path, dbnName):
     import glob# load_dbn_weight
     capas = []
     for file in sorted(glob.glob(path + dbnName + "_capa[0-9].*")):
-        print("Cargando capa: ",file) if verbose else None
+        print("Cargando capa: ",file) if MLP.verbose else None
         capas.append(rbm_gpu.load(str(file)))
     return capas
 

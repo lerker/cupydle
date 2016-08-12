@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # creo la red
     #MNIST.plot_one_digit(train_img.get_value()[0])
-    clasificador = MLP(   task="clasificacion",
+    clasificador = MLP( clasificacion=True,
                         rng=None)
 
 

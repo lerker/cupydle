@@ -8,5 +8,18 @@ rutaDatos       = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almac
 carpetaTest     = 'test_RBM/'                                   # carpeta a crear para los tests
 rutaCompleta    = rutaTest + carpetaTest
 
-pesos1 = numpy.load(fullPath + "pesos1.npy")
+#pesos1 = numpy.load(fullPath + "pesos1.npy")
 
+class MLP(object):
+    verbose=True
+
+    def coso(self):
+        print("es verdadero") if MLP.verbose else None
+        return
+
+cosito = MLP()
+cosito2 = MLP()
+
+cosito.coso()
+MLP.verbose=False
+cosito.coso()
