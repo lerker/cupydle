@@ -29,7 +29,6 @@ import argparse
 
 # Dependencias Externas
 ## Core
-from cupydle.dnn.activations import Sigmoid
 from cupydle.dnn.unidades import UnidadBinaria
 ## Data
 from cupydle.test.mnist.mnist import MNIST

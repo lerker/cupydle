@@ -36,7 +36,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 theanoFloat  = theano.config.floatX
 
-from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.funciones import sigmoideaTheano
 
 
 """
@@ -274,7 +274,7 @@ class dbn(object):
         return
     # FIN TRAIN
 
-    def fit(self, datos, listaPesos=None, fnActivacion=Sigmoid(), semillaRandom=None):
+    def fit(self, datos, listaPesos=None, fnActivacion=sigmoideaTheano(), semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.
@@ -307,7 +307,7 @@ class dbn(object):
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
         clasificador.setParametroEntrenamiento({'epocas':1000})
-        clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
+        clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo

@@ -6,3 +6,5 @@ mirar para el ploteo
 http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
 
 implemetar guardo para el mlp
+
+raise NotImplementedError()

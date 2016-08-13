@@ -30,7 +30,7 @@ import argparse
 ## Core
 from cupydle.dnn.dbn_gpu2 import dbn
 from cupydle.dnn.dbn_gpu2 import rbmParams
-from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.mlp import MLP
 ## Data
 from cupydle.test.mnist.mnist import MNIST
@@ -105,26 +105,26 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
         clasificador.setParametroEntrenamiento({'epocas':1000})
-        clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
+        clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
 
         clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
                                  unidadesSalida=unidadesCapas[1],
                                  clasificacion=False,
-                                 activacion=Sigmoid(),
+                                 activacion=sigmoideaTheano(),
                                  pesos=None,
                                  biases=None)
 
         clasificador.agregarCapa(#unidadesEntrada=500,
                                  unidadesSalida=unidadesCapas[2],
                                  clasificacion=False,
-                                 activacion=Sigmoid(),
+                                 activacion=sigmoideaTheano(),
                                  pesos=None,
                                  biases=None)
 
         clasificador.agregarCapa(#unidadesEntrada=100,
                                  unidadesSalida=unidadesCapas[3],
                                  clasificacion=True,
-                                 activacion=Sigmoid(),
+                                 activacion=sigmoideaTheano(),
                                  pesos=None,
                                  biases=None)
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=15
-        numEpoch=1
+        numEpoch=100
         batchSize=10
 
         miDBN = dbn(name=None, ruta=rutaCompleta)
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
         miDBN.fit(datos=datos,
                   listaPesos=None,
-                  fnActivacion=Sigmoid(),
+                  fnActivacion=sigmoideaTheano(),
                   semillaRandom=None)
 
 else:

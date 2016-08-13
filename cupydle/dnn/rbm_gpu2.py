@@ -41,7 +41,6 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 theanoFloat  = theano.config.floatX
 
-from cupydle.dnn.activations import Sigmoid
 from cupydle.dnn.unidades import UnidadBinaria
 
 
@@ -57,7 +56,7 @@ try:
 except ImportError:
     import Image
 
-from cupydle.dnn.graficos import scale_to_unit_interval
+
 from cupydle.dnn.graficos import tile_raster_images
 from cupydle.dnn.graficos import filtrosConstructor
 
@@ -135,7 +134,6 @@ class RBM(object):
         self.theano_rng = theano_rng
 
         # funcion de activacion sigmodea para cada neurona (porbabilidad->binomial)
-        self.activationFunction = Sigmoid()
         self.fnActivacionUnidEntrada = UnidadBinaria()
         self.fnActivacionUnidEntrada = None
         self.fnActivacionUnidSalida = UnidadBinaria()

@@ -19,7 +19,7 @@ import numpy
 
 import theano
 
-from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.funciones import sigmoideaTheano
 
 
 class Capa(object):
@@ -35,7 +35,7 @@ class Capa(object):
                 ),
                 dtype=theano.config.floatX
             )
-            if type(self.funcionActivacion) == type(Sigmoid()):
+            if type(self.funcionActivacion) == type(sigmoideaTheano()):
                 W_values *= 4
             W = theano.shared(value=W_values, name='W', borrow=True)
             del W_values
@@ -67,8 +67,8 @@ class Capa(object):
 
     def activate(self):
         lin_output = theano.tensor.dot(self.x, self.W) + self.b
-        #output = (lin_output if self.funcionActivacion is None else self.funcionActivacion.deterministic(lin_output))
-        output = self.funcionActivacion.deterministic(lin_output)
+        #output = (lin_output if self.funcionActivacion is None else self.funcionActivacion(lin_output))
+        output = self.funcionActivacion(lin_output)
         return output
 
     # propiedades intrisecas de las capas

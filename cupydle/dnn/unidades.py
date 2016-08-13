@@ -33,7 +33,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 theanoFloat  = Tconfig.floatX
 
-from cupydle.dnn.activations import sigmoideaTheano
+from cupydle.dnn.funciones import sigmoideaTheano
 
 # clase abstracta
 class Unidad(ABC):

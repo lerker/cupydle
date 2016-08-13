@@ -35,11 +35,10 @@ from numpy.random import RandomState as npRandom
 
 import theano
 
-from cupydle.dnn.activations import Sigmoid
-from cupydle.dnn.activations import Rectified
+from cupydle.dnn.funciones import sigmoideaTheano
+from cupydle.dnn.funciones import rectificadaTheano
 from cupydle.dnn.capas import Capa
 from cupydle.dnn.capas import CapaClasificacion
-from cupydle.dnn.rbm_gpu import rbm_gpu
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset
@@ -89,7 +88,7 @@ class MLP(object):
         self.parametrosEntrenamiento['regularizadorL2'] = 0.0
         self.parametrosEntrenamiento['momento'] = 0.0
         self.parametrosEntrenamiento['epocas'] = 0.0
-        self.parametrosEntrenamiento['activationfuntion'] = Sigmoid()
+        self.parametrosEntrenamiento['activationfuntion'] = sigmoideaTheano()
         return 1
 
     def setParametroEntrenamiento(self, parametros):
@@ -105,7 +104,7 @@ class MLP(object):
         return 1
 
     def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
-                    activacion=Sigmoid(), pesos=None, biases=None):
+                    activacion=sigmoideaTheano(), pesos=None, biases=None):
         """
         :type unidadesEntrada: int
         :param unidadesEntrada: cantidad de nueronas en la entrada, por defecto
@@ -400,18 +399,6 @@ class MLP(object):
                                     name = 'train_model'
         )
         return train_model, validate_model, test_model
-
-def load_dbn_weigths(path, dbnName):
-    """
-    carga las primeras 10 capas de la dbn segun su nombre y directorio (ordenadas por nombre)
-    http://stackoverflow.com/questions/6773584/how-is-pythons-glob-glob-ordered
-    """
-    import glob# load_dbn_weight
-    capas = []
-    for file in sorted(glob.glob(path + dbnName + "_capa[0-9].*")):
-        print("Cargando capa: ",file) if MLP.verbose else None
-        capas.append(rbm_gpu.load(str(file)))
-    return capas
 
 if __name__ == '__main__':
     assert False, str(__file__ + " No es un modulo")

@@ -82,6 +82,14 @@ class sigmoideaTheano(Funcion):
     def __str__(self):
         return "Sigmoidea Theano"
 
+class rectificadaTheano(Funcion):
+    def __call__(self, x):
+        return x * (x > 0.0)
+
+    def dibujar(self):
+        super(sigmoideaTheano, self).dibujar()
+
+
 
 def tanh(z):
     return numpy.tanh(z)
@@ -102,82 +110,8 @@ def sigmoid_prime(z):
 activation_functions = {'Tanh': tanh, 'Sigmoid': sigmoid}
 activation_functions_prime = {'Tanh': tanh_prime, 'Sigmoid': sigmoid_prime}
 
-#TODO
-"THEANO..."
 
-
-#TODO ver esta implementacion de la de abajo
-##from theano.tensor.shared_randomstreams import RandomStreams
-
-#from theano.tensor.shared_randomstreams import RandomStreams  #random seed CPU
-#from theano.sandbox.cuda.rng_curand import CURAND_RandomStreams as RandomStreams # GPU
-
-## ultra rapido
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - GPU
-                                                                        #(parece que binomial no esta implementado, lo reemplaza por uniform)
-                                                                        # cambiar a: multinomial(size=None, n=1, pvals=None, ndim=None, dtype='int64', nstreams=None)[source]
-                                                                        # en activationFunction
-
-theanoFloat  = Tconfig.floatX
-
-class ActivationFunction(object):
-    # TODO ver esto de generacion de randoms cada vez
-
-    def __getstate__(self):
-        odict = self.__dict__.copy() # copy the dict since we change it
-        #if 'theanoGenerator' in odict:
-        #    del odict['theanoGenerator']
-        return odict
-
-    def __setstate__(self, dict):
-        self.__dict__.update(dict)   # update attributes
-
-    def __getinitargs__():
-        return None
-
-
-class Sigmoid(ActivationFunction):
-    def __init__(self):
-        #self.theanoGenerator = theano.sandbox.cuda.rng_curand.CURAND_RandomStreams(seed=numpy.random.randint(1, 1000))
-        # o la version  MRG31k3p
-        self.theanoGenerator = RandomStreams(seed=numpy.random.randint(1, 1000))
-
-    def deterministic(self, x):
-        return theano.tensor.nnet.sigmoid(x)
-
-    def nonDeterminstic(self, x):
-        # TODO por lo visto la binomial no esta implementada en CUDA,
-        # por lo tanto lo lleva a la GPU a los datos
-        # luego calcula la binomial (la cual la trae a la CPU de nuevo los datos)
-        # y por ultimo lleva de nuevo a la GPU los datos calculado
-        ### SOLUCION
-        # deberia calcularse los numeros binomiales ({0,1}) en la GPU sin usar RandomStreams.binomial
-        # si se retorna val y al theano.tensor.nnet.sigmoid(x) se le agrega 'transfer('gpu')' de la
-        # activationProbability en el grafo se da cuenta de la optimizacion
-        ###$
-        # http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
-        # There are 2 other implementations based on MRG31k3p and CURAND.
-        # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
-        probability = self.deterministic(x)
-        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
-
-    def activationProbablity(self, x):
-        return self.deterministic(x)
-
-    def __str__(self):
-        return ("Sigmoid Function")
-
-class Rectified(ActivationFunction):
-
-  def __init__(self):
-    pass
-
-  def nonDeterminstic(self, x):
-    return self.deterministic(x)
-
-  def deterministic(self, x):
-    return x * (x > 0.0)
-
+"""
 class RectifiedNoisy(ActivationFunction):
 
   def __init__(self):
@@ -246,6 +180,7 @@ def cdf(x, miu=0.0, variance=1.0):
     return 1.0/2 *  (1.0 + theano.tensor.erf((x - miu)/ theano.tensor.sqrt(2 * variance)))
 
 
+"""
 if __name__ == '__main__':
     assert False, "Este modulo no es ejecutable!!!"
 

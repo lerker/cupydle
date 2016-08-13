@@ -25,7 +25,7 @@ import argparse
 
 # Dependencias Externas
 ## Core
-from cupydle.dnn.activations import Sigmoid
+from cupydle.dnn.funciones import sigmoideaTheano
 ## Data
 from cupydle.test.mnist.mnist import MNIST
 from cupydle.test.mnist.mnist import open4disk
@@ -97,9 +97,9 @@ if __name__ == "__main__":
     clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
     clasificador.setParametroEntrenamiento({'momento':0.0})
     clasificador.setParametroEntrenamiento({'epocas':1000})
-    clasificador.setParametroEntrenamiento({'activationfuntion':Sigmoid()})
+    clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
 
-    clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=Sigmoid(), pesos=None, biases=None)
+    clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=10, clasificacion=True, pesos=None, biases=None)
 
     T = temporizador()
