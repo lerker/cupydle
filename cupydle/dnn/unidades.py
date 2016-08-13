@@ -14,6 +14,7 @@ __status__      = "Production"
 """
 unidades para las rbm
 """
+from abc import ABC, abstractmethod
 
 from theano import config as Tconfig
 import theano.tensor.nnet as Tnet
@@ -32,19 +33,53 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 theanoFloat  = Tconfig.floatX
 
-class Unidad(object):
-    def __init__(self):
-        pass
+from cupydle.dnn.activations import sigmoideaTheano
 
-
-class UnidadBinaria(Unidad):
+# clase abstracta
+class Unidad(ABC):
     def __init__(self):
         #self.theanoGenerator = theano.sandbox.cuda.rng_curand.CURAND_RandomStreams(seed=numpy.random.randint(1, 1000))
         # o la version  MRG31k3p
         self.theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
 
+    """
+    def __getstate__(self):
+        odict = self.__dict__.copy() # copy the dict since we change it
+        #if 'theanoGenerator' in odict:
+        #    del odict['theanoGenerator']
+        return odict
+
+    def __setstate__(self, dict):
+        self.__dict__.update(dict)   # update attributes
+
+    def __getinitargs__():
+        return None
+    """
+
+    @abstractmethod
+    def activar(self, x):
+        return x
+
+    @abstractmethod
+    def probabilidadActivacion(self):
+        return 1
+
+    @abstractmethod
+    def __str__(self):
+        return "Unidad"
+
+
+class UnidadBinaria(Unidad):
+    def __init__(self):
+        # inicializar la clase padre
+        super(UnidadBinaria, self).__init__()
+        #self.theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+        # aca los metodos propios de esta clase
+        #self.__baz = 21
+        self.fn = sigmoideaTheano()
+
     def deterministico(self, x):
-        return Tnet.sigmoid(x)
+        return self.fn(x)
 
     def noDeterministico(self, x):
         # TODO por lo visto la binomial no esta implementada en CUDA,
@@ -72,4 +107,5 @@ class UnidadBinaria(Unidad):
 
     def __str__(self):
         return ("Unidad Binaria Sigmoidea")
+
 

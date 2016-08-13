@@ -29,7 +29,6 @@ from numpy import tanh
 from numpy import exp
 import numpy.random
 from theano import config as Tconfig
-import theano
 
 from abc import ABC, abstractmethod
 from theano import config as Tconfig
