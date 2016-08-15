@@ -36,7 +36,7 @@ from numpy.random import RandomState as npRandom
 import theano
 
 from cupydle.dnn.funciones import sigmoideaTheano
-from cupydle.dnn.funciones import rectificadaTheano
+from cupydle.dnn.funciones import linealRectificadaTheano
 from cupydle.dnn.capas import Capa
 from cupydle.dnn.capas import CapaClasificacion
 from cupydle.dnn.utils import save

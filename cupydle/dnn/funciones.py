@@ -49,6 +49,7 @@ class abstractstatic(staticmethod):
         function.__isabstractmethod__ = True
     __isabstractmethod__ = True
 
+#### --- funcion abstracta 'esqueleto' que todos deben implementar
 class Funcion(ABC):
     def __init__(self):
         pass
@@ -65,7 +66,15 @@ class Funcion(ABC):
     def dibujar(self):
         raise NotImplementedError()
 
+
+##### --------------  THEANO
+
+
+
 class identidadTheano(Funcion):
+    #def __init__(self):
+    #    self.theanoGenerator = RandomStreams(seed=np.random.randint(1, 1000))
+
     def __call__(self, x):
         return x
 
@@ -114,6 +123,57 @@ class tanhTheano(Funcion):
 
     def __str__(self):
         return "Hiperbolica Theano"
+
+
+class softmaxTheano(Funcion):
+    # theano softmax es numericamente inestable? aparecen Nans... ver
+    def __call__(self, x):
+        e_x = Texp(x - x.max(axis=1, keepdims=True))
+        return e_x / e_x.sum(axis=1, keepdims=True)
+
+    def dibujar(self):
+        raise NotImplementedError()
+        #dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+        #                          axline=[0.0, 0.0], mostrar=True)
+        return 1
+
+    def __str__(self):
+        return "Softmax Theano"
+
+class rectificadorRuidosoTheano(Funcion):
+
+    def __init__(self):
+        self.theanoGenerator = npRandomStreams(seed=npRandint(1, 1000))
+
+    def nonDeterminstic(self, x):
+        x += self.theanoGenerator.normal(avg=0.0, std=(theano.tensor.sqrt(theano.tensor.nnet.sigmoid(x)) + 1e-8))
+        return x * (x > 0.0)
+
+    def deterministic(self, x):
+        return expectedValueRectified(x, theano.tensor.nnet.sigmoid(x) + 1e-08)
+
+    def activationProbablity(self, x):
+        return 1.0 - self.cdf(0, miu=x, variance=theano.tensor.nnet.sigmoid(x))
+
+    # Approximation of the cdf of a standard normal
+    def cdf(x, miu=0.0, variance=1.0):
+        return 1.0/2 *  (1.0 + theano.tensor.erf((x - miu)/ theano.tensor.sqrt(2 * variance)))
+
+    def __call__(self, x):
+        raise NotImplementedError()
+
+    def dibujar(self):
+        raise NotImplementedError()
+        #dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+        #                          axline=[0.0, 0.0], mostrar=True)
+        return 1
+
+    def __str__(self):
+        return "Rectificador Ruidoso Theano"
+
+
+
+### --------- Numpy
 
 class identidadNumpy(Funcion):
     def __call__(self, x):
@@ -195,76 +255,6 @@ class sigmoideaDerivadaNumpy(Funcion):
 #activation_functions_prime = {'Tanh': tanh_prime, 'Sigmoid': sigmoid_prime}
 
 
-"""
-class RectifiedNoisy(ActivationFunction):
-
-  def __init__(self):
-    self.theanoGenerator = RandomStreams(seed=np.random.randint(1, 1000))
-
-  def nonDeterminstic(self, x):
-    x += self.theanoGenerator.normal(avg=0.0, std=(theano.tensor.sqrt(theano.tensor.nnet.sigmoid(x)) + 1e-8))
-    return x * (x > 0.0)
-
-  def deterministic(self, x):
-    return expectedValueRectified(x, theano.tensor.nnet.sigmoid(x) + 1e-08)
-
-  def activationProbablity(self, x):
-    return 1.0 - cdf(0, miu=x, variance=theano.tensor.nnet.sigmoid(x))
-
-class RectifiedNoisyVar1(ActivationFunction):
-
-  def __init__(self):
-    self.theanoGenerator = RandomStreams(seed=numpy.random.randint(1, 1000))
-
-  def nonDeterminstic(self, x):
-    x += self.theanoGenerator.normal(avg=0.0, std=1.0)
-    return x * (x > 0.0)
-
-  def deterministic(self, x):
-    return expectedValueRectified(x, 1.0)
-
-  def activationProbablity(self, x):
-    return 1.0 - cdf(0, miu=x, variance=1.0)
-
-class Identity(ActivationFunction):
-
-  def deterministic(self, x):
-    return x
-
-class Softmax(ActivationFunction):
-
-  def deterministic(self, v):
-    # Do not use theano's softmax, it is numerically unstable
-    # and it causes Nans to appear
-    # Semantically this is the same
-    e_x = theano.tensor.exp(v - v.max(axis=1, keepdims=True))
-    return e_x / e_x.sum(axis=1, keepdims=True)
-
-# TODO: try this for the non deterministic version as well
-class CappedRectifiedNoisy(ActivationFunction):
-    def __init__(self):
-        pass
-
-    def nonDeterminstic(self, x):
-        return self.deterministic(x)
-
-    def deterministic(self, x):
-        return x * (x > 0.0) * (x < 6.0)
-
-    # TODO
-    def activationProbablity(self, x):
-        return None
-
-def expectedValueRectified(mean, variance):
-    std = theano.tensor.sqrt(variance)
-    return std / theano.tensor.sqrt(2.0 * numpy.pi) * theano.tensor.exp(- mean**2 / (2.0 * variance)) + mean * cdf(mean / std)
-
-# Approximation of the cdf of a standard normal
-def cdf(x, miu=0.0, variance=1.0):
-    return 1.0/2 *  (1.0 + theano.tensor.erf((x - miu)/ theano.tensor.sqrt(2 * variance)))
-
-
-"""
 if __name__ == '__main__':
     assert False, "Este modulo no es ejecutable!!!"
 

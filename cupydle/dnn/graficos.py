@@ -27,6 +27,15 @@ image from a set of samples or weights.
 
 import numpy
 import os
+from numpy import arange as npArange
+from numpy import linspace as npLinspace
+
+from theano.tensor import dvector as Tdvector
+from theano.tensor import cast as Tcast
+from theano import function as Tfunction
+from theano import config as Tconfig
+theanoFloat  = Tconfig.floatX
+
 import matplotlib.pylab as plt
 
 def display_avalible():
@@ -259,13 +268,6 @@ def pesosConstructor(pesos, nombreArchivo='pesos.png', mostrar=False):
 
 def dibujarFnActivacionTheano(self, axe=None, axis=[-10.0, 10.0],
                               axline=[0.0, 0.0], mostrar=True):
-    from numpy import arange as npArange
-    from numpy import linspace as npLinspace
-    from theano.tensor import dvector as Tdvector
-    from theano.tensor import cast as Tcast
-    from theano import function as Tfunction
-    from theano import config as Tconfig
-    theanoFloat  = Tconfig.floatX
 
     if axe is None:
         axe = plt.gca()
@@ -288,9 +290,6 @@ def dibujarFnActivacionTheano(self, axe=None, axis=[-10.0, 10.0],
 
 def dibujarFnActivacionNumpy(self, axe=None, axis=[-10.0, 10.0],
                              axline=[0.0, 0.0], mostrar=True):
-    from numpy import arange as npArange
-    from numpy import linspace as npLinspace
-
     if axe is None:
         axe = plt.gca()
 

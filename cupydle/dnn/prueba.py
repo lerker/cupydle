@@ -111,6 +111,7 @@ from cupydle.dnn.funciones import tanhNumpy
 from cupydle.dnn.funciones import tanhDerivadaNumpy
 from cupydle.dnn.funciones import sigmoideaDerivadaNumpy
 
+"""
 ### ---- THEANO
 a = identidadTheano(); a.dibujar()
 a = sigmoideaTheano(); a.dibujar()
@@ -124,3 +125,4 @@ b = linealRectificadaNumpy(); b.dibujar()
 b = tanhNumpy(); b.dibujar()
 b = tanhDerivadaNumpy(); b.dibujar()
 b = sigmoideaDerivadaNumpy(); b.dibujar()
+"""
