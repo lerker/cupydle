@@ -35,6 +35,7 @@ from theano.tensor import cast as Tcast
 from theano import function as Tfunction
 from theano import config as Tconfig
 theanoFloat  = Tconfig.floatX
+import theano.printing
 
 import matplotlib.pylab as plt
 
@@ -55,7 +56,7 @@ def scale_to_unit_interval(ndar, eps=1e-8):
     return ndar
 
 
-def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
+def imagenTiles(X, img_shape, tile_shape, tile_spacing=(0, 0),
                        scale_rows_to_unit_interval=True,
                        output_pixel_vals=True):
     """
@@ -176,6 +177,7 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
         return out_array
 
 def filtrosConstructor(images, titulo, formaFiltro, nombreArchivo=None, mostrar=False, forzar=False):
+        assert False, "no usar"
         # la forma de la imagen es inferida, debe ser cuadrada
         # para el mnist es de 28,28 en la primer capa..
         # si no es cuadra (cantidad de unidades no tiene raiz cuadrada exacta..)
@@ -305,3 +307,34 @@ def dibujarFnActivacionNumpy(self, axe=None, axis=[-10.0, 10.0],
     plt.show() if mostrar else None
 
     return axe
+
+# colores para los grafos, puedo cambiar lo que quiera del diccionario y pasarlo
+default_colorCodes = {'GpuFromHost':'red',
+                      'HostFromGpu':'red',
+                      'Scan':       'yellow',
+                      'Shape':      'brown',
+                      'IfElse':     'magenta',
+                      'Elemwise':   '#FFAABB',  # dark pink
+                      'Subtensor':  '#FFAAFF',  # purple
+                      'Alloc':      '#FFAA22',  # orange
+                      'Output':     'lightblue'}
+
+
+def dibujarGrafoTheano(graph, nombreArchivo=None):
+    """
+    dibuja el grafo de theano (funciones, scans, nodes, etc)
+    """
+    if nombreArchivo is None:
+        nombreArchivo = "grafo_simbolico_theano.pdf"
+
+    theano.printing.pydotprint( fct=graph,
+                                outfile=nombreArchivo,
+                                format='pdf',
+                                compact=True, # no imprime variables sin nombre
+                                with_ids=True, # numero de nodos
+                                high_contrast=True,
+                                scan_graphs=True, # imprime los scans
+                                cond_highlight=True,
+                                var_with_name_simple=True, #si la variable tiene nombre, solo imprime eso
+                                colorCodes=default_colorCodes) # codigo de colores
+    return 1

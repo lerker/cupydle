@@ -51,7 +51,7 @@ except ImportError:
     import Image
 
 from cupydle.dnn.graficos import scale_to_unit_interval
-from cupydle.dnn.graficos import tile_raster_images
+from cupydle.dnn.graficos import imagenTiles
 
 import matplotlib.pyplot
 
@@ -215,7 +215,7 @@ class dbn(object):
                 layer_input = self.x
             else:
                 layer_input = self.layersHidAct[-1]
-                filtrosss=None
+                #filtrosss=None
 
             # Construct an RBM that shared weights with this layer
             rbm_layer = RBM(n_visible=self.params[i].n_visible,

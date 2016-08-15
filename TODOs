@@ -8,3 +8,8 @@ http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzman
 implemetar guardo para el mlp
 
 raise NotImplementedError()
+
+
+y me quede en la linea 244 del guardado de los pesos... ver tambien
+ver los filtros de las capas intermedias de rbm... no funciona como corresponde parece.. imprimir alguna info intermedia
+

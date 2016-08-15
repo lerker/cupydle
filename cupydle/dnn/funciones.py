@@ -140,37 +140,6 @@ class softmaxTheano(Funcion):
     def __str__(self):
         return "Softmax Theano"
 
-class rectificadorRuidosoTheano(Funcion):
-
-    def __init__(self):
-        self.theanoGenerator = npRandomStreams(seed=npRandint(1, 1000))
-
-    def nonDeterminstic(self, x):
-        x += self.theanoGenerator.normal(avg=0.0, std=(theano.tensor.sqrt(theano.tensor.nnet.sigmoid(x)) + 1e-8))
-        return x * (x > 0.0)
-
-    def deterministic(self, x):
-        return expectedValueRectified(x, theano.tensor.nnet.sigmoid(x) + 1e-08)
-
-    def activationProbablity(self, x):
-        return 1.0 - self.cdf(0, miu=x, variance=theano.tensor.nnet.sigmoid(x))
-
-    # Approximation of the cdf of a standard normal
-    def cdf(x, miu=0.0, variance=1.0):
-        return 1.0/2 *  (1.0 + theano.tensor.erf((x - miu)/ theano.tensor.sqrt(2 * variance)))
-
-    def __call__(self, x):
-        raise NotImplementedError()
-
-    def dibujar(self):
-        raise NotImplementedError()
-        #dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
-        #                          axline=[0.0, 0.0], mostrar=True)
-        return 1
-
-    def __str__(self):
-        return "Rectificador Ruidoso Theano"
-
 
 
 ### --------- Numpy

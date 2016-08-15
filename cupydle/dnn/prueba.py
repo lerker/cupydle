@@ -126,3 +126,4 @@ b = tanhNumpy(); b.dibujar()
 b = tanhDerivadaNumpy(); b.dibujar()
 b = sigmoideaDerivadaNumpy(); b.dibujar()
 """
+

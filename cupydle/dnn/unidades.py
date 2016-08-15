@@ -104,8 +104,51 @@ class UnidadBinaria(Unidad):
         probability = self.deterministico(x)
         return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
 
-
     def __str__(self):
         return ("Unidad Binaria Sigmoidea")
 
+"""
+# ver esta todo medio mal
+class RectificadorRuidoso(Unidad):
+    def __init__(self):
+        # inicializar la clase padre
+        super(RectificadorRuidoso, self).__init__()
+        #self.theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+        # aca los metodos propios de esta clase
+        #self.__baz = 21
+        self.fn = sigmoideaTheano()
 
+    def deterministico(self, x):
+        return self.fn(x)
+
+    def noDeterministico(self, x):
+        probability = self.deterministico(x)
+        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
+
+    def probabilidadActivacion(self, x):
+        return 1.0 - self.cdf(0, miu=x, variance=theano.tensor.nnet.sigmoid(x))
+
+    def activar(self, x):
+        x += self.theanoGenerator.normal(avg=0.0, std=(theano.tensor.sqrt(theano.tensor.nnet.sigmoid(x)) + 1e-8))
+        return x * (x > 0.0)
+
+
+    def expectedValueRectified(self, mean, variance):
+        std = Tsqrt(variance)
+        return std / Tsqrt(2.0 * np.pi) * Texp(- mean**2 / (2.0 * variance)) + mean * self.cdf(mean / std)
+
+    def __str__(self):
+        return "Unidad Rectificador Ruidoso"
+
+
+    def nonDeterminstic(self, x):
+        x += self.theanoGenerator.normal(avg=0.0, std=(theano.tensor.sqrt(theano.tensor.nnet.sigmoid(x)) + 1e-8))
+        return x * (x > 0.0)
+
+    def deterministic(self, x):
+        return expectedValueRectified(x, theano.tensor.nnet.sigmoid(x) + 1e-08)
+
+    # Approximation of the cdf of a standard normal
+    def cdf(self, x, miu=0.0, variance=1.0):
+        return 1.0/2 *  (1.0 + Terf((x - miu)/ Tsqrt(2 * variance)))
+"""

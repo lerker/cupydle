@@ -147,7 +147,7 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=15
-        numEpoch=100
+        numEpoch=1
         batchSize=10
 
         miDBN = dbn(name=None, ruta=rutaCompleta)

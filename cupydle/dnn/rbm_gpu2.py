@@ -57,10 +57,10 @@ except ImportError:
     import Image
 
 
-from cupydle.dnn.graficos import tile_raster_images
-from cupydle.dnn.graficos import filtrosConstructor
+from cupydle.dnn.graficos import imagenTiles
 
 import matplotlib.pyplot
+import math
 
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
@@ -168,8 +168,8 @@ class RBM(object):
         self.params['weightcost'] = 0.0
         self.params['momentum'] = 0.0
         self.params['maxepoch'] = 0.0
-        self.params['unidadesEntrada'] = UnidadBinaria()
-        self.params['unidadesSalida'] = UnidadBinaria()
+        self.params['unidadesVisibles'] = UnidadBinaria()
+        self.params['unidadesOcultas'] = UnidadBinaria()
         return 1
 
     def set_w(self, w):
@@ -353,28 +353,31 @@ class RBM(object):
         return
 
 
-    def dibujarFiltros(self, nombreArchivo='filtros.png', formaFiltro = (10,10), binary=False, mostrar=False):
-        # mirar
-        # http://yosinski.com/media/papers/Yosinski2012VisuallyDebuggingRestrictedBoltzmannMachine.pdf
-        # plot los filtros iniciales (sin entrenamiento)
-        """
-        cantidad = formaFiltro[0]*formaFiltro[1]
-        ima = self.w.get_value(borrow=True).T[:cantidad]
+    def dibujarFiltros(self, nombreArchivo='filtros.png', automatico=True,
+                       formaFiltro = (10,10), binary=False, mostrar=False):
 
-        figura = filtrosConstructor(images=ima,
-                                    titulo=nombreArchivo,
-                                    formaFiltro=formaFiltro,
-                                    nombreArchivo=self.ruta+nombreArchivo,
-                                    mostrar=mostrar)
-        """
-        #figura.show()
-        #"""
-        # con el tile_raster...
+        assert isinstance(formaFiltro, tuple), "Forma filtro debe ser una tupla (X,Y)"
+
+        # corrige si lo indico... sino es porque quiero asi, en modo auto es cuadrado
+        if automatico:
+            cantPesos = self.w.get_value(borrow=True).T.shape[1]
+
+            # ancho/alto tile es la cantidad dividido su raiz y tomando el floor
+            # a entero
+            anchoTile= int(cantPesos // math.sqrt(cantPesos))
+            cantPesosCorregido = anchoTile ** 2
+            if cantPesos != cantPesosCorregido:
+                cantPesos = cantPesosCorregido
+
+            formaImagen = (anchoTile, anchoTile)
+
+
         image = Image.fromarray(
-            tile_raster_images(
-                X=self.w.get_value(borrow=True).T,
-                img_shape=(28, 28),
-                tile_shape=(10, 10),
+            imagenTiles(
+                # se mandan las imagenes desde 0 a hasta donde cuadre
+                X=self.w.get_value(borrow=True).T[:,0:cantPesos],
+                img_shape=formaImagen,
+                tile_shape=formaFiltro,
                 tile_spacing=(1, 1)
             )
         )
@@ -388,8 +391,14 @@ class RBM(object):
             # Now we put it back in Pillow/PIL land
             image = Image.fromarray(bw)
 
-        image.save(self.ruta + nombreArchivo)
-        #"""
+        # si le pase un nombre es porque lo quiero guardar
+        if nombreArchivo is not None:
+            image.save(self.ruta + nombreArchivo)
+        else:
+            nombreArchivo=''
+
+        if mostrar:
+            image.show(title=nombreArchivo)
 
         return 1
 
@@ -712,7 +721,8 @@ class RBM(object):
         updates.update(otherUpdates)
         return updates
 
-    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
+    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1,
+              validationData=None, filtros=False, printCompacto=False):
         # mirar:
         # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
         #
@@ -731,8 +741,8 @@ class RBM(object):
             sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
 
         trainer = None
-        self.fnActivacionUnidEntrada = self.params['unidadesEntrada']
-        self.fnActivacionUnidSalida = self.params['unidadesSalida']
+        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
+        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
@@ -742,7 +752,7 @@ class RBM(object):
 
         if filtros:
             # plot los filtros iniciales (sin entrenamiento)
-            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf')
+            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
 
 
 
@@ -793,7 +803,8 @@ class RBM(object):
                  'energiaLibreValidacion': 0.0})
 
             if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1))
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
+                                    automatico=True)
 
             # END SET
         # END epoch
