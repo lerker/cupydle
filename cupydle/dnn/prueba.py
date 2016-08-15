@@ -99,35 +99,28 @@ o=coso()
 print(o(2))
 
 
-from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.funciones import identidadTheano
+from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.funciones import linealRectificadaTheano
 from cupydle.dnn.funciones import tanhTheano
+
+from cupydle.dnn.funciones import identidadNumpy
 from cupydle.dnn.funciones import sigmoideaNumpy
 from cupydle.dnn.funciones import linealRectificadaNumpy
 from cupydle.dnn.funciones import tanhNumpy
 from cupydle.dnn.funciones import tanhDerivadaNumpy
 from cupydle.dnn.funciones import sigmoideaDerivadaNumpy
 
-a0= identidadTheano()
-a0.dibujar()
-a = sigmoideaTheano()
-a.dibujar()
-b0 = linealRectificadaTheano()
-b0.dibujar()
-z0 = tanhTheano()
-z0.dibujar()
+### ---- THEANO
+a = identidadTheano(); a.dibujar()
+a = sigmoideaTheano(); a.dibujar()
+a = linealRectificadaTheano(); a.dibujar()
+a = tanhTheano(); a.dibujar()
 
-b = sigmoideaNumpy()
-b.dibujar()
-b1 = linealRectificadaNumpy()
-b1.dibujar()
-
-c = tanhNumpy()
-c.dibujar()
-
-d = tanhDerivadaNumpy()
-d.dibujar()
-
-e = sigmoideaDerivadaNumpy()
-e.dibujar()
+### ----- NUMPY
+b = identidadNumpy(); b.dibujar()
+b = sigmoideaNumpy(); b.dibujar()
+b = linealRectificadaNumpy(); b.dibujar()
+b = tanhNumpy(); b.dibujar()
+b = tanhDerivadaNumpy(); b.dibujar()
+b = sigmoideaDerivadaNumpy(); b.dibujar()

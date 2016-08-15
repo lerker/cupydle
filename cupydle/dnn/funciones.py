@@ -37,6 +37,9 @@ from abc import ABC, abstractmethod
 
 import matplotlib.pylab as plt
 
+from cupydle.dnn.graficos import dibujarFnActivacionTheano
+from cupydle.dnn.graficos import dibujarFnActivacionNumpy
+
 theanoFloat  = Tconfig.floatX
 
 class abstractstatic(staticmethod):
@@ -67,18 +70,8 @@ class identidadTheano(Funcion):
         return x
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        x = Tdvector('x')
-        s = Tcast(self(x), dtype=theanoFloat)
-        dibujador=Tfunction(inputs=[x], outputs=s)
-        plt.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+                                  axline=[0.0, 0.0], mostrar=True)
 
     def __str__(self):
         return "Identidad Theano"
@@ -90,18 +83,8 @@ class sigmoideaTheano(Funcion):
 
     def dibujar(self):
         #super(sigmoideaTheano, self).dibujar()
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        x = Tdvector('x')
-        s = Tcast(self(x), dtype=theanoFloat)
-        dibujador=Tfunction(inputs=[x], outputs=s)
-        plt.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0.5, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+                                  axline=[0.5, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
@@ -113,18 +96,9 @@ class linealRectificadaTheano(Funcion):
         return Tnet.relu(x)
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        x = Tdvector('x')
-        s = Tcast(self(x), dtype=theanoFloat)
-        dibujador=Tfunction(inputs=[x], outputs=s)
-        plt.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+                                  axline=[0.0, 0.0], mostrar=True)
+        return 1
 
     def __str__(self):
         return "Lineal Rectificada Theano"
@@ -134,18 +108,8 @@ class tanhTheano(Funcion):
         return Ttanh(x)
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        x = Tdvector('x')
-        s = Tcast(self(x), dtype=theanoFloat)
-        dibujador=Tfunction(inputs=[x], outputs=s)
-        plt.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+                                  axline=[0.0, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
@@ -156,19 +120,12 @@ class identidadNumpy(Funcion):
         return x
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        plt.plot(Xaxis, Yaxis, color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.0, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
-        return "Identidad Theano"
+        return "Identidad Numpy"
 
 
 class sigmoideaNumpy(Funcion):
@@ -176,15 +133,8 @@ class sigmoideaNumpy(Funcion):
         return 1.0 / (1.0 + npExp(-x))
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        plt.plot(Xaxis, Yaxis, color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0.5, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.5, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
@@ -195,18 +145,9 @@ class linealRectificadaNumpy(Funcion):
         return x * (x > 0.0)
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        x = Tdvector('x')
-        s = Tcast(self(x), dtype=theanoFloat)
-        dibujador=Tfunction(inputs=[x], outputs=s)
-        plt.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.0, 0.0], mostrar=True)
+        return 1
 
     def __str__(self):
         return "Lineal Rectificada Numpy"
@@ -216,15 +157,8 @@ class tanhNumpy(Funcion):
         return npTanh(x)
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        plt.plot(Xaxis,Yaxis, color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.0, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
@@ -235,15 +169,8 @@ class tanhDerivadaNumpy(Funcion):
         return 1.0 - npTanh(x) ** 2
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        plt.plot(Xaxis,Yaxis, color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.0, 0.0], mostrar=True)
         return 1
 
     def __str__(self):
@@ -255,15 +182,8 @@ class sigmoideaDerivadaNumpy(Funcion):
         return fn(x) * (1.0 - fn(x))
 
     def dibujar(self):
-        Xaxis = npArange(-10., 10., 0.01)
-        Yaxis = self(Xaxis)
-        plt.plot(Xaxis,Yaxis, color='red', linewidth=2.0)
-        # lineas horizontales y verticales
-        plt.axhline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.axvline(0, linestyle='-.', color='blue', linewidth=1.5)
-        plt.title(self.__str__())
-        plt.grid(True)
-        plt.show()
+        dibujarFnActivacionNumpy(self=self, axe=None, axis=[-10.0, 10.0],
+                                 axline=[0.0, 0.0], mostrar=True)
         return 1
 
     def __str__(self):

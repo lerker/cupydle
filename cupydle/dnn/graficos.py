@@ -256,3 +256,53 @@ def pesosConstructor(pesos, nombreArchivo='pesos.png', mostrar=False):
     plt.show()
 
     return 1
+
+def dibujarFnActivacionTheano(self, axe=None, axis=[-10.0, 10.0],
+                              axline=[0.0, 0.0], mostrar=True):
+    from numpy import arange as npArange
+    from numpy import linspace as npLinspace
+    from theano.tensor import dvector as Tdvector
+    from theano.tensor import cast as Tcast
+    from theano import function as Tfunction
+    from theano import config as Tconfig
+    theanoFloat  = Tconfig.floatX
+
+    if axe is None:
+        axe = plt.gca()
+
+    Xaxis = npArange(axis[0], axis[1], 0.01)
+    Yaxis = self(Xaxis)
+    x = Tdvector('x')
+    s = Tcast(self(x), dtype=theanoFloat)
+    dibujador=Tfunction(inputs=[x], outputs=s)
+    axe.plot(Xaxis, dibujador(Xaxis), color='red', linewidth=2.0)
+    # lineas horizontales y verticales
+    axe.axhline(axline[0], linestyle='-.', color='blue', linewidth=1.5)
+    axe.axvline(axline[1], linestyle='-.', color='blue', linewidth=1.5)
+    plt.title(self.__str__())
+    plt.grid(True)
+
+    plt.show() if mostrar else None
+
+    return axe
+
+def dibujarFnActivacionNumpy(self, axe=None, axis=[-10.0, 10.0],
+                             axline=[0.0, 0.0], mostrar=True):
+    from numpy import arange as npArange
+    from numpy import linspace as npLinspace
+
+    if axe is None:
+        axe = plt.gca()
+
+    Xaxis = npArange(axis[0], axis[1], 0.01)
+    Yaxis = self(Xaxis)
+    axe.plot(Xaxis, Yaxis, color='red', linewidth=2.0)
+    # lineas horizontales y verticales
+    axe.axhline(axline[0], linestyle='-.', color='blue', linewidth=1.5)
+    axe.axvline(axline[1], linestyle='-.', color='blue', linewidth=1.5)
+    plt.title(self.__str__())
+    plt.grid(True)
+
+    plt.show() if mostrar else None
+
+    return axe
