@@ -439,6 +439,57 @@ class RBM(object):
         # ni siquiera las utiliza en el algoritmo.. medio inutil pasarla o retornarla
         return cost
 
+    def muestrearVdadoH(self, muestra_H0):
+        salidaLineal_V1 = theano.tensor.dot(muestra_H0, self.w.T) + self.visbiases
+        muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1)
+
+        return [salidaLineal_V1, probabilidad_V1, muestra_V1]
+
+    def muestrearHdadoV(self, muestra_V0):
+        salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
+        muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
+
+        return [salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+    def gibbsHVH(self, muestra, steps):
+        # un paso de CD es Hidden->Visible->Hidden
+        def unPaso(muestraH, w, vbias, hbias):
+
+            salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH(muestraH)
+            salidaLineal_H1, probabilidad_H1, muestra_H1 = self.muestrearHdadoV(muestra_V1)
+
+            return [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+        ( [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_unPasoGibbsHVH')
+        return ([salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1], salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1]], updates)
+
+
+    def gibbsVHV(self, muestra, steps):
+        # un paso de CD es Visible->Hidden->Visible
+        def unPaso(muestraV, w, vbias, hbias):
+
+            salidaLineal_H1, probabilidad_H1, muestra_H1 = self.muestrearHdadoV(muestraV)
+            salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH(muestra_H1)
+
+            return [salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1]
+
+        ( [salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_unPasoGibbsVHV')
+
+        return ([salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1], salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1]], updates)
+
+
     def PersistentConstrastiveDivergence(self, miniBatchSize, sharedData):
 
         steps = theano.tensor.iscalar(name='steps')         # CD steps
@@ -450,26 +501,12 @@ class RBM(object):
                                                      dtype=theanoFloat),
                                          borrow=True)
 
-        # un paso de CD es H->V->H
-        def oneStep(hsample, wG, vbiasG, hbiasG):
-            #negative
-            linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.fnActivacionUnidEntrada.activar(linearSumN)
-            # positive
-            linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
-            hiddenActData, probabilityP = self.fnActivacionUnidSalida.activar(linearSumP)
-            return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
 
-        ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
-          updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [persistent_chain, None, None, None, None, None],
-                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
-                                    n_steps      = steps,
-                                    strict       = True,
-                                    name         = 'scan_oneStepHVH')
+        ([ _, _, muestra_V1, _, _, muestra_H1],
+          updates) = self.gibbsHVH(persistent_chain, steps)
 
 
-        chain_end = visibleActRec[-1]
+        chain_end = muestra_V1
 
         cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
             self.energiaLibre(chain_end))
@@ -482,73 +519,7 @@ class RBM(object):
 
         # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
 
-        updates[persistent_chain] = hiddenActData[-1]
-
-        monitoring_cost = self.pseudoLikelihoodCost(updates)
-
-        errorCuadratico = self.reconstructionCost_MSE(chain_end)
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-                        name='train_rbm_pcd'
-        )
-
-        return train_rbm
-
-    def PersistentConstrastiveDivergence2(self, miniBatchSize, sharedData):
-
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-        # initialize storage for the persistent chain (state = hidden
-        # layer of chain)
-        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
-                                                     dtype=theanoFloat),
-                                         borrow=True)
-
-        # un paso de CD es H->V->H
-        def oneStep(hsample, wG, vbiasG, hbiasG):
-            #negative
-            linearSumN                  = theano.tensor.dot(hsample, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.fnActivacionUnidEntrada.activar(linearSumN)
-            # positive
-            linearSumP                  = theano.tensor.dot(visibleActRec, wG) + hbiasG
-            hiddenActData, probabilityP = self.fnActivacionUnidSalida.activar(linearSumP)
-            return [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN]
-
-        ( [hiddenActData, visibleActRec, probabilityP, probabilityN, linearSumP, linearSumN],
-          updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [persistent_chain, None, None, None, None, None],
-                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
-                                    n_steps      = steps,
-                                    strict       = True,
-                                    name         = 'scan_oneStepHVH')
-
-
-        chain_end = visibleActRec[-1]
-
-        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
-            self.energiaLibre(chain_end))
-
-        deltaEnergia = cost
-
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[chain_end])
-        # constructs the update dictionary
-        for gparam, param in zip(gparams, self.internalParams):
-            # make sure that the learning rate is of the right dtype
-            updates[param] = param - gparam * theano.tensor.cast(
-                self.params['epsilonw'], dtype=theanoFloat
-            )
-
-        # Note that this works only if persistent is a shared variable
-        updates[persistent_chain] = hiddenActData[-1]
-
+        updates[persistent_chain] = muestra_H1
 
         monitoring_cost = self.pseudoLikelihoodCost(updates)
 
