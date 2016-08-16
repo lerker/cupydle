@@ -104,7 +104,7 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':1000})
+        clasificador.setParametroEntrenamiento({'epocas':1})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
 
         clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     if rbm :
         print("S E C C I O N        R B M")
-        pasosGibbs=15
+        pasosGibbs=1
         numEpoch=1
         batchSize=10
 
@@ -188,8 +188,11 @@ if __name__ == "__main__":
         inicio = T.tic()
 
         #entrena la red
-        miDBN.train(dataTrn=datos[0][0], # imagenes de entrenamiento
-                    dataVal=datos[1][0]) # imagenes de validacion
+        miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
+                               dataVal=datos[1][0], # imagenes de validacion
+                               pcd=True,
+                               guardarPesosIniciales=True,
+                               filtros=True)
 
         final = T.toc()
         print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
@@ -202,10 +205,19 @@ if __name__ == "__main__":
         miDBN = dbn.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(miDBN)
 
-        miDBN.fit(datos=datos,
-                  listaPesos=None,
-                  fnActivacion=sigmoideaTheano(),
-                  semillaRandom=None)
+        parametros={'tasaAprendizaje':0.01,
+                    'regularizadorL1':0.00,
+                    'regularizadorL2':0.0001,
+                    'momento':0.0,
+                    'activationfuntion':sigmoideaTheano()}
+        miDBN.setParametrosAjuste(parametros)
+
+        miDBN.setParametrosAjuste({'epocas':1})
+
+        miDBN.ajuste(datos=datos,
+                     listaPesos=None,
+                     fnActivacion=sigmoideaTheano(),
+                     semillaRandom=None)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

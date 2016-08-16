@@ -186,15 +186,19 @@ class RBM(object):
         self.hidbiases.set_value(bias)
         return 1
 
+    @property
     def get_w(self):
         return self.w.get_value()
 
+    @property
     def get_biasVisible(self):
         return self.visbiases.get_value()
 
+    @property
     def get_biasOculto(self):
         return self.hidbiases.get_value()
 
+    @property
     def printParams(self):
         for key, value in self.params.items():
             print('{:>20}: {:<10}'.format(str(key), str(value)))
@@ -1047,6 +1051,11 @@ class RBM(object):
 
         return
     # END SAVE
+
+    def guardarPesos(self, nombreArchivo):
+        numpy.save(self.ruta + nombreArchivo + '.npy', self.get_w)
+
+        return 1
 
     @staticmethod
     def load(nombreArchivo=None, method='simple', compression=None):

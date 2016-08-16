@@ -21,6 +21,7 @@ __status__      = "Production"
 
 
 import numpy
+import os
 
 ### THEANO
 # TODO mejorar los imports, ver de agregar theano.shared... etc
@@ -166,6 +167,31 @@ class dbn(object):
 
         self.ruta = ruta
 
+        # parametros para el ajuste fino o por medio de un mlp
+        self.parametrosAjuste = {}
+        self._initParametrosAjuste()
+
+    def _initParametrosAjuste(self):
+        """ inicializa los parametros de la red, un diccionario"""
+        self.parametrosAjuste['tasaAprendizaje'] = 0.0
+        self.parametrosAjuste['regularizadorL1'] = 0.0
+        self.parametrosAjuste['regularizadorL2'] = 0.0
+        self.parametrosAjuste['momento'] = 0.0
+        self.parametrosAjuste['epocas'] = 0.0
+        self.parametrosAjuste['activationfuntion'] = sigmoideaTheano()
+        return 1
+
+    def setParametrosAjuste(self, parametros):
+        if not isinstance(parametros, dict):
+            assert False, "necesito un diccionario"
+
+        for key, _ in parametros.items():
+            if key in self.parametrosAjuste:
+                self.parametrosAjuste[key] = parametros[key]
+            else:
+                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
+        return 1
+
 
     def addLayer(self,
                 n_hidden,
@@ -194,7 +220,8 @@ class dbn(object):
 
         return
 
-    def train(self, dataTrn, dataVal, guardarPesosIniciales=False):
+    def preEntrenamiento(self, dataTrn, dataVal, pcd=True,
+                         guardarPesosIniciales=False, filtros=True):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -207,7 +234,6 @@ class dbn(object):
         """
         assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
-        filtrosss = True
 
         for i in range(self.n_layers):
             # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
@@ -215,13 +241,18 @@ class dbn(object):
                 layer_input = self.x
             else:
                 layer_input = self.layersHidAct[-1]
-                #filtrosss=None
+
+            # una carpeta para alojar los datos
+            directorioRbm = self.ruta + 'rbm_capa{}/'.format(i+1)
+            if not os.path.exists(directorioRbm):
+                os.makedirs(directorioRbm)
+
 
             # Construct an RBM that shared weights with this layer
             rbm_layer = RBM(n_visible=self.params[i].n_visible,
                             n_hidden=self.params[i].n_hidden,
                             w=self.params[i].w,
-                            ruta=self.ruta)
+                            ruta=directorioRbm)
 
             # configuro la capa, la rbm
             rbm_layer.setParams({'epsilonw':self.params[i].epsilonw})
@@ -235,20 +266,15 @@ class dbn(object):
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
             if guardarPesosIniciales:
-                filename = self.ruta + self.name + "_pesos" + str(i+1) + ".npy"
-                # TODO... implemetar los pesos como funcion de rbm
-                #rbm_layer.save(filename)
-                print(type(rbm_layer.get_w()))
+                nombre = self.name + "_pesosInicialesCapa" + str(i+1)
+                rbm_layer.guardarPesos(nombreArchivo=nombre)
 
-                numpy.save(filename, rbm_layer.get_w())
-                assert False
-
-            rbm_layer.train(    data=layer_input,   # los datos los binarizo y convierto a float
-                                miniBatchSize=self.params[i].batchSize,
-                                pcd=True,
-                                gibbsSteps=self.params[i].pasosGibbs,
-                                validationData=dataVal,
-                                filtros=filtrosss)
+            rbm_layer.train(data=layer_input,   # los datos los binarizo y convierto a float
+                            miniBatchSize=self.params[i].batchSize,
+                            pcd=pcd,
+                            gibbsSteps=self.params[i].pasosGibbs,
+                            validationData=dataVal,
+                            filtros=filtros)
 
             print("Guardando la capa..") if dbn.verbose else None
             filename = self.name + "_capa" + str(i+1) + ".pgz"
@@ -260,7 +286,7 @@ class dbn(object):
             dataVal = rbm_layer.activacionesOcultas(dataVal)
 
             print("Guardando las muestras para la siguiente capa..") if dbn.verbose else None
-            filename_samples = self.ruta + self.name + "_capaSample" + str(i+1)
+            filename_samples = self.ruta + self.name + "_ActivacionesOcultas" + str(i+1)
             save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
 
             # guardo la salida de la capa para la proxima iteracion
@@ -270,18 +296,19 @@ class dbn(object):
         # FIN FOR
 
         # una vez terminado el entrenamiento guardo los pesos para su futura utilizacion
-        self.pesos = self.load_dbn_weigths(dbnNombre=self.name, ruta=self.ruta)
+        self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
         return
     # FIN TRAIN
 
-    def fit(self, datos, listaPesos=None, fnActivacion=sigmoideaTheano(), semillaRandom=None):
+    def ajuste(self, datos, listaPesos=None, fnActivacion=sigmoideaTheano(),
+               semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.
         """
         if listaPesos is None:
             if self.pesos == []:
-                self.pesos = self.load_dbn_weigths(dbnNombre=self.name, ruta=self.ruta)
+                self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
         else:
             self.pesos = listaPesos
 
@@ -298,34 +325,36 @@ class dbn(object):
             assert False, "Debe proveer una funcion de activacion"
 
 
-        clasificador = MLP( clasificacion=True,
-                            rng=semillaRandom,
-                            ruta=self.ruta)
-
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
-        clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
-        clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
-        clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':1000})
-        clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
+        clasificador = MLP(clasificacion=True,
+                           rng=semillaRandom,
+                           ruta=self.ruta)
+        """
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':self.parametrosAjuste['tasaAprendizaje']})
+        clasificador.setParametroEntrenamiento({'regularizadorL1':self.parametrosAjuste['regularizadorL1']})
+        clasificador.setParametroEntrenamiento({'regularizadorL2':self.parametrosAjuste['regularizadorL2']})
+        clasificador.setParametroEntrenamiento({'momento':self.parametrosAjuste['momento']})
+        clasificador.setParametroEntrenamiento({'epocas':self.parametrosAjuste['epocas']})
+        clasificador.setParametroEntrenamiento({'activationfuntion':self.parametrosAjuste['activationfuntion']})
+        """
+        clasificador.setParametroEntrenamiento(self.parametrosAjuste)
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
         for i in range(0,len(self.pesos)-1):
-            clasificador.agregarCapa(  unidadesEntrada=self.pesos[i].shape[0],
-                                unidadesSalida=self.pesos[i].shape[1],
-                                clasificacion=False,
-                                activacion=activaciones[i],
-                                pesos=self.pesos[i],
-                                biases=None)
+            clasificador.agregarCapa(unidadesEntrada=self.pesos[i].shape[0],
+                                     unidadesSalida=self.pesos[i].shape[1],
+                                     clasificacion=False,
+                                     activacion=activaciones[i],
+                                     pesos=self.pesos[i],
+                                     biases=None)
 
-        clasificador.agregarCapa(  unidadesEntrada=self.pesos[-1].shape[0],
-                                unidadesSalida=self.pesos[-1].shape[1],
-                                clasificacion=True,
-                                activacion=activaciones[-1],
-                                pesos=self.pesos[-1],
-                                biases=None)
+        clasificador.agregarCapa(unidadesEntrada=self.pesos[-1].shape[0],
+                                 unidadesSalida=self.pesos[-1].shape[1],
+                                 clasificacion=True,
+                                 activacion=activaciones[-1],
+                                 pesos=self.pesos[-1],
+                                 biases=None)
 
         T = temporizador()
         inicio = T.tic()
@@ -339,6 +368,8 @@ class dbn(object):
         final = T.toc()
         print("Tiempo total para entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
         return
+
+
 
     def save2(self, filename, compression='zip'):
         """
@@ -387,15 +418,16 @@ class dbn(object):
         return 0
 
     @staticmethod
-    def load_dbn_weigths(dbnNombre, ruta):
+    def cargarPesos(dbnNombre, ruta):
         """
-        carga las primeras 10 capas de la dbn segun su nombre y directorio (ordenadas por nombre)
-        http://stackoverflow.com/questions/6773584/how-is-pythons-glob-glob-ordered
+        carga las primeras 10 capas de la dbn segun su nombre y directorio
+        (ordenadas por nombre)
         """
         capas = []
-        for file in sorted(glob.glob(ruta + dbnNombre + "_capa[0-9].*")):
-            print("Cargando capa: ",file) if dbn.verbose else None
-            capas.append(RBM.load(str(file)).w.get_value())
+        for directorio in sorted(glob.glob(ruta+'rbm_capa[0-9]/')):
+            for file in sorted(glob.glob(directorio + dbnNombre + "_capa[0-9].*")):
+                print("Cargando capa: ",file) if dbn.verbose else None
+                capas.append(RBM.load(str(file)).w.get_value())
         return capas
 
 if __name__ == "__main__":
