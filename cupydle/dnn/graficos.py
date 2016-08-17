@@ -57,8 +57,8 @@ def scale_to_unit_interval(ndar, eps=1e-8):
 
 
 def imagenTiles(X, img_shape, tile_shape, tile_spacing=(0, 0),
-                       scale_rows_to_unit_interval=True,
-                       output_pixel_vals=True):
+                scale_rows_to_unit_interval=True,
+                output_pixel_vals=True):
     """
     Transform an array with one flattened image per row, into an array in
     which images are reshaped and layed out like tiles on a floor.

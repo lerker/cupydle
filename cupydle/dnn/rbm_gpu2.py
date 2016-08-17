@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Implementation of restricted Boltzmann machine on GP-GPU."""
+"""Implementacion de Maquina de Boltzmann Restringidas en GP-GPU"""
 
 # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
 #
@@ -272,38 +272,6 @@ class RBM(object):
         pesosConstructor(pesos=pesos)
         return 1
 
-    def markovChain(self, steps):
-        """
-        Ejecuta una cadena de Markov de 'k=steps' pasos
-
-        :param steps: nodo escalar de la cantidad de pasos
-
-        La Cadena de Markov comienza del ejemplo visible, luego se samplea
-        la unidad oculta, el siguiente paso es samplear las unidades visibles
-        a partir de la oculta (reconstruccion)
-        """
-        # un paso de CD es V->H->V
-        def oneStep(vsample, wG, vbiasG, hbiasG):
-            # positive
-            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
-            # bias (dimension), ya que lo hace automaticamente
-            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData, probabilityP = self.fnActivacionUnidEntrada.activar(linearSumP)
-            #negative
-            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.fnActivacionUnidSalida.activar(linearSumN)
-            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
-
-        # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
-        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
-          updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [self.x, None, None, None, None, None],
-                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
-                                    n_steps      = steps,
-                                    strict       = True,
-                                    name         = 'scan_oneStepMarkovVHV')
-        return ([visibleActRec[-1], hiddenActData[-1], probabilityP[-1], probabilityN[-1], linearSumP[-1], linearSumN[-1]], updates)
-
     def energiaLibre(self, vsample):
         """
         Function to compute the free energy
@@ -467,7 +435,7 @@ class RBM(object):
                                  n_steps      = steps,
                                  strict       = True,
                                  name         = 'scan_unPasoGibbsHVH')
-        return ([salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1], salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1]], updates)
+        return ([salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1], updates)
 
 
     def gibbsVHV(self, muestra, steps):
@@ -487,10 +455,10 @@ class RBM(object):
                                  strict       = True,
                                  name         = 'scan_unPasoGibbsVHV')
 
-        return ([salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1], salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1]], updates)
+        return ([salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1], updates)
 
 
-    def PersistentConstrastiveDivergence(self, miniBatchSize, sharedData):
+    def DivergenciaContrastivaPersistente(self, miniBatchSize, sharedData):
 
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
@@ -503,10 +471,9 @@ class RBM(object):
 
 
         ([ _, _, muestra_V1, _, _, muestra_H1],
-          updates) = self.gibbsHVH(persistent_chain, steps)
+          updates ) = self.gibbsHVH(persistent_chain, steps)
 
-
-        chain_end = muestra_V1
+        chain_end = muestra_V1[-1]
 
         cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
             self.energiaLibre(chain_end))
@@ -519,7 +486,7 @@ class RBM(object):
 
         # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
 
-        updates[persistent_chain] = muestra_H1
+        updates[persistent_chain] = muestra_H1[-1]
 
         monitoring_cost = self.pseudoLikelihoodCost(updates)
 
@@ -587,32 +554,15 @@ class RBM(object):
 
         return mse
 
-    def ConstrastiveDivergence(self, miniBatchSize, sharedData):
+    def DivergenciaContrastiva(self, miniBatchSize, sharedData):
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
-        # un paso de CD es V->H->V
-        def oneStep(vsample, wG, vbiasG, hbiasG):
-            # positive
-            # theano se da cuenta y no es necesario realizar un 'theano.tensor.tile' del
-            # bias (dimension), ya que lo hace automaticamente
-            linearSumP                  = theano.tensor.dot(vsample, wG) + hbiasG
-            hiddenActData, probabilityP = self.fnActivacionUnidEntrada.activar(linearSumP)
-            #negative
-            linearSumN                  = theano.tensor.dot(hiddenActData, wG.T) + vbiasG
-            visibleActRec, probabilityN = self.fnActivacionUnidSalida.activar(linearSumN)
-            return [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN]
+        # Visible -> Hidden -> Visible
+        ([ _, _, _, salidaLineal_V1, _, muestra_V1],
+          updates) = self.gibbsVHV(self.x, steps)
 
-        # loop o scan, devuelve los tres valores de las funcion y un diccionario de 'actualizaciones'
-        ( [visibleActRec, hiddenActData, probabilityP, probabilityN, linearSumP, linearSumN],
-          updates) = theano.scan(   fn           = oneStep,
-                                    outputs_info = [self.x, None, None, None, None, None],
-                                    non_sequences= [self.w, self.visbiases, self.hidbiases],
-                                    n_steps      = steps,
-                                    strict       = True,
-                                    name         = 'scan_oneStepVHV')
-
-        chain_end = visibleActRec[-1]
+        chain_end = muestra_V1[-1]
 
         cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
             self.energiaLibre(chain_end))
@@ -624,7 +574,7 @@ class RBM(object):
         updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
 
 
-        monitoring_cost = self.reconstructionCost(linearSumN[-1])
+        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
 
         errorCuadratico = self.reconstructionCost_MSE(chain_end)
 
@@ -696,7 +646,7 @@ class RBM(object):
         updates.update(otherUpdates)
         return updates
 
-    def train(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1,
+    def entrenamiento(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1,
               validationData=None, filtros=False, printCompacto=False):
         # mirar:
         # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
@@ -720,10 +670,10 @@ class RBM(object):
         self.fnActivacionUnidSalida = self.params['unidadesOcultas']
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.PersistentConstrastiveDivergence(miniBatchSize, sharedData)
+            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
         else:
             print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.ConstrastiveDivergence(miniBatchSize, sharedData)
+            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
 
         if filtros:
             # plot los filtros iniciales (sin entrenamiento)
@@ -788,7 +738,7 @@ class RBM(object):
         self.dibujarEstadisticos()
         return 1
 
-    def reconstruccion(self, vsample, gibbsSteps=1):
+    def reconstruccion(self, muestraV, gibbsSteps=1):
         """
         realiza la reconstruccion a partir de un ejemplo, efectuando una cadena
         de markov con x pasos de gibbs sobre la misma
@@ -796,76 +746,32 @@ class RBM(object):
         puedo pasarle un solo ejemplo o una matrix con varios de ellos por fila
         """
 
-        if vsample.ndim == 1:
+        if muestraV.ndim == 1:
             # es un vector, debo cambiar el root 'x' antes de armar el grafo
             # para que coincida con la entrada
             viejoRoot = self.x
             self.x = theano.tensor.fvector('x')
 
-        data  = theano.shared(numpy.asarray(a=vsample,dtype=theanoFloat), name='datoReconstruccion')
+        data  = theano.shared(numpy.asarray(a=muestraV,dtype=theanoFloat), name='datoReconstruccion')
 
-        # realizar la cadena de markov k veces
-        (   [visibleActRec, # actualiza la cadena
-            _,
-            _,
-            probabilityN,
-            _,
-            _], # linear sum es la que se plotea
-            updates        ) = self.markovChain(gibbsSteps)
+        ([_, _, muestra_H1, _, probabilidad_V1, muestra_V1],
+          updates) = self.gibbsVHV(data, gibbsSteps)
 
         reconstructor = theano.function(
                         inputs=[],
-                        outputs=[probabilityN, visibleActRec],
+                        outputs=[probabilidad_V1[-1], muestra_V1[-1], muestra_H1[-1]],
                         updates=updates,
-                        givens={self.x: data},
+                        #givens={self.x: data},
                         name='reconstructor'
         )
 
-        salida = reconstructor()[0]
+        [probabilidad_V1, muestra_V1, muestra_H1] = reconstructor()
 
-        if vsample.ndim == 1:
+        if muestraV.ndim == 1:
             # hago el swap
             self.x = viejoRoot
 
-        return salida
-
-    def activacionesOcultas(self, vsample, gibbsSteps=1):
-        """
-        retornar las activaciones de las ocultas, para las dbn
-        """
-
-        if vsample.ndim == 1:
-            # es un vector, debo cambiar el root 'x' antes de armar el grafo
-            # para que coincida con la entrada
-            viejoRoot = self.x
-            self.x = theano.tensor.fvector('x')
-
-        data  = theano.shared(numpy.asarray(a=vsample,dtype=theanoFloat), name='datoReconstruccion')
-
-        # realizar la cadena de markov k veces
-        (   [_, # actualiza la cadena
-            hiddenActData,
-            _,
-            _,
-            _,
-            _], # linear sum es la que se plotea
-            updates        ) = self.markovChain(gibbsSteps)
-
-        activador = theano.function(
-                        inputs=[],
-                        outputs=[hiddenActData],
-                        updates=updates,
-                        givens={self.x: data},
-                        name='activador'
-        )
-
-        salida = activador()[0]
-
-        if vsample.ndim == 1:
-            # hago el swap
-            self.x = viejoRoot
-
-        return salida
+        return [probabilidad_V1, muestra_V1, muestra_H1]
 
     def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000,
                 patchesDim=(28,28), binary=False):
@@ -904,7 +810,8 @@ class RBM(object):
         # devuelve un solo indice.. desde [0,..., n - chains]
         test_idx = self.numpy_rng.randint(n_samples - chains)
 
-        # inicializacion de la cadena, estado que persiste
+        # inicializacion de todas las cadenas... el estado persiste a traves
+        # del muestreo
         cadenaFija = theano.shared(
                         numpy.asarray(data.get_value(borrow=True)
                                         [test_idx:test_idx + chains],
@@ -916,25 +823,18 @@ class RBM(object):
             lista = range(test_idx, test_idx + chains)
             print("labels: ", str(labels[lista]))
 
-        # realizar la cadena de markov k veces
-        (   [visibleActRec, # actualiza la cadena
-            _,
-            _,
-            probabilityN,
-            _,
-            _], # linear sum es la que se plotea
-            updates        ) = self.markovChain(gibbsSteps)
+        ([_, _, _, _, probabilidad_V1, muestra_V1],
+          updates) = self.gibbsVHV(self.x, gibbsSteps)
 
         # cambiar el valor de la cadenaFija al de la reconstruccion de las visibles
-        updates.update({cadenaFija: visibleActRec})
+        updates.update({cadenaFija: muestra_V1[-1]})
 
         # funcion princial
-        muestreo = theano.function(
-                        inputs=[],
-                        outputs=[probabilityN, visibleActRec],
-                        updates=updates,
-                        givens={self.x: cadenaFija},
-                        name='muestreo'
+        muestreo = theano.function(inputs=[],
+                                   outputs=[probabilidad_V1[-1], muestra_V1[-1]],
+                                   updates=updates,
+                                   givens={self.x: cadenaFija},
+                                   name='muestreo'
         )
 
         # dimensiones de los patches, para el mnist es (28,28)
@@ -947,20 +847,20 @@ class RBM(object):
             #genero muestras y visualizo cada gibssSteps, ya que las muestras intermedias
             # estan muy correlacionadas, se visializa la probabilidad de activacion de
             # las unidades ocultas (NO la muestra binomial)
-            probabilityN, visiblerecons = muestreo()
+            probabilidad_V1, visiblerecons = muestreo()
 
             print(' ... plotting sample {}'.format(idx))
             imageResults[(alto+1) * idx:(ancho+1) * idx + ancho, :] \
-                = tile_raster_images(X=probabilityN,
-                                    img_shape=(alto, ancho),
-                                    tile_shape=(1, chains),
-                                    tile_spacing=(1, 1)
+                = imagenTiles(X=probabilidad_V1,
+                              img_shape=(alto, ancho),
+                              tile_shape=(1, chains),
+                              tile_spacing=(1, 1)
                 )
 
         # construct image
         image = Image.fromarray(imageResults)
 
-        nombreArchivo = "samples_" + str(labels[lista])
+        nombreArchivo = self.ruta + "samples_" + str(labels[lista])
         nombreArchivo = nombreArchivo.replace(" ", "_")
 
         # poner las etiquetas sobre la imagen

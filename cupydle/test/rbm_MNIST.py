@@ -94,14 +94,16 @@ if __name__ == "__main__":
     #red.dibujarPesos(red.get_pesos... )
     #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
 
-    red.setParams({'epsilonw':0.1})
-    red.setParams({'epsilonvb':0.1})
-    red.setParams({'epsilonhb':0.1})
-    red.setParams({'momentum':0.0})
-    red.setParams({'weightcost':0.0})
-    red.setParams({'maxepoch':3})
-    red.setParams({'unidadesVisibles':UnidadBinaria()})
-    red.setParams({'unidadesOcultas':UnidadBinaria()})
+    parametros={'epsilonw':0.1,
+                'epsilonvb':0.1,
+                'epsilonhb':0.1,
+                'momentum':0.0,
+                'weightcost':0.0,
+                'unidadesVisibles':UnidadBinaria(),
+                'unidadesOcultas':UnidadBinaria()}
+
+    red.setParams(parametros)
+    red.setParams({'maxepoch':1})
 
 
     T = temporizador()
@@ -113,12 +115,12 @@ if __name__ == "__main__":
     #MNIST.plot_one_digit(salida)
 
 
-    red.train(  data=datos[0][0],
-                miniBatchSize=batchSize,
-                pcd=True,
-                gibbsSteps=1,
-                validationData=datos[1][0],
-                filtros=True)
+    red.entrenamiento(data=datos[0][0],
+                      miniBatchSize=batchSize,
+                      pcd=True,
+                      gibbsSteps=1,
+                      validationData=datos[1][0],
+                      filtros=True)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
@@ -127,8 +129,8 @@ if __name__ == "__main__":
     #red.dibujarEstadisticos(show=True, save='estadisticos.png')
     #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
 
-    #red.sampleo(data=datos[0][0],
-    #            labels=datos[0][1])
+    red.sampleo(data=datos[0][0],
+                labels=datos[0][1])
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()

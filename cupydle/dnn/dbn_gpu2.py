@@ -110,7 +110,7 @@ class rbmParams(object):
     #def __call__(self):
     #    return
 
-class dbn(object):
+class DBN(object):
 
     verbose = True
 
@@ -269,23 +269,25 @@ class dbn(object):
                 nombre = self.name + "_pesosInicialesCapa" + str(i+1)
                 rbm_layer.guardarPesos(nombreArchivo=nombre)
 
-            rbm_layer.train(data=layer_input,   # los datos los binarizo y convierto a float
+            rbm_layer.entrenamiento(data=layer_input,   # los datos los binarizo y convierto a float
                             miniBatchSize=self.params[i].batchSize,
                             pcd=pcd,
                             gibbsSteps=self.params[i].pasosGibbs,
                             validationData=dataVal,
                             filtros=filtros)
 
-            print("Guardando la capa..") if dbn.verbose else None
+            print("Guardando la capa..") if DBN.verbose else None
             filename = self.name + "_capa" + str(i+1) + ".pgz"
             rbm_layer.guardar(nombreArchivo=filename)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # TODO aca debo tener las activaciones de las ocultas
-            hiddenActPos = rbm_layer.activacionesOcultas(layer_input)
-            dataVal = rbm_layer.activacionesOcultas(dataVal)
+            [_, _, hiddenActPos] = rbm_layer.reconstruccion(muestraV=layer_input)
+            [_, _, dataVal] = rbm_layer.reconstruccion(muestraV=dataVal)
+            #hiddenActPos = rbm_layer.activacionesOcultas(layer_input)
+            #dataVal = rbm_layer.activacionesOcultas(dataVal)
 
-            print("Guardando las muestras para la siguiente capa..") if dbn.verbose else None
+            print("Guardando las muestras para la siguiente capa..") if DBN.verbose else None
             filename_samples = self.ruta + self.name + "_ActivacionesOcultas" + str(i+1)
             save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
 
@@ -426,7 +428,7 @@ class dbn(object):
         capas = []
         for directorio in sorted(glob.glob(ruta+'rbm_capa[0-9]/')):
             for file in sorted(glob.glob(directorio + dbnNombre + "_capa[0-9].*")):
-                print("Cargando capa: ",file) if dbn.verbose else None
+                print("Cargando capa: ",file) if DBN.verbose else None
                 capas.append(RBM.load(str(file)).w.get_value())
         return capas
 

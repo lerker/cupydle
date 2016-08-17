@@ -28,7 +28,7 @@ import argparse
 
 # Dependencias Externas
 ## Core
-from cupydle.dnn.dbn_gpu2 import dbn
+from cupydle.dnn.dbn_gpu2 import DBN
 from cupydle.dnn.dbn_gpu2 import rbmParams
 from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.mlp import MLP
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         numEpoch=1
         batchSize=10
 
-        miDBN = dbn(name=None, ruta=rutaCompleta)
+        miDBN = DBN(name=None, ruta=rutaCompleta)
 
 
         # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         #entrena la red
         miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
                                dataVal=datos[1][0], # imagenes de validacion
-                               pcd=True,
+                               pcd=False,
                                guardarPesosIniciales=True,
                                filtros=True)
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     if dbnf:
         print("S E C C I O N        D B N")
 
-        miDBN = dbn.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
+        miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(miDBN)
 
         parametros={'tasaAprendizaje':0.01,
