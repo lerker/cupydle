@@ -149,3 +149,5 @@ class OurClass:
 
 x = OurClass(10)
 print(x.OurAtt)
+a = Foo()
+print(a.__dict__.keys())

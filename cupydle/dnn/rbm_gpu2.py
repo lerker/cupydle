@@ -65,6 +65,8 @@ import math
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
+    verbose=True
+
     def __init__(
                 self,
                 n_visible=784,      # cantidad de neuronas visibles
@@ -167,7 +169,7 @@ class RBM(object):
         self.params['epsilonhb'] = 0.0
         self.params['weightcost'] = 0.0
         self.params['momentum'] = 0.0
-        self.params['maxepoch'] = 0.0
+        self.params['epocas'] = 0.0
         self.params['unidadesVisibles'] = UnidadBinaria()
         self.params['unidadesOcultas'] = UnidadBinaria()
         return 1
@@ -689,7 +691,7 @@ class RBM(object):
         finLinea='\n'
         finLinea = '\r' if printCompacto else '\n'
 
-        for epoch in range(0, self.params['maxepoch']):
+        for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
             print(str('Epoca {:>3d} '
                     + 'de {:>3d}, '
@@ -697,7 +699,7 @@ class RBM(object):
                     + 'MSE<ejemplo> :{:> 8.5f}, '
                     + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
                         epoch+1,
-                        self.params['maxepoch'],
+                        self.params['epocas'],
                         costo,
                         mse,
                         fEnergy),

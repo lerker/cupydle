@@ -38,6 +38,7 @@ from cupydle.test.mnist.mnist import open4disk
 from cupydle.test.mnist.mnist import save2disk
 ## Utils
 from cupydle.dnn.utils import temporizador
+from cupydle.dnn.unidades import UnidadBinaria
 
 
 if __name__ == "__main__":
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=1
-        numEpoch=1
+        numEpocas=1
         batchSize=10
 
         miDBN = DBN(name=None, ruta=rutaCompleta)
@@ -161,28 +162,34 @@ if __name__ == "__main__":
         # agrego una capa..
         miDBN.addLayer(n_visible=unidadesCapas[0],
                        n_hidden=unidadesCapas[1],
-                       numEpoch=numEpoch,
+                       numEpoch=numEpocas,
                        batchSize=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
-                       w=pesos1)
+                       w=pesos1,
+                       unidadesVisibles=UnidadBinaria(),
+                       unidadesOcultas=UnidadBinaria())
         # otra capa mas
         miDBN.addLayer(#n_visible=500, # coincide con las ocultas de las anteriores
                        n_hidden=unidadesCapas[2],
-                       numEpoch=numEpoch,
+                       numEpoch=numEpocas,
                        batchSize=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
-                       w=pesos2)
+                       w=pesos2,
+                       unidadesVisibles=UnidadBinaria(),
+                       unidadesOcultas=UnidadBinaria())
 
         # clasificacion
         miDBN.addLayer(#n_visible=100, # coincide con las ocultas de las anteriores
                        n_hidden=unidadesCapas[3],
-                       numEpoch=numEpoch,
+                       numEpoch=numEpocas,
                        batchSize=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
-                       w=pesos3)
+                       w=pesos3,
+                       unidadesVisibles=UnidadBinaria(),
+                       unidadesOcultas=UnidadBinaria())
 
         T = temporizador()
         inicio = T.tic()

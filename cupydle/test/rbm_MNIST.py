@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 'unidadesOcultas':UnidadBinaria()}
 
     red.setParams(parametros)
-    red.setParams({'maxepoch':1})
+    red.setParams({'epocas':1})
 
 
     T = temporizador()
