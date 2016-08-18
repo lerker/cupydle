@@ -676,6 +676,7 @@ class RBM(object):
         else:
             print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
+        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
 
         if filtros:
             # plot los filtros iniciales (sin entrenamiento)

@@ -13,3 +13,14 @@ raise NotImplementedError()
 y me quede en la linea 244 del guardado de los pesos... ver tambien
 ver los filtros de las capas intermedias de rbm... no funciona como corresponde parece.. imprimir alguna info intermedia
 
+
+arreglar parametros en la dbn, parametros de las rbm... set
+#capaRBM.setParams(self.params[i].getParametrosEntrenamiento)
+            #assert False
+            #"""
+            capaRBM.setParams({'epsilonw':self.params[i].epsilonw})
+            capaRBM.setParams({'epsilonvb':self.params[i].epsilonvb})
+            capaRBM.setParams({'epsilonhb':self.params[i].epsilonhb})
+            capaRBM.setParams({'momentum':self.params[i].momentum})
+            capaRBM.setParams({'weightcost':self.params[i].weightcost})
+            capaRBM.setParams({'epocas':self.params[i].epocas})

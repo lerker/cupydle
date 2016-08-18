@@ -284,7 +284,6 @@ class DBN(object):
             # configuro la capa, la rbm
             # TODO
             #capaRBM.setParams(self.params[i].getParametrosEntrenamiento)
-
             #assert False
             #"""
             capaRBM.setParams({'epsilonw':self.params[i].epsilonw})
