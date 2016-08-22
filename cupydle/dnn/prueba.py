@@ -151,3 +151,28 @@ x = OurClass(10)
 print(x.OurAtt)
 a = Foo()
 print(a.__dict__.keys())
+
+
+from theano import tensor
+from theano import function
+import numpy.random
+
+A = tensor.imatrix('A')
+B = tensor.imatrix('B')
+C = tensor.dot(A, B)
+productoMatriz = function([A, B], C, name="productoMatriz")
+a = numpy.random.randint(0, 100, (1000,1000))
+b = numpy.random.randint(0, 100, (1000,1000))
+#print(mydot(a, b))
+from cupydle.dnn.graficos import dibujarGrafoTheano
+import theano
+#dibujarGrafoTheano(productoMatriz)
+theano.printing.pydotprint(productoMatriz, outfile='coso', compact=False, format='pdf', with_ids=False, high_contrast=True, cond_highlight=None, colorCodes=None, max_label_size=70, scan_graphs=False, var_with_name_simple=False, print_output_file=True, return_image=False)
+
+N = theano.shared(a, theano.config.floatX)
+P = theano.shared(b, theano.config.floatX)
+L= theano.dot(N,P)
+productoMatriz2 = function([], L)
+productoMatriz2()
+theano.printing.pydotprint(productoMatriz2, outfile='coso', compact=False, format='pdf', with_ids=False, high_contrast=True, cond_highlight=None, colorCodes=None, max_label_size=70, scan_graphs=False, var_with_name_simple=False, print_output_file=True, return_image=False)
+
