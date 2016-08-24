@@ -1,178 +1,147 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
+
+
+"""
+Implementacion de una Maquina de Boltmann Restringida en GP-GPU/CPU (Theano)
+Aplicado a la base de datos de 'benchmark' MNIST
+
+http://yann.lecun.com/exdb/mnist/
+
+"""
+
 import numpy
+import time
 import os
+import sys
+import subprocess
+import argparse
+
+# Dependencias Externas
+## Core
+from cupydle.dnn.unidades import UnidadBinaria
+from cupydle.dnn.unidades import UnidadGaussiana
+## Data
+from cupydle.test.mnist.mnist import MNIST
+from cupydle.test.mnist.mnist import open4disk
+from cupydle.test.mnist.mnist import save2disk
+## Utils
+from cupydle.dnn.utils import temporizador
+
+from cupydle.dnn.rbm_gpu2 import RBM
 
 
-directorioActual= os.getcwd()                                   # directorio actual de ejecucion
-rutaTest        = directorioActual + '/cupydle/test/mnist/'     # sobre el de ejecucion la ruta a los tests
-rutaDatos       = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almacenan la base de datos
-carpetaTest     = 'test_RBM/'                                   # carpeta a crear para los tests
-rutaCompleta    = rutaTest + carpetaTest
-
-#pesos1 = numpy.load(fullPath + "pesos1.npy")
-
-class MLP(object):
-    verbose=True
-
-    def coso(self):
-        print("es verdadero") if MLP.verbose else None
-        return
 
 
-from numpy.random import RandomState as npRandom
+if __name__ == "__main__":
 
-print(npRandom(1234))
-h=True
-cosa = (0 if h is None else 1)
-print(cosa)
-cosito = MLP()
-cosito2 = MLP()
+    directorioActual= os.getcwd()                                   # directorio actual de ejecucion
+    rutaTest        = directorioActual + '/cupydle/test/mnist/'     # sobre el de ejecucion la ruta a los tests
+    rutaDatos       = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almacenan la base de datos
+    carpetaTest     = 'test_RBM/'                                   # carpeta a crear para los tests
+    rutaCompleta    = rutaTest + carpetaTest
 
-cosito.coso()
-MLP.verbose=False
-cosito.coso()
+    if not os.path.exists(rutaCompleta):        # si no existe la crea
+        print('Creando la carpeta para el test en: ',rutaCompleta)
+        os.makedirs(rutaCompleta)
 
-def check():
-    return 1
+    if not os.path.exists(rutaDatos):
+        print("Creando la base de datos en:", rutaDatos)
+        os.makedirs(rutaDatos)
 
-if check():
-    print('Entre')
+    # chequeo si necesito descargar los datos
+    subprocess.call(rutaTest + 'get_data.sh', shell=True)
 
-class Foo(object):
-  def __init__(self, val=2):
-     self.val = val
-  def __getstate__(self):
-     print("I'm being pickled")
-     self.val *= 2
-     return self.__dict__
-  def __setstate__(self, d):
-     print("I'm being unpickled with these values:", d)
-     self.__dict__ = d
-     self.val *= 3
+    setName = "mnist"
+    MNIST.prepare(rutaDatos, nombre=setName, compresion='bzip2')
 
-import pickle
-f = Foo()
-f_string = pickle.dumps(f, protocol=pickle.HIGHEST_PROTOCOL)
-f_new = pickle.loads(f_string)
-print(f.val)
-print(f_string)
+    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
+    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
+    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
+    args = parser.parse_args()
 
+    guardar = args.guardar
+    modelName = args.modelo
+    #modelName = 'capa1.pgz'
 
-# Python 3.4+
-from abc import ABC, abstractmethod
-class animal(ABC):
+    # se leen de disco la base de datos
+    mn = open4disk(filename=rutaDatos + setName, compression='bzip2')
+    #mn.info
 
-    def __init__(self):
-        self.variable = 10
+    # obtengo todos los subconjuntos
+    #train_img,  train_labels= mn.get_training()
+    #test_img,   test_labels = mn.get_testing()
+    #val_img,    val_labels  = mn.get_validation()
 
-    def cambiar(self):
-        self.variable=15
+    # lista de tupas, [(x_trn, y_trn), ...]
+    # los datos estan normalizados...
+    datos = [mn.get_training(), mn.get_testing(), mn.get_validation()]
+    datos = [( ((x/255.0).astype(numpy.float32)), y) for x, y in datos]
 
-    @abstractmethod
-    def coso(self):
-        return "soy un animal"
+    # parametros de la red
+    n_visible = 784
+    n_hidden  = 500
+    batchSize = 10
 
-    def vuelo(self):
-        return "yo vuelo"
+    # creo la red
+    red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
+    #red.dibujarPesos(red.get_pesos... )
+    #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
 
-class perro(animal):
-    def caca(self):
-        return "hago caca"
-    def coso(self):
-        h = super(perro, self).coso()
-        super(perro, self).cambiar()
+    parametros={'epsilonw':0.1,
+                'epsilonvb':0.1,
+                'epsilonhb':0.1,
+                'momentum':0.0,
+                'weightcost':0.0,
+                'unidadesVisibles':UnidadBinaria(),
+                'unidadesOcultas':UnidadBinaria()}
 
-        return h + " soy un perro"
+    red.setParams(parametros)
+    red.setParams({'epocas':1})
+    """
 
-a = perro()
-print(a.coso())
-print(a.variable)
+    T = temporizador()
+    inicio = T.tic()
 
-
-class coso(object):
-    def __call__(self, x):
-        return x*2
-
-class coso2(object):
-    def coso22(self, x):
-        return coso(x)
-o=coso()
-print(o(2))
+    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]
+    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0], gibbsSteps=1)
+    #MNIST.plot_one_digit((train_img/255.0).astype(numpy.float32)[0])
+    #MNIST.plot_one_digit(salida)
 
 
-from cupydle.dnn.funciones import identidadTheano
-from cupydle.dnn.funciones import sigmoideaTheano
-from cupydle.dnn.funciones import linealRectificadaTheano
-from cupydle.dnn.funciones import tanhTheano
+    red.entrenamiento(data=datos[0][0],
+                      miniBatchSize=batchSize,
+                      pcd=True,
+                      gibbsSteps=1,
+                      validationData=datos[1][0],
+                      filtros=True)
 
-from cupydle.dnn.funciones import identidadNumpy
-from cupydle.dnn.funciones import sigmoideaNumpy
-from cupydle.dnn.funciones import linealRectificadaNumpy
-from cupydle.dnn.funciones import tanhNumpy
-from cupydle.dnn.funciones import tanhDerivadaNumpy
-from cupydle.dnn.funciones import sigmoideaDerivadaNumpy
+    final = T.toc()
+    print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
-"""
-### ---- THEANO
-a = identidadTheano(); a.dibujar()
-a = sigmoideaTheano(); a.dibujar()
-a = linealRectificadaTheano(); a.dibujar()
-a = tanhTheano(); a.dibujar()
+    # guardo los estadisticos
+    #red.dibujarEstadisticos(show=True, save='estadisticos.png')
+    #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
 
-### ----- NUMPY
-b = identidadNumpy(); b.dibujar()
-b = sigmoideaNumpy(); b.dibujar()
-b = linealRectificadaNumpy(); b.dibujar()
-b = tanhNumpy(); b.dibujar()
-b = tanhDerivadaNumpy(); b.dibujar()
-b = sigmoideaDerivadaNumpy(); b.dibujar()
-"""
+    red.sampleo(data=datos[0][0],
+                labels=datos[0][1])
 
-class OurClass:
+    print('Guardando el modelo en ...', rutaCompleta)
+    inicio = T.tic()
+    red.guardar(nombreArchivo="rbm_mnist.zip")
+    final = T.toc()
+    print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
 
-    def __init__(self, a):
-        self.OurAtt = a
-
-
-    @property
-    def OurAtt(self):
-        return self.__OurAtt
-
-    @OurAtt.setter
-    def OurAtt(self, val):
-        if val < 0:
-            self.__OurAtt = 0
-        elif val > 1000:
-            self.__OurAtt = 1000
-        else:
-            self.__OurAtt = val
-
-
-x = OurClass(10)
-print(x.OurAtt)
-a = Foo()
-print(a.__dict__.keys())
-
-
-from theano import tensor
-from theano import function
-import numpy.random
-
-A = tensor.imatrix('A')
-B = tensor.imatrix('B')
-C = tensor.dot(A, B)
-productoMatriz = function([A, B], C, name="productoMatriz")
-a = numpy.random.randint(0, 100, (1000,1000))
-b = numpy.random.randint(0, 100, (1000,1000))
-#print(mydot(a, b))
-from cupydle.dnn.graficos import dibujarGrafoTheano
-import theano
-#dibujarGrafoTheano(productoMatriz)
-theano.printing.pydotprint(productoMatriz, outfile='coso', compact=False, format='pdf', with_ids=False, high_contrast=True, cond_highlight=None, colorCodes=None, max_label_size=70, scan_graphs=False, var_with_name_simple=False, print_output_file=True, return_image=False)
-
-N = theano.shared(a, theano.config.floatX)
-P = theano.shared(b, theano.config.floatX)
-L= theano.dot(N,P)
-productoMatriz2 = function([], L)
-productoMatriz2()
-theano.printing.pydotprint(productoMatriz2, outfile='coso', compact=False, format='pdf', with_ids=False, high_contrast=True, cond_highlight=None, colorCodes=None, max_label_size=70, scan_graphs=False, var_with_name_simple=False, print_output_file=True, return_image=False)
-
+    """
+else:
+    assert False, "Esto no es un modulo, es un TEST!!!"

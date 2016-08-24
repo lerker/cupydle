@@ -21,6 +21,7 @@ from theano.tensor import nnet as Tnet
 from theano.tensor import erf as Terf
 from theano.tensor import sqrt as Tsqrt
 from theano.tensor import exp as Texp
+from theano.tensor import pow as Tpow
 from theano.tensor import tanh as Ttanh
 from theano.tensor import dvector as Tdvector
 from theano.tensor import cast as Tcast
@@ -139,6 +140,35 @@ class softmaxTheano(Funcion):
 
     def __str__(self):
         return "Softmax Theano"
+
+class gaussianaTheano(Funcion):
+    def __init__(self, media, desviacionEstandar, factor=1.0):
+        #    self.theanoGenerator = RandomStreams(seed=np.random.randint(1, 1000))
+        # varianza = desviacionEstandar**2
+        self.media=media
+        self.desviacionEstandar=desviacionEstandar
+        self.factor=factor
+
+    def __call__(self, x):
+        # funcion gaussiana se define como a*exp(- (x-mu)^2/(2*c^2) )
+        exponente = Tpow((x-self.media),2)/(2*Tpow(self.desviacionEstandar,2))
+
+        # funcion gaussiana normal..
+        e_x = self.factor * Texp(-exponente)
+
+        # si a es igual-> a= 1/sqrt(2*PI*c^2)
+        # funcion de densidad de una variable aleatoria con distribucion normal de media mu=b y varianza std2=c2.
+        #e_x = (1.0/(Tsqrt(2*3.141592*Tpow(self.desviacionEstandar,2)))) * Texp(-exponente)
+        return e_x
+
+    def dibujar(self):
+        dibujarFnActivacionTheano(self=self, axe=None, axis=[-10.0, 10.0],
+                                  axline=[0.0, 0.0], mostrar=True)
+
+        return 1
+
+    def __str__(self):
+        return "Gaussiana Theano"
 
 
 
