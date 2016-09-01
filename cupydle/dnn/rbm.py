@@ -1,500 +1,1192 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""Implementacion de Maquina de Boltzmann Restringidas en GP-GPU"""
+
+# https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
+#
+
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
+
+## TODO
+### las versiones de binomial... para la GPU
+# http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
+# There are 2 other implementations based on MRG31k3p and CURAND.
+# The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
+
+# sistema basico
+import sys  # llamadas al sistema en errores
+from subprocess import call # para ejecutar programas
 import numpy
 
-from cupydle.test.mnist.mnist import MNIST
-from cupydle.test.mnist.mnist import open4disk
-from cupydle.test.mnist.mnist import save2disk
+### THEANO
+# TODO mejorar los imports, ver de agregar theano.shared... etc
+import theano
+#from theano.tensor.shared_randomstreams import RandomStreams  #random seed CPU
+#from theano.sandbox.cuda.rng_curand import CURAND_RandomStreams as RandomStreams # GPU
 
-# para ejecutar programas
-from subprocess import call
+## ultra rapido
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - GPU
+                                                                        #(parece que binomial no esta implementado, lo reemplaza por uniform)
+                                                                        # cambiar a: multinomial(size=None, n=1, pvals=None, ndim=None, dtype='int64', nstreams=None)[source]
+                                                                        # en activationFunction
 
-import time
-import sys
+theanoFloat  = theano.config.floatX
+
+from cupydle.dnn.unidades import UnidadBinaria
+
+
+"""
 
 
 
 
-class rbm(object):
+"""
+from cupydle.dnn.utils import temporizador
+try:
+    import PIL.Image as Image
+except ImportError:
+    import Image
 
-    def __init__(self, n_visible, n_hidden=1000):
+
+from cupydle.dnn.graficos import imagenTiles
+
+import matplotlib.pyplot
+import math
+
+class RBM(object):
+    """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
+
+    verbose=True
+
+    def __init__(self,
+                 n_visible=784,
+                 n_hidden=500,
+                 w=None,
+                 visbiases=None,
+                 hidbiases=None,
+                 numpy_rng=None,
+                 theano_rng=None,
+                 ruta=''):
         """
-        RBM constructor. Defines the parameters of the model along with
-        basic operations for inferring hidden from visible (and vice-versa),
-        as well as for performing CD updates.
-
-        :param n_visible: number of visible units
-
-        :param n_hidden: number of hidden units
-
-        :param w: None for standalone RBMs or symbolic variable pointing to a
-        shared weight matrix in case RBM is part of a DBN network; in a DBN,
-        the weights are shared between RBMs and layers of a MLP
-
-        :param hbias: None for standalone RBMs or symbolic variable pointing
-        to a shared hidden units bias vector in case RBM is part of a
-        different network
-
-        :param vbias: None for standalone RBMs or a symbolic variable
-        pointing to a shared visible units bias
+        :type n_visible: int
+        :param n_visible: cantidad de neuronas visibles
+        :type n_hidden: int
+        :param n_hidden: cantidad de neuronas ocultas
+        :type w: shared variable theano, numpy.ndarray. size=(n_visible, n_hidden)
+        :param w: matriz de pesos
+        :type visbiases: shared variable theano, numpy.ndarray. size=(n_visible)
+        :param visbiases: vector de bias visible
+        :type hidbiases: shared variable theano, numpy.ndarray. size=(n_hidden)
+        :param visbiases: vector de bias oculto
+        :type numpy_rnd: int
+        :param numpy_rnd: semilla para la generacion de numeros aleatorios numpy
+        :type theano_rnd: int
+        :param theano_rnd: semilla para la generacion de numeros aleatorios theano
+        :type ruta: string
+        :param ruta: ruta de almacenamiento de los datos generados
         """
-        self.epsilonw = 0.1  # Learning rate for weights
-        self.epsilonvb = 0.1  # Learning rate for biases of visible units
-        self.epsilonhb = 0.1  # Learning rate for biases of hidden units
-        self.weightcost = 0.0002
-        self.initialmomentum = 0.5
-        self.finalmomentum = 0.9
-
-        self.momentum = 0.6
 
         self.n_visible = n_visible
-        self.n_hidden = n_hidden
+        self.n_hidden  = n_hidden
 
-        self.evolution = []
+        # create a number generator (fixed) for test NUMPY
+        if numpy_rng is None:
+            numpy_rng = numpy.random.RandomState(1234)
 
-        # create a number generator
-        numpy_rng = numpy.random.RandomState(1234)
+        # create a number generator (fixed) for test THEANO
+        if theano_rng is None:
+            #theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+            theano_rng = RandomStreams(seed=1234)
 
+        if w is None:
+            w = self._initW(numpy_rng=numpy_rng, metodo="mejorado")
 
-        # W is initialized with `initial_W` which is uniformely
-        # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
-        # 4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
-        # converted using asarray to dtype theano.config.floatX so
-        # that the code is runable on GPU
-        self.w = numpy.asarray(
-                numpy_rng.uniform(
-                    low=-4 * numpy.sqrt(6. / (self.n_hidden + self.n_visible)),
-                    high=4 * numpy.sqrt(6. / (self.n_hidden + self.n_visible)),
-                    size=(self.n_visible, self.n_hidden)
-                ),
-                dtype=numpy.float32
-            )
+        if visbiases is None:
+            visbiases = self._initBiasVisible()
 
+        if hidbiases is None:
+            hidbiases = self._initBiasOculto()
+
+        # w es una matriz de numpy pasada a la funcion?
+        if w is not None and isinstance(w, numpy.ndarray):
+            w = theano.shared(value=w, name='w', borrow=True)
 
         ########
-        # bias de las unidades ocultas    b
-        self.hidbiases  = numpy.zeros(shape=(1, self.n_hidden), dtype=numpy.float32)
-        # bias de las unidades visibles   a
-        self.visbiases  = numpy.zeros(shape=(1, self.n_visible), dtype=numpy.float32)
+        self.visbiases  = visbiases
+        self.hidbiases  = hidbiases
+        self.w          = w
+        self.numpy_rng  = numpy_rng
+        self.theano_rng = theano_rng
 
-        # Todo debe ser un parametro externo
-        self.maxepoch = 5
-        self.numcases = 100  # los numeros de casos son la cantidad de patrones en el bacth (filas)
+        # funcion de activacion sigmodea para cada neurona (porbabilidad->binomial)
+        self.fnActivacionUnidEntrada = None
+        self.fnActivacionUnidSalida  = None
 
-        self.alEstiloHinton=False
+        # buffers para el almacenamiento temporal de las variables
+        # momento-> incrementos, historicos
+        self.vishidinc   = theano.shared(value=numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=theanoFloat), name='vishidinc')
+        self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
+        self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
+
+        # para las derivadas, parametro que componene a la red
+        self.internalParams = [self.w, self.hidbiases, self.visbiases]
+
+        # seguimiento del grafo theano, root
+        self.x = theano.tensor.matrix(name="x")
+
+        # parametros para el entrenamiento
+        self.params = {}
+        self._initParams()
+
+        # estadisticos
+        self.estadisticos = {}
+        self._initStatistics()
+
+        self.ruta = ruta
     # END INIT
 
-    def contrastiveDivergence(self, conjunto):
-        # cantidad de patrones del mini-batch
-        self.numcases = conjunto.shape[0]
+    def _initW(self, numpy_rng, metodo='mejorado'):
+        """
+        Inicializacion mejorarada de los pesos
 
-        self.numcases = 100
-
-        # positivo: probabilidades de las unidades ocultas
-        poshidprobs = numpy.zeros(shape=(self.numcases,self.n_hidden), dtype=numpy.float32) # (2,1000)
-        # negativo: probabilidades de las unidades ocultas
-        neghidprobs = numpy.zeros(shape=(self.numcases,self.n_hidden), dtype=numpy.float32) # (2,1000)
-        # positivo: poductos
-        posprods    = numpy.zeros(shape=(self.n_visible,self.n_hidden), dtype=numpy.float32) # (784,1000)
-        # negativo: productos
-        negprods    = numpy.zeros(shape=(self.n_visible,self.n_hidden), dtype=numpy.float32) # (784,1000)
-        # incremento de pesos    delta_W
-        vishidinc   = numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=numpy.float32) # (784,1000)
-        # incrementos de los bias ocultos
-        hidbiasinc  = numpy.zeros(shape=(1,self.n_hidden), dtype=numpy.float32) # (1, 1000)
-        # incrementos de los bias visibles
-        visbiasinc  = numpy.zeros(shape=(1,self.n_visible), dtype=numpy.float32) # (1,784)
-
-        maxEpoch = 5
-
-        indices = range(0, conjunto.shape[0], 1)
-        batchSize = 100
-        idx = [(x,y) for x,y in zip(indices[0:-batchSize:batchSize], indices[batchSize:-1:batchSize])]
-
-
-        print("Training Dataset size: \t{}".format(conjunto.shape[0]))
-        print("Visible units: \t\t{}".format(self.n_visible))
-        print("Hidden units: \t\t{}".format(self.n_hidden))
-        print("Batch size: \t\t{}".format(self.numcases))
-        print("Maximum Epoch: \t\t{}".format(self.maxepoch))
-        print("-------------------------------------------------------")
-
-        if self.alEstiloHinton:
-            print("Metodo Hinton")
+        :type numpy_rng: int
+        :param numpy_rng: semilla para la generacion random
+        :type metodo: string
+        :param metodo: seleccion del metodo de inicializacion (comun, mejorado)
+        """
+        if metodo=='comun':
+            _w = numpy.asarray(
+                numpy.random.normal(
+                    0, 0.01, (self.n_visible, self.n_hidden)), dtype=theanoFloat)
+        elif metodo=='mejorado':
+            _w = numpy.asarray(
+                numpy_rng.uniform(
+                    low= -4 * numpy.sqrt(6. / (self.n_visible + self.n_hidden)),
+                    high= 4 * numpy.sqrt(6. / (self.n_visible + self.n_hidden)),
+                    size=(self.n_visible, self.n_hidden)),
+                dtype=theanoFloat)
         else:
-            print("Metodo Estandar")
+            raise Exception("Metodo de inicializacion de los pesos desconocido: "
+                     + str(metodo))
 
-        #para cada epoca hasta el numero maximo de epocas
-        for epoch in range(0, maxEpoch):
-            print('Starting Epoch {} of {}'.format(epoch, maxEpoch))
-            errorSum = 0.0
+        # se pasa el buffer al namespace de la GPU
+        w = theano.shared(value=_w, name='w', borrow=True)
 
-            # para cada mini batch, opera con todos los patrones del minibatch
-            for i in range(0, len(idx)):
-                miniBatch = conjunto[idx[i][0]: idx[i][1]: 1]
-                self.numcases = miniBatch.shape[0]
+        # se libera memoria de la CPU
+        del _w
 
-                if self.alEstiloHinton:
-                    # todo este if puede desaparecer, hinton mejoro el calculo de CD y actualizacion de pesos
+        return w
 
-                    # aca como lo copie de hinton
-                    poshidprobs, poshidstates, posprods, poshidact, posvisact = self.positive(miniBatch)
-                    negdata, neghidprobs, negprods, neghidact, negvisact = self.negative(poshidstates)
-                    # esta es la misma que la anterior pero todo en una
-                    ###negdata = self.CD_1_hinton(miniBatch)
+    def _initBiasVisible(self):
+        _visbiases = numpy.zeros(shape=(self.n_visible), dtype=theanoFloat)
+        visbiases = theano.shared(value=_visbiases, name='visbiases', borrow=True)
+        del _visbiases
 
-                    vishidinc, visbiasinc, hidbiasinc = self.updateParams_hinton(posprods=posprods,
-                                                                                negprods=negprods,
-                                                                                posvisact=posvisact,
-                                                                                negvisact=negvisact,
-                                                                                poshidact=poshidact,
-                                                                                neghidact=neghidact,
-                                                                                vishidinc=vishidinc,
-                                                                                visbiasinc=visbiasinc,
-                                                                                hidbiasinc=hidbiasinc,
-                                                                                epoch=epoch,
-                                                                                maxEpoch=maxEpoch)
-                    err = numpy.sum(a=numpy.sum(numpy.power((miniBatch-negdata),2), dtype=numpy.float32), dtype=numpy.float32)
-                else:
-                    # es es como hace michaela y mepa que es asi
-                    visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_1step(miniBatch)
-                    #visibleRec, hiddenAct, hiddenRec = self.contrastiveDivergence_kstep(miniBatch,1)
-                    vishidinc, visbiasinc, hidbiasinc = self.updateParams(  visible=miniBatch,
-                                                                            hidden=hiddenAct,
-                                                                            visibleRec=visibleRec,
-                                                                            hiddenRec=hiddenRec,
-                                                                            vishidinc=vishidinc,
-                                                                            visbiasinc=visbiasinc,
-                                                                            hidbiasinc=hidbiasinc,
-                                                                            epoch=epoch,
-                                                                            maxEpoch=maxEpoch)
-                    err = numpy.sum(numpy.power((miniBatch-visibleRec),2))
+        return visbiases
 
-                errorSum += err
-                #err = numpy.sum(numpy.power((miniBatch-visibleRec),2))
+    def _initBiasOculto(self):
+        _hidbiases = numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat)
+        hidbiases = theano.shared(value=_hidbiases, name='hidbiases', borrow=True)
+        del _hidbiases
 
-                # fin for de cada minibatch
+        return hidbiases
 
-            print("Epoch {} - Error {}".format(epoch, errorSum))
-            #end for epoch
+    def _initParams(self):
+        """ inicializa los parametros de la red, un diccionario"""
+        self.params['epsilonw'] = 0.0
+        self.params['epsilonvb'] = 0.0
+        self.params['epsilonhb'] = 0.0
+        self.params['weightcost'] = 0.0
+        self.params['momentum'] = 0.0
+        self.params['epocas'] = 0.0
+        self.params['unidadesVisibles'] = UnidadBinaria()
+        self.params['unidadesOcultas'] = UnidadBinaria()
+        return 1
 
+    def set_w(self, w):
+        #if isinstance(w, numpy.ndarray):
+        #    self.w.set_value(w)
+        self.w.set_value(w)
+        return 1
+
+    def set_biasVisible(self, bias):
+        self.visbiases.set_value(bias)
+        return 1
+
+    def set_biasOculto(self, bias):
+        self.hidbiases.set_value(bias)
+        return 1
+
+    @property
+    def get_w(self):
+        return self.w.get_value()
+
+    @property
+    def get_biasVisible(self):
+        return self.visbiases.get_value()
+
+    @property
+    def get_biasOculto(self):
+        return self.hidbiases.get_value()
+
+    @property
+    def printParams(self):
+        for key, value in self.params.items():
+            print('{:>20}: {:<10}'.format(str(key), str(value)))
+        return 1
+
+    def setParams(self, parametros):
+        if not isinstance(parametros, dict):
+            assert False, "necesito un diccionario"
+
+        for key, _ in parametros.items():
+            if key in self.params:
+                self.params[key] = parametros[key]
+            else:
+                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
+
+        return 1
+
+    def _initStatistics(self):
+        # incializo el diccionario con los estadisticos
+        dic = {
+                'errorEntrenamiento':[],
+                'errorValidacion':[],
+                'errorValidacion':[],
+                'mseEntrenamiento':[],
+                'errorTesteo':[],
+                'energiaLibreEntrenamiento':[],
+                'energiaLibreValidacion': []
+                }
+
+        self.estadisticos = dic
+        del dic
+        return 1
+
+    def agregarEstadistico(self, estadistico):
+        # cuando agrega un estadistico (ya sea uno solo) se considera como una epoca nueva
+        # por lo tanto se setea el resto de los estadisitcos con 0.0 los cuales no fueron
+        # provistos
+
+        if not isinstance(estadistico, dict):
+            assert False, str(repr('estadistico') + " debe ser un tipo diccionario")
+
+        # copio para manipular sin cambiar definitivamente
+        viejo = self.estadisticos
+
+        for key, _ in estadistico.items():
+            bandera=True
+            if key in viejo:
+                viejo[key] += [estadistico[key]]
+                bandera = False
+            else:
+                assert False, str("No exite el key " + repr(key))
+            if bandera:
+                viejo[key]+=[0.0]
+
+        self.estadisticos = viejo
+        del viejo
         return
-    # END contrastiveDivergence
 
-    def updateParams(self, visible, hidden, visibleRec, hiddenRec, vishidinc, visbiasinc, hidbiasinc, epoch, maxEpoch):
-        """
-        """
-        #print(visible.shape) # (100, 784)
-        #print(visibleRec.shape) # (100, 784)
-        #print(hidden.shape) # (100, 1000)
-        #print(hiddenRec.shape) # (100, 1000)
 
-        # TODO lo copio de hinton
-        if epoch > maxEpoch/2:
-            momentum = self.finalmomentum
+    def dibujarPesos(self, weight=None, save=None, path=None):
+        """
+        Grafica la matriz de pesos de (n_visible x n_ocultas) unidades
+
+        :param weight: matriz de pesos asociada a una RBM, cualquiera
+        """
+        from cupydle.dnn.graficos import pesosConstructor
+        assert False, "el plot son los histogramas"
+        pesos = numpy.asarray(a=self.get_w())
+        pesos = numpy.tile(A=pesos, reps=(20,1))
+        print(self.get_w().shape, pesos.shape)
+        pesosConstructor(pesos=pesos)
+        return 1
+
+    def energiaLibre(self, vsample):
+        """
+        Function to compute the free energy
+        """
+        wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
+        vbias_term = theano.tensor.dot(vsample, self.visbiases)
+        hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
+        #return -hidden_term - vbias_term +  0.5* theano.tensor.sum(vbias_term**2, axis=0)
+        return -hidden_term - vbias_term
+
+    def crearDibujo(self, datos, axe=None, titulo='', estilo='b-'):
+        #debo asignar la vuelta de axe al axes del dibujo, solo que lo pase por puntero que todavia no se
+
+        # linestyle or ls   [ '-' | '--' | '-.' | ':' | 'steps' | ...]
+        #marker  [ '+' | ',' | '.' | '1' | '2' | '3' | '4' ]
+        if axe is None:
+            axe = matplotlib.pyplot.gca()
+
+        ejeXepocas = range(1,len(datos)+1)
+        axe.plot(ejeXepocas, datos, estilo)
+        axe.set_title(titulo)
+        axe.set_xticks(ejeXepocas) # los ticks del eje de las x solo en los enteros
+        return axe
+
+    def dibujarEstadisticos(self, mostrar=False, guardar=True):
+
+        errorEntrenamiento  = self.estadisticos['errorEntrenamiento']
+        errorValidacion     = self.estadisticos['errorValidacion']
+        errorTesteo         = self.estadisticos['errorTesteo']
+        mseEntrenamiento    = self.estadisticos['mseEntrenamiento']
+        energiaLibreEntrenamiento = self.estadisticos['energiaLibreEntrenamiento']
+        energiaLibreValidacion  = self.estadisticos['energiaLibreValidacion']
+
+        f, axarr = matplotlib.pyplot.subplots(2, 3, sharex='col', sharey='row')
+
+        axarr[0, 0] = self.crearDibujo(errorEntrenamiento, axarr[0, 0], titulo='Error de Entrenamiento', estilo='r-')
+        axarr[0, 1] = self.crearDibujo(errorValidacion, axarr[0, 1], titulo='Error de Validacion', estilo='b-')
+        axarr[0, 2] = self.crearDibujo(errorTesteo, axarr[0, 2], titulo='Error de Testeo')
+
+        axarr[1, 0] = self.crearDibujo(mseEntrenamiento, axarr[1, 0], titulo='MSE de Entrenamiento')
+        axarr[1, 1] = self.crearDibujo(energiaLibreEntrenamiento, axarr[1, 1], titulo='Energia Libre Entrenamiento')
+        axarr[1, 2] = self.crearDibujo(energiaLibreValidacion, axarr[1, 2], titulo='Energia Libre Validacion')
+
+        matplotlib.pyplot.tight_layout()
+
+        if guardar:
+            nombreArchivo= self.ruta + 'rbm_estadisticos.pdf'
+            matplotlib.pyplot.savefig(nombreArchivo, bbox_inches='tight')
+
+        if mostrar:
+            matplotlib.pyplot.mostrar()
+        return
+
+
+    def dibujarFiltros(self, nombreArchivo='filtros.png', automatico=True,
+                       formaFiltro = (10,10), binary=False, mostrar=False):
+
+        assert isinstance(formaFiltro, tuple), "Forma filtro debe ser una tupla (X,Y)"
+
+        # corrige si lo indico... sino es porque quiero asi, en modo auto es cuadrado
+        if automatico:
+            cantPesos = self.w.get_value(borrow=True).T.shape[1]
+
+            # ancho/alto tile es la cantidad dividido su raiz y tomando el floor
+            # a entero
+            anchoTile= int(cantPesos // math.sqrt(cantPesos))
+            cantPesosCorregido = anchoTile ** 2
+            if cantPesos != cantPesosCorregido:
+                cantPesos = cantPesosCorregido
+
+            formaImagen = (anchoTile, anchoTile)
+
+
+        image = Image.fromarray(
+            imagenTiles(
+                # se mandan las imagenes desde 0 a hasta donde cuadre
+                X=self.w.get_value(borrow=True).T[:,0:cantPesos],
+                img_shape=formaImagen,
+                tile_shape=formaFiltro,
+                tile_spacing=(1, 1)
+            )
+        )
+        if binary:
+            gray = image.convert('L')
+            # Let numpy do the heavy lifting for converting pixels to pure black or white
+            bw = numpy.asarray(gray).copy()
+            # Pixel range is 0...255, 256/2 = 128
+            bw[bw < 128] = 0    # Black
+            bw[bw >= 128] = 255 # White
+            # Now we put it back in Pillow/PIL land
+            image = Image.fromarray(bw)
+
+        # si le pase un nombre es porque lo quiero guardar
+        if nombreArchivo is not None:
+            image.save(self.ruta + nombreArchivo)
         else:
-            momentum = self.initialmomentum
-        ##
+            nombreArchivo=''
 
-        positiva = numpy.dot(visible.T, hidden) # (784, 1000)
-        #print("Positiva:", positiva.shape)
-        negativa = numpy.dot(visibleRec.T, hiddenRec) # (784, 1000)
-        #print("Negativa:", negativa.shape)
+        if mostrar:
+            image.show(title=nombreArchivo)
 
-        vishidinc = momentum * vishidinc + (self.epsilonw / self.numcases) * (positiva - negativa) - self.weightcost*self.w # delta pesos
-        self.w    = self.w + vishidinc # actualizacion de los pesos
-        #print("Pesos:", self.w.shape) # (784, 1000)
+        return 1
 
-        visbiasinc     = momentum*visbiasinc + (self.epsilonvb / self.numcases) * numpy.sum(a=(visible - visibleRec), axis=0)
-        self.visbiases = self.visbiases + visbiasinc
-        #print("Bias Visbles:", self.visbiases.shape) # (1, 784)
+    def pseudoLikelihoodCost(self, updates=None):
+        # pseudo-likelihood is a better proxy for PCD
+        """Stochastic approximation to the pseudo-likelihood"""
 
-        hidbiasinc = momentum*hidbiasinc + (self.epsilonhb / self.numcases) * numpy.sum(a=(hidden - hiddenRec), axis=0)
-        self.hidbiases = self.hidbiases + hidbiasinc
-        #print("Bias Ocultos:", self.hidbiases.shape)
+        # index of bit i in expression p(x_i | x_{\i})
+        bit_i_idx = theano.shared(value=0, name='bit_i_idx')
 
-        return vishidinc, visbiasinc, hidbiasinc
+        # binarize the input image by rounding to nearest integer
+        xi = theano.tensor.round(self.x)
 
-    def updateParams_hinton(self, posprods, negprods, posvisact, negvisact, poshidact, neghidact, vishidinc, visbiasinc, hidbiasinc, epoch, maxEpoch):
+        # calculate free energy for the given bit configuration
+        fe_xi = self.energiaLibre(xi)
 
-        if epoch > maxEpoch/2:
-            momentum = self.finalmomentum
+        # flip bit x_i of matrix xi and preserve all other bits x_{\i}
+        # Equivalent to xi[:,bit_i_idx] = 1-xi[:, bit_i_idx], but assigns
+        # the result to xi_flip, instead of working in place on xi.
+        xi_flip = theano.tensor.set_subtensor(xi[:, bit_i_idx], 1 - xi[:, bit_i_idx])
+
+        # calculate free energy with bit flipped
+        fe_xi_flip = self.energiaLibre(xi_flip)
+
+        # equivalent to e^(-FE(x_i)) / (e^(-FE(x_i)) + e^(-FE(x_{\i})))
+        cost = theano.tensor.mean(self.n_visible \
+             * theano.tensor.log(theano.tensor.nnet.sigmoid(fe_xi_flip
+                                                            - fe_xi)))
+
+        # increment bit_i_idx % number as part of updates
+        updates[bit_i_idx] = (bit_i_idx + 1) % self.n_visible
+
+        # TODO es necesario retornar las updates?
+        # ni siquiera las utiliza en el algoritmo.. medio inutil pasarla o retornarla
+        return cost
+
+    def muestrearVdadoH(self, muestra_H0):
+        salidaLineal_V1 = theano.tensor.dot(muestra_H0, self.w.T) + self.visbiases
+        muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1)
+
+        return [salidaLineal_V1, probabilidad_V1, muestra_V1]
+
+    def muestrearHdadoV(self, muestra_V0):
+        salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
+        muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
+
+        return [salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+    def gibbsHVH(self, muestra, steps):
+        # un paso de CD es Hidden->Visible->Hidden
+        def unPaso(muestraH, w, vbias, hbias):
+
+            salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH(muestraH)
+            salidaLineal_H1, probabilidad_H1, muestra_H1 = self.muestrearHdadoV(muestra_V1)
+
+            return [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+        ( [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_unPasoGibbsHVH')
+        return ([salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1], updates)
+
+
+    def gibbsVHV(self, muestra, steps):
+        # un paso de CD es Visible->Hidden->Visible
+        def unPaso(muestraV, w, vbias, hbias):
+
+            salidaLineal_H1, probabilidad_H1, muestra_H1 = self.muestrearHdadoV(muestraV)
+            salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH(muestra_H1)
+
+            return [salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1]
+
+        ( [salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_unPasoGibbsVHV')
+
+        return ([salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1], updates)
+
+
+    def DivergenciaContrastivaPersistente(self, miniBatchSize, sharedData):
+
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # initialize storage for the persistent chain (state = hidden
+        # layer of chain)
+        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
+                                                     dtype=theanoFloat),
+                                         borrow=True)
+
+
+        ([ _, _, muestra_V1, _, _, muestra_H1],
+          updates ) = self.gibbsHVH(persistent_chain, steps)
+
+        chain_end = muestra_V1[-1]
+
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
+
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
+
+        # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
+
+        updates[persistent_chain] = muestra_H1[-1]
+
+        monitoring_cost = self.pseudoLikelihoodCost(updates)
+
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+                        name='train_rbm_pcd'
+        )
+
+        return train_rbm
+
+    def reconstructionCost(self, linearSumN):
+        """Approximation to the reconstruction error
+
+        Note that this function requires the pre-sigmoid activation as
+        input.  To understand why this is so you need to understand a
+        bit about how Theano works. Whenever you compile a Theano
+        function, the computational graph that you pass as input gets
+        optimized for speed and stability.  This is done by changing
+        several parts of the subgraphs with others.  One such
+        optimization expresses terms of the form log(sigmoid(x)) in
+        terms of softplus.  We need this optimization for the
+        cross-entropy since sigmoid of numbers larger than 30. (or
+        even less then that) turn to 1. and numbers smaller than
+        -30. turn to 0 which in terms will force theano to compute
+        log(0) and therefore we will get either -inf or NaN as
+        cost. If the value is expressed in terms of softplus we do not
+        get this undesirable behaviour. This optimization usually
+        works fine, but here we have a special case. The sigmoid is
+        applied inside the scan op, while the log is
+        outside. Therefore Theano will only see log(scan(..)) instead
+        of log(sigmoid(..)) and will not apply the wanted
+        optimization. We can not go and replace the sigmoid in scan
+        with something else also, because this only needs to be done
+        on the last step. Therefore the easiest and more efficient way
+        is to get also the pre-sigmoid activation as an output of
+        scan, and apply both the log and sigmoid outside scan such
+        that Theano can catch and optimize the expression.
+
+        """
+        # reconstruction cross-entropy is a better proxy for CD
+        crossEntropy = theano.tensor.mean(
+            theano.tensor.sum(
+                self.x * theano.tensor.log(theano.tensor.nnet.sigmoid(linearSumN)) +
+                (1 - self.x) * theano.tensor.log(1 - theano.tensor.nnet.sigmoid(linearSumN)),
+                axis=1
+            )
+        )
+        return crossEntropy
+
+    def reconstructionCost_MSE(self, reconstrucciones):
+        # mean squared error, error cuadratico medio
+
+        mse = theano.tensor.mean(
+                theano.tensor.sum(
+                    theano.tensor.sqr( self.x - reconstrucciones ), axis=1
+                )
+        )
+
+        return mse
+
+    def DivergenciaContrastiva2(self, miniBatchSize, sharedData):
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # Visible -> Hidden -> Visible
+        ([ _, _, _, salidaLineal_V1, _, muestra_V1],
+          updates) = self.gibbsVHV(self.x, steps)
+
+        chain_end = muestra_V1[-1]
+
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
+
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
+
+
+        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
+
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+            name='train_rbm_cd'
+        )
+
+        return train_rbm
+
+
+    def DivergenciaContrastiva(self, miniBatchSize, sharedData):
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # Visible -> Hidden -> Visible
+        ([ _, probabilidad_H1, muestra_H1, salidaLineal_V1, _, muestra_V1],
+          updates) = self.gibbsVHV(self.x, steps)
+
+        chain_end = muestra_V1[-1]
+
+        salidaLineal_HN, probabilidad_HN, muestra_HN = self.muestrearHdadoV(chain_end)
+
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
+
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates2=updates, cost=deltaEnergia,
+                probHidAct=probabilidad_H1[-1], muestraVres=chain_end,
+                muestraHres=probabilidad_HN, muestra_H1=muestra_H1[-1])
+
+
+        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
+
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+            name='train_rbm_cd'
+        )
+
+        return train_rbm
+
+
+    def buildUpdates(self, updates2, cost, probHidAct, muestraVres, muestraHres, muestra_H1):
+        if self.params['epsilonvb'] is None:
+            self.params['epsilonvb'] = self.params['epsilonw']
+        if self.params['epsilonvb'] == 0.0:
+            self.params['epsilonvb'] = self.params['epsilonw']
+
+        if self.params['epsilonhb'] is None:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        if self.params['epsilonhb'] == 0.0:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
+
+        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
+        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
+        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
+
+
+        updates = []
+
+        # actualizacion de W
+        positiveDifference = theano.tensor.dot(self.x.T, probHidAct)
+        negativeDifference = theano.tensor.dot(muestraVres.T, muestraHres)
+        delta = positiveDifference - negativeDifference
+
+        wUpdate = momentum * self.vishidinc
+        # deberia ir encontra, direccion opuesta
+        wUpdate += lr_pesos * delta
+        updates.append((self.w, self.w + wUpdate))
+        updates.append((self.vishidinc, wUpdate))
+
+        # actualizacion de los bias visibles
+        visibleBiasDiff = theano.tensor.sum(self.x - muestraVres , axis=0)
+        biasVisUpdate = momentum * self.visbiasinc
+        biasVisUpdate += lr_vbias * visibleBiasDiff
+        updates.append((self.visbiases, self.visbiases + biasVisUpdate))
+        updates.append((self.visbiasinc, biasVisUpdate))
+
+        # actualizacion de los bias ocultos
+        hiddenBiasDiff = theano.tensor.sum(muestra_H1 - muestraHres, axis=0)
+
+        biasHidUpdate = momentum * self.hidbiasinc
+        biasHidUpdate += lr_hbias * hiddenBiasDiff
+        updates.append((self.hidbiases, self.hidbiases + biasHidUpdate))
+        updates.append((self.hidbiasinc, biasHidUpdate))
+
+
+        # Add the updates required for the theano random generator
+        updates += updates2.items()
+
+        return updates
+
+    def entrenamiento(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1,
+              validationData=None, filtros=False, printCompacto=False):
+        # mirar:
+        # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
+        #
+        #
+        #
+        # ahi esta la actualziacion como lo hace hinton
+
+        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
+        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+
+        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
+        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+
+        # para la validacion
+        if validationData is not None:
+            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+
+        trainer = None
+        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
+        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
+        if pcd:
+            print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
+            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
         else:
-            momentum = self.initialmomentum
+            print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
+            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
+        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
 
-        vishidinc = momentum * vishidinc + (self.epsilonw / self.numcases) * (posprods - negprods) - self.weightcost*self.w # delta pesos
-        self.w    = self.w + vishidinc # actualizacion de los pesos
-        #print("Pesos:", self.w.shape) # (784, 1000)
-
-        visbiasinc     = momentum*visbiasinc + (self.epsilonvb / self.numcases) * numpy.sum(a=(posvisact - negvisact), axis=0)
-        self.visbiases = self.visbiases + visbiasinc
-        #print("Bias Visbles:", self.visbiases.shape) # (1, 784)
-
-        hidbiasinc = momentum*hidbiasinc + (self.epsilonvb / self.numcases) * numpy.sum(a=(poshidact - neghidact), axis=0)
-        self.hidbiases = self.hidbiases + hidbiasinc
-        #print("Bias Ocultos:", self.hidbiases.shape)
-
-        return vishidinc, visbiasinc, hidbiasinc
+        if filtros:
+            # plot los filtros iniciales (sin entrenamiento)
+            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
 
 
-    def contrastiveDivergence_1step(self, visibleSample):
+
+        # cantidad de indices... para recorrer el set
+        indexCount = int(data.shape[0]/miniBatchSize)
+        costo = numpy.Inf
+        mse = numpy.Inf
+        fEnergy = numpy.Inf
+        finLinea='\n'
+        finLinea = '\r' if printCompacto else '\n'
+
+        for epoch in range(0, self.params['epocas']):
+            # imprimo algo de informacion sobre la terminal
+            print(str('Epoca {:>3d} '
+                    + 'de {:>3d}, '
+                    + 'error<TrnSet>:{:> 8.5f}, '
+                    + 'MSE<ejemplo> :{:> 8.5f}, '
+                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+                        epoch+1,
+                        self.params['epocas'],
+                        costo,
+                        mse,
+                        fEnergy),
+                    end=finLinea)
+
+            costo = []
+            mse = []
+            fEnergy = []
+            for batch in range(0, indexCount):
+                # salida[monitoring_cost, mse, deltafreeEnergy]
+                salida = trainer(batch, gibbsSteps)
+
+                costo.append(salida[0])
+                mse.append(salida[1])
+                fEnergy.append(salida[2])
+
+
+            costo = numpy.mean(costo)
+            mse = numpy.mean(mse)
+            fEnergy = numpy.mean(fEnergy)
+
+            self.agregarEstadistico(
+                {'errorEntrenamiento': costo,
+                 'mseEntrenamiento': mse,
+                 'errorValidacion': 0.0,
+                 'errorTesteo': 0.0,
+                 'energiaLibreEntrenamiento': fEnergy,
+                 'energiaLibreValidacion': 0.0})
+
+            if filtros:
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
+                                    automatico=True)
+
+            # END SET
+        # END epoch
+        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
+
+        self.dibujarEstadisticos()
+        return 1
+
+    def buildUpdates2(self, updates, cost, constant):
         """
-        param: visibleSample es el vector de entrada
-
-        return:
-            visibleRec reconstruccion del vector visible
-            hiddenAct activaciones del vector de unidades ocultas pasada hacia arriba
-            hiddenRec reconstruccion del vector de las ocultas dada la visible
-
+        calcula las actualizaciones de la red sobre sus parametros w hb y vh
+        con momento
+        tasa de aprendizaje para los pesos, y los biases visibles y ocultos
         """
-        # asi creo que se hace
+        # arreglo los parametros en caso de que no se hayan establecidos, considero las
+        # tasa de aprendizaje para los bias igual al de los pesos
+        if self.params['epsilonvb'] is None:
+            self.params['epsilonvb'] = self.params['epsilonw']
+        if self.params['epsilonvb'] == 0.0:
+            self.params['epsilonvb'] = self.params['epsilonw']
 
-        linearSum   = numpy.dot(visibleSample, self.w) + numpy.tile(self.hidbiases, (self.numcases, 1))
-        hidProb     = 1.0 / (1.0 + numpy.exp(-linearSum))
-        hidden      = numpy.random.binomial(n=1, p=hidProb, size=hidProb.shape) # sample hidden units
-
-        #reconstruction
-        linearSum   = numpy.dot(hidden, self.w.T) + numpy.tile(self.visbiases, (self.numcases, 1))
-        visProb     = 1.0 / (1.0 + numpy.exp(-linearSum))
-        visibleRec = numpy.random.binomial(n=1, p=visProb, size=visProb.shape) # sample visible units RECONSTRUCTION
-
-        linearSum   = numpy.dot(visibleRec, self.w) + numpy.tile(self.hidbiases, (self.numcases, 1))
-        visProbRec  = 1.0 / (1.0 + numpy.exp(-linearSum))
-        hiddenRec   = numpy.random.binomial(n=1, p=visProbRec, size=visProbRec.shape) # sample hidden units
-
-        hiddenAct = hidden
-        return visibleRec, hiddenAct, hiddenRec
-
-    def contrastiveDivergence_kstep(self, visibleSample, k):
-
-        for i in range(0,k):
-
-            linearSum   = numpy.dot(visibleSample, self.w) + numpy.tile(self.hidbiases, (self.numcases, 1))
-            hidProb     = 1.0 / (1.0 + numpy.exp(-linearSum))
-            hidden      = numpy.random.binomial(n=1, p=hidProb, size=hidProb.shape) # sample hidden units
-
-            #reconstruction
-            linearSum   = numpy.dot(hidden, self.w.T) + numpy.tile(self.visbiases, (self.numcases, 1))
-            visProb     = 1.0 / (1.0 + numpy.exp(-linearSum))
-            visibleRec = numpy.random.binomial(n=1, p=visProb, size=visProb.shape) # sample visible units RECONSTRUCTION
-
-            if k>1:
-                linearSum       = numpy.dot(hidden, self.w.T) + numpy.tile(self.visbiases, (self.numcases, 1))
-                visProb         = 1.0 / (1.0 + numpy.exp(-linearSum))
-                visibleSample   = numpy.random.binomial(n=1, p=visProb, size=visProb.shape) # sample visible units RECONSTRUCTION
+        if self.params['epsilonhb'] is None:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        if self.params['epsilonhb'] == 0.0:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
 
 
-        hiddenAct = hidden
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
+        #gparams = theano.tensor.grad(cost, self.internalParams)
 
-        linearSum   = numpy.dot(visibleRec, self.w) + numpy.tile(self.hidbiases, (self.numcases, 1))
-        visProbRec  = 1.0 / (1.0 + numpy.exp(-linearSum))
-        hiddenRec   = numpy.random.binomial(n=1, p=visProbRec, size=visProbRec.shape) # sample hidden units
+        # creo una lista con las actualizaciones viejas (shared guardadas)
+        oldUpdates = [self.vishidinc, self.hidbiasinc, self.visbiasinc]
 
-        return visibleRec, hiddenAct, hiddenRec
+        # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
+        parametersTuples = zip(self.internalParams, gparams, oldUpdates)
 
-    def CD_1_hinton(self, data):
-        poshidprobs = 1.0 / (1.0 + numpy.exp(numpy.dot(-data, self.w) -
-                                             numpy.tile(self.hidbiases, (self.numcases, 1)) ))  # (2,1000)
+        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
+        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
+        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
 
-        # TODO cambiar el random por uno que sea uniforme y no normal... pagina 5 hinton equ10
-        poshidstates= poshidprobs > numpy.random.rand(self.numcases, self.n_hidden) # (2,1000)
-        posprods    = numpy.dot(data.T, poshidprobs) # (784,1000)
-        poshidact   = numpy.sum(a=poshidprobs, axis=0, dtype=numpy.float32)  # (1000,1)
-        poshidact   = numpy.reshape(poshidact, (-1,self.n_hidden)) # para que coincida con hinton un vector fila # (1,1000)
-        posvisact   = numpy.sum(a=data, axis=0, dtype=numpy.float32)  # (784,1)
-        posvisact   = numpy.reshape(posvisact, (-1,self.n_visible)) # para que coincida con hinton un vector fila  # (1,784)
-        negdata     = 1.0 / (1.0 + numpy.exp(numpy.dot(-poshidstates, self.w.T) -
-                                         numpy.tile(self.visbiases, (self.numcases, 1)) )) #(2,1000)
-        neghidprobs = 1.0 / (1.0 + numpy.exp(numpy.dot(-negdata, self.w) -
-                                             numpy.tile(self.hidbiases, (self.numcases, 1)) ))
-        negprods    = numpy.dot(negdata.T, neghidprobs)
-        neghidact   = numpy.sum(a=neghidprobs, axis=0, dtype=numpy.float32)
-        negvisact   = numpy.sum(negdata, axis=0, dtype=numpy.float32)
+        otherUpdates = []
 
-        return negdata
+        for param, delta, oldUpdate in parametersTuples:
+            # segun el paramerto tengo diferentes learning rates
+            if param.name == self.w.name:
+                paramUpdate = momentum * oldUpdate - lr_pesos * delta
+            if param.name == self.visbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_vbias * delta
+            if param.name == self.hidbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_hbias * delta
+            #param es la variable o paramatro
+            #paramUpdate son los incrementos
+            #newParam es la variable mas su incremento
+            newParam = param + paramUpdate
+            otherUpdates.append((param, newParam)) # w-> w+inc ...
+            otherUpdates.append((oldUpdate, paramUpdate))  #winc_old -> winc_new
+
+        updates.update(otherUpdates)
+        return updates
+
+    def entrenamiento2(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1,
+              validationData=None, filtros=False, printCompacto=False):
+        # mirar:
+        # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
+        #
+        #
+        #
+        # ahi esta la actualziacion como lo hace hinton
+
+        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
+        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+
+        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
+        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+
+        # para la validacion
+        if validationData is not None:
+            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+
+        trainer = None
+        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
+        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
+        if pcd:
+            print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
+            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
+        else:
+            print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
+            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
+        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
+
+        if filtros:
+            # plot los filtros iniciales (sin entrenamiento)
+            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
 
 
-    def positive(self, data):
+
+        # cantidad de indices... para recorrer el set
+        indexCount = int(data.shape[0]/miniBatchSize)
+        costo = numpy.Inf
+        mse = numpy.Inf
+        fEnergy = numpy.Inf
+        finLinea='\n'
+        finLinea = '\r' if printCompacto else '\n'
+
+        for epoch in range(0, self.params['epocas']):
+            # imprimo algo de informacion sobre la terminal
+            print(str('Epoca {:>3d} '
+                    + 'de {:>3d}, '
+                    + 'error<TrnSet>:{:> 8.5f}, '
+                    + 'MSE<ejemplo> :{:> 8.5f}, '
+                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+                        epoch+1,
+                        self.params['epocas'],
+                        costo,
+                        mse,
+                        fEnergy),
+                    end=finLinea)
+
+            costo = []
+            mse = []
+            fEnergy = []
+            for batch in range(0, indexCount):
+                # salida[monitoring_cost, mse, deltafreeEnergy]
+                salida = trainer(batch, gibbsSteps)
+
+                costo.append(salida[0])
+                mse.append(salida[1])
+                fEnergy.append(salida[2])
+
+
+            costo = numpy.mean(costo)
+            mse = numpy.mean(mse)
+            fEnergy = numpy.mean(fEnergy)
+
+            self.agregarEstadistico(
+                {'errorEntrenamiento': costo,
+                 'mseEntrenamiento': mse,
+                 'errorValidacion': 0.0,
+                 'errorTesteo': 0.0,
+                 'energiaLibreEntrenamiento': fEnergy,
+                 'energiaLibreValidacion': 0.0})
+
+            if filtros:
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
+                                    automatico=True)
+
+            # END SET
+        # END epoch
+        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
+
+        self.dibujarEstadisticos()
+        return 1
+
+    def reconstruccion(self, muestraV, gibbsSteps=1):
         """
-        practicalHinton
-        dado un patron elegido al azar, v. El estado binario de cada neurona oculta j, h_j
-        es fijado a 1 con la probabilidad(7):
-                 p(h_j=1|v) = sigma(b_j + sum_i(v_i w_ij))
+        realiza la reconstruccion a partir de un ejemplo, efectuando una cadena
+        de markov con x pasos de gibbs sobre la misma
 
-                    sigma(x) = 1/(1+exp(-x))
-
+        puedo pasarle un solo ejemplo o una matrix con varios de ellos por fila
         """
-        # ecuacion (7) de practicalHinton
-        # la multiplicacion es por batch...
-        # data => (2, 784)... por fila hay un patron
-        # w => (784,1000)
-        # dot(data,w) => (2,1000)... por fila se tiene los patrones que fueron multiplicados por la matriz w.
-        # tile(array,(l,p))... replica el array en una matriz de l filas por p columnas (de repeticion cada uno)
-        # hay que restar a data*v-b... todo eso es la sigmodea
-        poshidprobs = 1.0 / (1.0 + numpy.exp(numpy.dot(-data, self.w) -
-                                             numpy.tile(self.hidbiases, (self.numcases, 1)) ))  # (2,1000)
 
-        # la activacion de la neurona visible en la oculta determina el estado de estas ultimas
-        # la neurona oculta se activa con valor 1 con la probabilidad antes calculada es mayor que un
-        # numero random
-        # TODO cambiar el random por uno que sea uniforme y no normal... pagina 5 hinton equ10
-        poshidstates = poshidprobs > numpy.random.rand(self.numcases, self.n_hidden) # (2,1000)
+        if muestraV.ndim == 1:
+            # es un vector, debo cambiar el root 'x' antes de armar el grafo
+            # para que coincida con la entrada
+            viejoRoot = self.x
+            self.x = theano.tensor.fvector('x')
 
-        # tambien se calcula porque va a hacer necesario para despues lo siguiente
-        posprods = numpy.dot(data.T, poshidprobs) # (784,1000)
+        data  = theano.shared(numpy.asarray(a=muestraV,dtype=theanoFloat), name='datoReconstruccion')
 
-        # suma todas las probabilidades por neurona a traves de sus activaciones con los diferentes patrones
-        # lo hice asi para emular a hinton en matlab... axis=0 suma por columna, resultado es un arreglo fila
-        # si axis es nula, suma todoooo
-        poshidact = numpy.sum(a=poshidprobs, axis=0, dtype=numpy.float32)  # (1000,1)
-        poshidact=numpy.reshape(poshidact, (-1,self.n_hidden)) # para que coincida con hinton un vector fila # (1,1000)
-        # idem que el anterior
-        posvisact = numpy.sum(a=data, axis=0, dtype=numpy.float32)  # (784,1)
-        posvisact = numpy.reshape(posvisact, (-1,self.n_visible)) # para que coincida con hinton un vector fila  # (1,784)
+        ([_, _, muestra_H1, _, probabilidad_V1, muestra_V1],
+          updates) = self.gibbsVHV(data, gibbsSteps)
 
-        # TODO para mi que posprods es el resultado de la multiplicacion de data.T(v_i) con poshidstates (h_j) puede que este mal, no se porque hinton lo hizo asi
-        return poshidprobs, poshidstates, posprods, poshidact, posvisact
-    # END POSITIVE
+        reconstructor = theano.function(
+                        inputs=[],
+                        outputs=[probabilidad_V1[-1], muestra_V1[-1], muestra_H1[-1]],
+                        updates=updates,
+                        #givens={self.x: data},
+                        name='reconstructor'
+        )
 
-    def negative(self, poshidstates):
+        [probabilidad_V1, muestra_V1, muestra_H1] = reconstructor()
 
-        negdata = 1.0 / (1.0 + numpy.exp(numpy.dot(-poshidstates, self.w.T) -
-                                         numpy.tile(self.visbiases, (self.numcases, 1)) )) #(2,1000)
+        if muestraV.ndim == 1:
+            # hago el swap
+            self.x = viejoRoot
 
-        neghidprobs = 1.0 / (1.0 + numpy.exp(numpy.dot(-negdata, self.w) -
-                                             numpy.tile(self.hidbiases, (self.numcases, 1)) ))
+        return [probabilidad_V1, muestra_V1, muestra_H1]
 
+    def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000,
+                patchesDim=(28,28), binary=False):
+        """
+        Realiza un 'sampleo' de los datos con los parametros 'aprendidos'
+        El proposito de la funcion es ejemplificar como una serie de ejemplos
+        se muestrean a traves de la red ejecuntado sucesivas cadenas de markov
 
-        negprods = numpy.dot(negdata.T, neghidprobs)
+        :type data: numpy.narray (sample, data)
+        :param data: conjunto de datos a extraer las muestras
 
+        :type labels: numpy.narray (sample,)
+        :param labels: conjunto de etiquetas que se corresponden a los datos
 
-        neghidact = numpy.sum(a=neghidprobs, axis=0, dtype=numpy.float32)
+        :type chains: int
+        :param chains: cantidad de cadenas parallelas de Gibbs de las cuales se muestrea
 
-        negvisact = numpy.sum(negdata, axis=0, dtype=numpy.float32)
+        :type samples: int
+        :param samples: cantidad de muestras a realizar sobre cada cadena
 
-        return negdata, neghidprobs, negprods, neghidact, negvisact
-    # END NEGATIVE
+        :type gibbsSteps: int
+        :param gibssSteps: catidad de pasos de gibbs a ejecutar por cada muestra
 
-    def save(self, filename=None, compression='gzip', layerN=0, absolutName=False):
+        :type patchesDim: tuple ints
+        :param patchesDim: dimesion de los patches 'sampleo' de cada cadena,
+                            (alto, ancho). Para mnist (28,28)
+
+        :type binary: bool
+        :param binary: la imagen de salida debe ser binarizada
+        """
+
+        data  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='DataSample')
+        n_samples = data.get_value(borrow=True).shape[0]
+
+        # seleeciona de forma aleatoria donde comienza a extraer los ejemplos
+        # devuelve un solo indice.. desde [0,..., n - chains]
+        test_idx = self.numpy_rng.randint(n_samples - chains)
+
+        # inicializacion de todas las cadenas... el estado persiste a traves
+        # del muestreo
+        cadenaFija = theano.shared(
+                        numpy.asarray(data.get_value(borrow=True)
+                                        [test_idx:test_idx + chains],
+                                    dtype=theanoFloat
+                        )
+        )
+        # tengo leyenda sobre la imagen?
+        if labels is not None:
+            lista = range(test_idx, test_idx + chains)
+            print("labels: ", str(labels[lista]))
+
+        ([_, _, _, _, probabilidad_V1, muestra_V1],
+          updates) = self.gibbsVHV(self.x, gibbsSteps)
+
+        # cambiar el valor de la cadenaFija al de la reconstruccion de las visibles
+        updates.update({cadenaFija: muestra_V1[-1]})
+
+        # funcion princial
+        muestreo = theano.function(inputs=[],
+                                   outputs=[probabilidad_V1[-1], muestra_V1[-1]],
+                                   updates=updates,
+                                   givens={self.x: cadenaFija},
+                                   name='muestreo'
+        )
+
+        # dimensiones de los patches, para el mnist es (28,28)
+        #ancho=28
+        #alto=28
+        alto, ancho = patchesDim
+        imageResults = numpy.zeros(((alto+1) * samples + 1, (ancho+1) * chains - 1),
+                            dtype='uint8')
+        for idx in range(samples):
+            #genero muestras y visualizo cada gibssSteps, ya que las muestras intermedias
+            # estan muy correlacionadas, se visializa la probabilidad de activacion de
+            # las unidades ocultas (NO la muestra binomial)
+            probabilidad_V1, visiblerecons = muestreo()
+
+            print(' ... plotting sample {}'.format(idx))
+            imageResults[(alto+1) * idx:(ancho+1) * idx + ancho, :] \
+                = imagenTiles(X=probabilidad_V1,
+                              img_shape=(alto, ancho),
+                              tile_shape=(1, chains),
+                              tile_spacing=(1, 1)
+                )
+
+        # construct image
+        image = Image.fromarray(imageResults)
+
+        nombreArchivo = self.ruta + "samples_" + str(labels[lista])
+        nombreArchivo = nombreArchivo.replace(" ", "_")
+
+        # poner las etiquetas sobre la imagen
+        watermark = False
+        if watermark:
+            from PIL import ImageDraw, ImageFont
+            # get the ImageDraw item for this image
+            draw = ImageDraw.Draw(image)
+            fontsize = 15
+            font = ImageFont.truetype("arial.ttf", fontsize)
+            #fill = (255,255,255) # blanco
+            fill = (255,255,0) # amarillo
+            fill = 255
+            draw.text((0, 0),text=str(labels[lista]),fill=fill,font=font)
+
+        if binary:
+            gray = image.convert('L')
+            # Let numpy do the heavy lifting for converting pixels to pure black or white
+            bw = numpy.asarray(gray).copy()
+            # Pixel range is 0...255, 256/2 = 128
+            bw[bw < 128] = 0    # Black
+            bw[bw >= 128] = 255 # White
+            # Now we put it back in Pillow/PIL land
+            image2 = Image.fromarray(bw)
+            image2.save(nombreArchivo + '_binary.pdf')
+
+        image.save(nombreArchivo + '.pdf')
+
+        return 1
+
+    def guardar(self, nombreArchivo=None, method='simple', compression=None):
         """
         guarda a disco la instancia de la RBM
-        :param filename:
+        method is simple, no guardo como theano
+        :param nombreArchivo:
         :param compression:
         :param layerN: numero de capa a la cual pertence la rbm (DBN)
-        :param absolutName: si es true se omite los parametros a excepto el filename
+        :param absolutName: si es true se omite los parametros a excepto el nombreArchivo
         :return:
         """
-        from cupydle.dnn.utils import save as saver
+        #from cupydle.dnn.utils import save as saver
 
-        #if filename is not set
-        if absolutName is False:
-            if filename is None:
-                filename = "V_" + str(self.n_visible) + "H_" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M')
-            else:
-                filename = filename + "_" + time.strftime('%Y-%m-%d_%H%M')
+        ruta = self.ruta
+        import time
 
-            if layerN != 0:
-                filename = "L_" + str(layerN) + filename
+        if nombreArchivo is None:
+            nombreArchivo = ruta + "RBM_V" + str(self.n_visible) + "H" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M') + '.zip'
         else:
-            filename = filename
+            nombreArchivo = ruta + nombreArchivo
 
-        saver(object=self, filename=filename, compression=compression)
+        if method != 'theano':
+            from cupydle.dnn.utils import save as saver
+            saver(objeto=self, filename=nombreArchivo, compression=compression)
+        else:
+            with open(nombreArchivo,'wb') as f:
+                # arreglar esto
+                from cupydle.dnn.utils_theano import save as saver
+                saver(objeto=self, filename=nombreArchivo, compression=compression)
+
         return
     # END SAVE
 
-    def load(self, filename=None, compression='gzip'):
-        from cupydle.dnn.utils import load as loader
-        try:
-            self = loader(filename=filename, compression=compression)
-        except:
-            sys.stderr("Error al intentar abrir el archivo")
+    def guardarPesos(self, nombreArchivo):
+        numpy.save(self.ruta + nombreArchivo + '.npy', self.get_w)
+
+        return 1
+
+    @staticmethod
+    def load(nombreArchivo=None, method='simple', compression=None):
+        """
+        Carga desde archivo un objeto RBM guardado. Se distinguen los metodos
+        de guardado, pickle simple o theano.
+
+        :type nombreArchivo: string
+        :param nombreArchivo: ruta completa al archivo donde se aloja la RBM
+
+        :type method: string
+        :param method: si es 'simple' se carga el objeto con los metodos estandar
+                        para pickle, si es 'theano' se carga con las funciones
+                        correspondientes
+
+        :type compression: string
+        :param compression: si es None se infiere la compresion segun 'nombreArchivo'
+                            valores posibles 'zip', 'pgz' 'bzp2'
+
+        url: http://deeplearning.net/software/theano/tutorial/loading_and_saving.html
+        # TODO
+        """
+        objeto = None
+        if method != 'theano':
+            from cupydle.dnn.utils import load
+            objeto = load(nombreArchivo, compression)
+        else:
+            from cupydle.dnn.utils_theano import load
+            objeto = load(nombreArchivo, compression)
+        return objeto
     # END LOAD
 
-    @property
-    def info(self):
-        print("---------------- I N F O -------------------------")
-        print("Numero de Unidades Visibles:", self.n_visible, self.visbiases.shape)
-        print("Numero de Unidades Ocultas", self.n_hidden, self.hidbiases.shape)
-        print("Matriz de pesos psinapticos:", self.w.shape)
-        print("Tasa de aprendizaje para los pesos:", self.epsilonw)
-        print("Tasa de aprendizaje para el bias visible:", self.epsilonvb)
-        print("Tasa de aprendizaje para el bias oculto:", self.epsilonhb)
-        print("regularizador del costo:", self.weightcost)
-        print("Momento inicial:", self.initialmomentum)
-        print("Momento final:", self.finalmomentum)
-        print("Cantidad de epocas a entrenar:", self.maxepoch)
-        print("Cantidad de patrones por batch:", self.numcases)
-        print("--------------------------------------------------")
-
-        return
-    # END INFO
-
-
-def timer(start,end):
-    hours, rem = divmod(end-start, 3600)
-    minutes, seconds = divmod(rem, 60)
-    #print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
-    return "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
-# END TIMER
 
 if __name__ == "__main__":
-
-    """
-    # ejecuto el script bash para descargar los datos
-    call(["cupydle/data/get_mnist_data.sh"])
-    # se crea el objeto mnist para cargar los datos...
-    mn = MNIST('cupydle/data')
-    # se guardan en disco los datos procesados
-    save2disk(mn, filename='cupydle/data/mnistDB/mnistSet', compression='bzip2')
-    """
-    # se leen de disco los datos
-    mn = open4disk(filename='cupydle/data/mnistDB/mnistSet', compression='bzip2')
-
-    # muestra alguna informacion de la base de datos
-    #mn.info
-
-    # obtengo todos los subconjuntos
-    train_img, train_labels = mn.get_training()
-    test_img, test_labels = mn.get_testing()
-    val_img, val_labels = mn.get_validation()
-
-    # tomo solo un patron del conjunto para procesar (el primero por ej)
-    #patron = mn.get_training()[0][0,:]
-    patron1 = train_img[0]
-    etiqueta1 = train_labels[0]
-    patron2 = train_img[1]
-    etiqueta2 = train_labels[1]
-    #mn.plot_one_digit(patron1, label=etiqueta1)
-
-    # umbral para la binarizacion
-    threshold = 0
-    patron_binario1 = patron1 > threshold
-    patron_binario1.astype(int)
-    patron_binario2 = patron2 > threshold
-    patron_binario2.astype(int)
-    #mn.plot_one_digit(patron_binario1, label=etiqueta)
-
-    patron_binario1 = numpy.reshape(patron_binario1, (1,-1))
-    patron_binario2 = numpy.reshape(patron_binario2, (1,-1))
-    patron_binario = numpy.concatenate((patron_binario1,patron_binario2), axis=0)
-
-    n_visible = 784
-    red = rbm(n_visible,n_hidden=500)
-
-    # mando a correr el algoritmo con un bach de 2 patrones de 784 datos cada uno
-    #red.contrastiveDivergence(patron_binario)
-    #shape patron_binario => (2,784)
-
-    red.info
-
-    start = time.time()
-    red.contrastiveDivergence((train_img>threshold).astype(int))
-    end = time.time()
-
-    red.save(filename="capa2", layerN=2, absolutName=True)
-
-    red.load(filename="capa2")
-
-    print("Tiempo total: {}".format(timer(start,end)))
-    #http://imonad.com/rbm/restricted-boltzmann-machine/
-    #https://github.com/deeplearningais/CUV/tree/master/examples/rbm
-    #http://www.utstat.toronto.edu/~rsalakhu/DBM.html
+    assert False, str(__file__ + " No es un modulo")

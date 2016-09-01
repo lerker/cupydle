@@ -51,21 +51,22 @@ try:
 except ImportError:
     import Image
 
-from cupydle.dnn.graficos import scale_to_unit_interval
-from cupydle.dnn.graficos import imagenTiles
-
-import matplotlib.pyplot
-
 # parte de las rbm
-from cupydle.dnn.rbm_gpu2 import RBM
+from cupydle.dnn.rbm import RBM
+from cupydle.dnn.unidades import UnidadBinaria
 
+# parte del ajuste fino
+from cupydle.dnn.mlp import MLP
+
+# utilidades
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
 from cupydle.dnn.utils import temporizador
-from cupydle.dnn.mlp import MLP
-from cupydle.dnn.unidades import UnidadBinaria
-
 import glob# load_dbn_weight
+import matplotlib.pyplot
+from cupydle.dnn.graficos import scale_to_unit_interval
+from cupydle.dnn.graficos import imagenTiles
+
 
 class rbmParams(object):
     # sirve para guardar el estado nomas

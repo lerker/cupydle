@@ -37,7 +37,19 @@ from theano import config as Tconfig
 theanoFloat  = Tconfig.floatX
 import theano.printing
 
-import matplotlib.pylab as plt
+#import matplotlib.pylab as plt
+
+havedisplay = "DISPLAY" in os.environ
+if not havedisplay:
+  exitval = os.system('python3 -c "import matplotlib.pyplot as plt; plt.figure()"')
+  havedisplay = (exitval == 0)
+if havedisplay:
+  #import matplotlib.pyplot as plt
+  import matplotlib.pylab as plt
+else:
+  matplotlib.use('Agg')
+  #import matplotlib.pyplot as plt
+  import matplotlib.pylab as plt
 
 def display_avalible():
     """

@@ -28,8 +28,8 @@ import argparse
 
 # Dependencias Externas
 ## Core
-from cupydle.dnn.dbn_gpu2 import DBN
-from cupydle.dnn.dbn_gpu2 import rbmParams
+from cupydle.dnn.dbn import DBN
+from cupydle.dnn.dbn import rbmParams
 from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.mlp import MLP
 ## Data
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':1})
+        clasificador.setParametroEntrenamiento({'epocas':100})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
 
         clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=1
-        numEpocas=1
+        numEpocas=10
         batchSize=10
 
         miDBN = DBN(name=None, ruta=rutaCompleta)
@@ -219,7 +219,7 @@ if __name__ == "__main__":
                     'activationfuntion':sigmoideaTheano()}
         miDBN.setParametrosAjuste(parametros)
 
-        miDBN.setParametrosAjuste({'epocas':1})
+        miDBN.setParametrosAjuste({'epocas':100})
 
         miDBN.ajuste(datos=datos,
                      listaPesos=None,

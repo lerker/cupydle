@@ -37,7 +37,7 @@ from cupydle.test.mnist.mnist import save2disk
 ## Utils
 from cupydle.dnn.utils import temporizador
 
-from cupydle.dnn.rbm_gpu2 import RBM
+from cupydle.dnn.rbm import RBM
 
 if __name__ == "__main__":
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 'unidadesOcultas':UnidadBinaria()}
 
     red.setParams(parametros)
-    red.setParams({'epocas':1})
+    red.setParams({'epocas':10})
 
 
     T = temporizador()
@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     red.entrenamiento(data=datos[0][0],
                       miniBatchSize=batchSize,
-                      pcd=True,
+                      pcd=False,
                       gibbsSteps=1,
                       validationData=datos[1][0],
                       filtros=True)
