@@ -97,18 +97,20 @@ if __name__ == "__main__":
     red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
     #red.dibujarPesos(red.get_pesos... )
     #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
-
-    parametros={'epsilonw':0.1,
-                'epsilonvb':0.1,
-                'epsilonhb':0.1,
+    aa=UnidadBinaria()
+    bb=UnidadBinaria()
+    a=UnidadGaussiana()
+    b=UnidadGaussiana()
+    parametros={'epsilonw':0.001,
+                'epsilonvb':0.001,
+                'epsilonhb':0.001,
                 'momentum':0.0,
                 'weightcost':0.0,
-                'unidadesVisibles':UnidadBinaria(),
-                'unidadesOcultas':UnidadBinaria()}
+                'unidadesVisibles':a,
+                'unidadesOcultas':b}
 
     red.setParams(parametros)
-    red.setParams({'epocas':1})
-    """
+    red.setParams({'epocas':3})
 
     T = temporizador()
     inicio = T.tic()
@@ -129,6 +131,7 @@ if __name__ == "__main__":
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
+    """
     # guardo los estadisticos
     #red.dibujarEstadisticos(show=True, save='estadisticos.png')
     #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')

@@ -1,3 +1,47 @@
+# pasar a gaussianas?
+https://groups.google.com/forum/#!topic/theano-users/RLIkuV5FWCQ
+- cambiar el sampleo
+- cambiar la funcion de energia
+- cambiar la funcion de error. You can also replace the monitoring cost to the L2 error:  (v-mean_v)**2
+- For real-valued visibles not restricted to [0, 1], the usual cross-entropy formula for pseudo-likelihood does not make sense:
+
+monitor = T.xlogx.xlogy0(v, mean_v) + T.xlogx.xlogy0(1 - v, 1 - mean_v)
+
+and L2 error is a more natural choice!
+
+I have also seen the additional free energy term written as 0.5*(v-vbias)**2).sum()
+You can use that term provided you remove the -(v dot vbias) term in the original free energy function.
+
+The difference between the two formulation is then a constant that cancels out when you subtract the negative phase, so you can use either.
+
+https://github.com/lisa-lab/pylearn2/blob/master/pylearn2/models/dbm/layer.py#L1934
+
+     rval = theano_rng.normal(size = z.shape, avg = z, dtype = z.dtype,
+                       std = 1. / T.sqrt(self.beta))
+
+def _recons_cost(self, V, V_hat_unmasked, beta, drop_mask=None, use_sum=False):
+        """
+        .. todo::
+            WRITEME
+        """
+        V_hat = V_hat_unmasked
+
+        assert V.ndim == V_hat.ndim
+        beta = self.broadcasted_beta()
+        unmasked_cost = 0.5 * beta * T.sqr(V-V_hat) - 0.5*T.log(beta / (2*np.pi))
+
+        return unmasked_cost
+
+
+
+
+
+http://www.iro.umontreal.ca/~lisa/twiki/bin/view.cgi/Public/DBNEquations
+
+capiturlo 5
+http://www.iro.umontreal.ca/~bengioy/papers/ftml_book.pdf
+
+
 alamcenamiento de los datos...
     debe ser del tipo numpy?
         NO CudaNarray

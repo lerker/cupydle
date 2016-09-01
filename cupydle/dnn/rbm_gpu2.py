@@ -281,6 +281,7 @@ class RBM(object):
         wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
         vbias_term = theano.tensor.dot(vsample, self.visbiases)
         hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
+        #return -hidden_term - vbias_term +  0.5* theano.tensor.sum(vbias_term**2, axis=0)
         return -hidden_term - vbias_term
 
     def crearDibujo(self, datos, axe=None, titulo='', estilo='b-'):
