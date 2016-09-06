@@ -96,8 +96,9 @@ if __name__ == "__main__":
     clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
     clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
     clasificador.setParametroEntrenamiento({'momento':0.0})
-    clasificador.setParametroEntrenamiento({'epocas':1000})
     clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
+    clasificador.setParametroEntrenamiento({'epocas':10})
+    clasificador.setParametroEntrenamiento({'toleranciaError':0.08})
 
     clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=10, clasificacion=True, pesos=None, biases=None)

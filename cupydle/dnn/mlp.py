@@ -29,6 +29,7 @@ import os
 import sys
 import pickle
 import gzip
+import time
 
 import numpy
 from numpy.random import RandomState as npRandom
@@ -42,6 +43,8 @@ from cupydle.dnn.capas import CapaClasificacion
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset
+
+from cupydle.dnn.stops import criterios
 
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
@@ -89,6 +92,8 @@ class MLP(object):
         self.parametrosEntrenamiento['momento'] = 0.0
         self.parametrosEntrenamiento['epocas'] = 0.0
         self.parametrosEntrenamiento['activationfuntion'] = sigmoideaTheano()
+        self.parametrosEntrenamiento['toleranciaError'] = 0.0
+        self.parametrosEntrenamiento['tiempoMaximo'] = 0
         return 1
 
     def setParametroEntrenamiento(self, parametros):
@@ -249,6 +254,116 @@ class MLP(object):
         print('Entrenando') if MLP.verbose else None
 
         # early-stopping parameters
+        errorValidacionHistorico = numpy.inf
+        epoca = 0
+        looping = True
+        errorTest=0.0
+
+        iteracionesMax = criterios['iteracionesMaximas'](maxIter=self.parametrosEntrenamiento['epocas'])
+        toleranciaErr = criterios['toleranciaError'](self.parametrosEntrenamiento['toleranciaError'])
+
+        # inicio del entrenamiento por epocas
+        try:
+            while looping:
+
+                epoca = epoca + 1
+
+                # entreno con todo el conjunto de minibatches
+                costoEntrenamiento = [train_model(i) for i in range(n_train_batches)]
+                costoEntrenamiento = numpy.mean(costoEntrenamiento) # su media
+
+                errorValidacion = [validate_model(i) for i in range(n_valid_batches)]
+                errorValidacion = numpy.mean(errorValidacion)
+
+                print(str('Epoca {:>3d} de {:>3d}, '
+                        + 'Costo entrenamiento {:> 8.5f}, '
+                        + 'Error validacion {:> 8.5f}').format(
+                        epoca, self.parametrosEntrenamiento['epocas'], costoEntrenamiento*100.0, errorValidacion*100.0))
+
+                # se obtuvo un error bajo en el conjunto validacion, se prueba en
+                # el conjunto de test como funciona
+                if errorValidacion < errorValidacionHistorico:
+                    errorValidacionHistorico = errorValidacion
+                    best_iter = epoca
+
+                    errorTest = [test_model(i) for i in range(n_test_batches)]
+                    errorTest = numpy.mean(errorTest)
+                    print('     Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
+
+
+                # para concatenar meter un or
+                #print("1",not iteraciones(resultados=epoca))
+                #print("2",not toleranciaErr(errorValidacion))
+
+                looping = not(iteracionesMax(resultados=epoca) or toleranciaErr(errorValidacion))
+            # termino el while
+        except (KeyboardInterrupt, SystemExit):
+            print("Se finalizo el proceso de entrenamiento. Guardando los datos")
+            try:
+                time.sleep(5)
+            except (KeyboardInterrupt, SystemExit):
+                sys.exit(1)
+
+
+        print('Entrenamiento Finalizado. Mejor puntaje de validacion: {:> 8.5f} con un performance en el test de {:> 8.5f}'.format
+              (errorValidacionHistorico * 100., errorTest * 100.))
+
+
+
+
+        print("reales", predictor()[1][0:10])
+        print("predic", predictor()[0][0:10])
+
+    def train_bengio(self, trainSet, validSet, testSet, batch_size):
+
+        assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
+
+        y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
+                                        # [int] labels
+
+        trainX, trainY  = shared_dataset(trainSet)
+        validX, validY  = shared_dataset(validSet)
+        testX, testY    = shared_dataset(testSet)
+
+        n_train_batches = trainX.get_value(borrow=True).shape[0] // batch_size
+        n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
+        n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
+
+        # necesito actualizar los costos, si no hago este paso no tengo
+        # los valores requeridos
+        self.costos(y)
+
+        # actualizaciones
+        updates = []
+        updates = self.construirActualizaciones(costo=self.cost,
+                                                actualizaciones=updates)
+        costo = (self.cost +
+                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
+                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
+
+        train_model, validate_model, test_model = self.construirFunciones(
+                                        datosEntrenamiento=shared_dataset(trainSet),
+                                        datosValidacion=shared_dataset(validSet),
+                                        datosTesteo=shared_dataset(testSet),
+                                        cost=costo,
+                                        batch_size=batch_size,
+                                        updates=updates,
+                                        y=y)
+
+
+        k = self.predict()
+        ll = trainY
+        predictor = theano.function(
+                        inputs=[],
+                        outputs=[k,ll],
+                        givens={
+                            self.x: trainX},
+                        name='predictor'
+        )
+
+        print('Entrenando') if MLP.verbose else None
+
+        # early-stopping parameters
         patience = 10000  # look as this many examples regardless
         patience_increase = 2  # wait this much longer when a new best is
                                # found
@@ -264,17 +379,25 @@ class MLP(object):
         best_iter = 0
         test_score = 0.
 
-        epoch = 0
+        epoca = 0
         done_looping = False
 
+        #from cupydle.dnn.stops import iteracionesMaximas
+        from cupydle.dnn.stops import criterios
+        iteraciones = criterios['iteracionesMaximas'](maxIter=self.parametrosEntrenamiento['epocas'])
 
-        while (epoch < self.parametrosEntrenamiento['epocas']) and (not done_looping):
-            epoch = epoch + 1
+
+        #while (epoca < self.parametrosEntrenamiento['epocas']) and (not done_looping):
+        while (not iteraciones(resultados=epoca)) and (not done_looping):
+
+            epoca = epoca + 1
+
+            # por cada minibatch
             for minibatch_index in range(n_train_batches):
 
                 minibatch_avg_cost = train_model(minibatch_index)
                 # iteration number
-                iter = (epoch - 1) * n_train_batches + minibatch_index
+                iter = (epoca - 1) * n_train_batches + minibatch_index
 
                 if (iter + 1) % validation_frequency == 0:
                     # compute zero-one loss on validation set
@@ -285,7 +408,7 @@ class MLP(object):
                     print(
                         'epoca %i, error validacion %f %%' %
                         (
-                            epoch,
+                            epoca,
                             this_validation_loss * 100.
                         )
                     )
@@ -308,7 +431,7 @@ class MLP(object):
                         test_score = numpy.mean(test_losses)
 
                         print(('     epoca %i, error test del modelo %f %%') %
-                              (epoch, test_score * 100.))
+                              (epoca, test_score * 100.))
 
                 if patience <= iter:
                     done_looping = True
