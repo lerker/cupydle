@@ -117,8 +117,8 @@ if __name__ == "__main__":
 
     red.entrenamiento(data=datos[0][0],
                       miniBatchSize=batchSize,
-                      pcd=False,
-                      gibbsSteps=1,
+                      pcd=True,
+                      gibbsSteps=5,
                       validationData=datos[1][0],
                       filtros=True)
 

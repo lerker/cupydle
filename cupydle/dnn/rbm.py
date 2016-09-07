@@ -543,10 +543,40 @@ class RBM(object):
         return ([salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1], updates)
 
 
-    def DivergenciaContrastivaPersistente(self, miniBatchSize, sharedData):
+    def pasoGibbsPersistente(self, muestra, steps):
+        # si fuera de un solo paso, se samplea las ocultas, re recupera las visibles
+        # y vuelve a samplear las ocultas (aunque no se utilece el samble ultimo, solo la probabilidad)
 
+        # si fuera de un solo paso, se samplea las ocultas, re recupera las visibles
+        # y vuelve a samplear las ocultas (aunque no se utilece el samble ultimo, solo la probabilidad)
+
+        # un paso de CD es Visible->Hidden->Visible
+        def unPaso(muestraV, w, vbias, hbias):
+
+            salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV(muestraV)
+            salidaLineal_Vk, probabilidad_Vk, muestra_Vk = self.muestrearVdadoH(muestra_H0)
+
+            return [salidaLineal_H0, probabilidad_H0, muestra_H0, salidaLineal_Vk, probabilidad_Vk, muestra_Vk]
+
+        ( [salidaLineal_H0, probabilidad_H0, muestra_H0, salidaLineal_Vk, probabilidad_Vk, muestra_Vk],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_pasosGibbsPersistente')
+
+
+        return ([salidaLineal_H0[-1], probabilidad_H0[-1], muestra_H0[-1], salidaLineal_Vk[-1], probabilidad_Vk[-1], muestra_Vk[-1]], updates)
+
+    def DivergenciaContrastivaPersistente(self, miniBatchSize, sharedData):
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+
+        # primer termino del grafiente de la funcion de verosimilitud
+        # la esperanza sobre el conjunto del dato
+        salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV(self.x)
 
         # initialize storage for the persistent chain (state = hidden
         # layer of chain)
@@ -554,44 +584,48 @@ class RBM(object):
                                                      dtype=theanoFloat),
                                          borrow=True)
 
-        # Oculta->Visible->Oculta
-        ([salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1],
-          updates ) = self.gibbsHVH(persistent_chain, steps)
+        # aproximo el segundo termino del gradiente de la funcion de verosimilitud
+        # por medio de una cadena de Gibbs
+        ([salidaLineal_Vk, probabilidad_Vk, muestra_Vk, salidaLineal_Hk, probabilidad_Hk, muestra_Hk],
+         updates) = self.pasoGibbs2(persistent_chain, steps)
 
-        chain_end = muestra_V1[-1]
 
-        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
-            self.energiaLibre(chain_end))
+        energia_dato = theano.tensor.mean(self.energiaLibre(self.x))
+        # TODO ver si le meto la salida lineal o bien la probabilidad
+        energia_modelo = theano.tensor.mean(self.energiaLibre(muestra_Vk))
+        #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
 
-        deltaEnergia = cost
+        costo1 = energia_dato - energia_modelo
 
         # construyo las actualizaciones en los updates (variables shared)
-        # segun el costo, constant es para proposito del gradiente
-        updates=self.buildUpdates(updates2=updates, cost=deltaEnergia,
-                probHidAct=probabilidad_H1[-1], muestraVres=chain_end,
-                muestraHres=probabilidad_H1[-1], muestra_H1=muestra_H1[-1])
+        updates=self.construirActualizaciones(
+                    updatesOriginal=updates,
+                    probabilidad_H0=probabilidad_H0,
+                    probabilidad_Vk=probabilidad_Vk,
+                    probabilidad_Hk=probabilidad_Hk,
+                    muestra_Vk=muestra_Vk,
+                    miniBatchSize=miniBatchSize)
 
+        costo2 = self.reconstructionCost(salidaLineal_Vk)
 
-        # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
+        costo3 = self.reconstructionCost_MSE(probabilidad_Vk)
 
         #updates[persistent_chain] = muestra_H1[-1]
-        updates.append((persistent_chain, muestra_H1[-1]))
+        updates.append((persistent_chain, muestra_Hk))
 
-        monitoring_cost = self.pseudoLikelihoodCost(updates)
-
-        errorCuadratico = self.reconstructionCost_MSE(chain_end)
 
         train_rbm = theano.function(
                         inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        outputs=[costo2, costo3, costo1],
                         updates=updates,
                         givens={
                             self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
                         },
-                        name='train_rbm_pcd'
+            name='train_rbm_pcd'
         )
 
         return train_rbm
+
 
     def DivergenciaContrastivaPersistente_bengio(self, miniBatchSize, sharedData):
 
@@ -690,8 +724,6 @@ class RBM(object):
         return mse
 
 
-
-
     def pasoGibbs(self, muestra, steps):
         # si fuera de un solo paso, se samplea las ocultas, re recupera las visibles
         # y vuelve a samplear las ocultas (aunque no se utilece el samble ultimo, solo la probabilidad)
@@ -742,7 +774,6 @@ class RBM(object):
         return ([salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1], salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1]], updates)
 
 
-
     def DivergenciaContrastiva(self, miniBatchSize, sharedData):
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
@@ -790,6 +821,41 @@ class RBM(object):
 
         return train_rbm
 
+    def DivergenciaContrastiva_begio(self, miniBatchSize, sharedData):
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # Visible -> Hidden -> Visible
+        ([ _, _, _, salidaLineal_V1, _, muestra_V1],
+          updates) = self.gibbsVHV(self.x, steps)
+
+        chain_end = muestra_V1[-1]
+
+        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
+            self.energiaLibre(chain_end))
+
+        deltaEnergia = cost
+
+        # construyo las actualizaciones en los updates (variables shared)
+        # segun el costo, constant es para proposito del gradiente
+        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
+
+
+        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
+
+        errorCuadratico = self.reconstructionCost_MSE(chain_end)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+            name='train_rbm_cd'
+        )
+
+        return train_rbm
 
     def construirActualizaciones(self, updatesOriginal, probabilidad_H0, probabilidad_Vk, probabilidad_Hk, muestra_Vk, miniBatchSize):
 
@@ -838,6 +904,61 @@ class RBM(object):
         # se concatenan todas las actualizaciones en una sola
         updates += updatesOriginal.items()
 
+        return updates
+
+    def buildUpdates_bengio(self, updates, cost, constant):
+        """
+        calcula las actualizaciones de la red sobre sus parametros w hb y vh
+        con momento
+        tasa de aprendizaje para los pesos, y los biases visibles y ocultos
+        """
+        # arreglo los parametros en caso de que no se hayan establecidos, considero las
+        # tasa de aprendizaje para los bias igual al de los pesos
+        if self.params['epsilonvb'] is None:
+            self.params['epsilonvb'] = self.params['epsilonw']
+        if self.params['epsilonvb'] == 0.0:
+            self.params['epsilonvb'] = self.params['epsilonw']
+
+        if self.params['epsilonhb'] is None:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        if self.params['epsilonhb'] == 0.0:
+            self.params['epsilonhb'] = self.params['epsilonw']
+        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
+
+
+        # We must not compute the gradient through the gibbs sampling
+        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
+        #gparams = theano.tensor.grad(cost, self.internalParams)
+
+        # creo una lista con las actualizaciones viejas (shared guardadas)
+        oldUpdates = [self.vishidinc, self.hidbiasinc, self.visbiasinc]
+
+        # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
+        parametersTuples = zip(self.internalParams, gparams, oldUpdates)
+
+        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
+        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
+        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
+
+        otherUpdates = []
+
+        for param, delta, oldUpdate in parametersTuples:
+            # segun el paramerto tengo diferentes learning rates
+            if param.name == self.w.name:
+                paramUpdate = momentum * oldUpdate - lr_pesos * delta
+            if param.name == self.visbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_vbias * delta
+            if param.name == self.hidbiases.name:
+                paramUpdate = momentum * oldUpdate - lr_hbias * delta
+            #param es la variable o paramatro
+            #paramUpdate son los incrementos
+            #newParam es la variable mas su incremento
+            newParam = param + paramUpdate
+            otherUpdates.append((param, newParam)) # w-> w+inc ...
+            otherUpdates.append((oldUpdate, paramUpdate))  #winc_old -> winc_new
+
+        updates.update(otherUpdates)
         return updates
 
     def entrenamiento(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
@@ -926,188 +1047,6 @@ class RBM(object):
         self.dibujarEstadisticos()
         return 1
 
-    def DivergenciaContrastiva_begio(self, miniBatchSize, sharedData):
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-        # Visible -> Hidden -> Visible
-        ([ _, _, _, salidaLineal_V1, _, muestra_V1],
-          updates) = self.gibbsVHV(self.x, steps)
-
-        chain_end = muestra_V1[-1]
-
-        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
-            self.energiaLibre(chain_end))
-
-        deltaEnergia = cost
-
-        # construyo las actualizaciones en los updates (variables shared)
-        # segun el costo, constant es para proposito del gradiente
-        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
-
-
-        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
-
-        errorCuadratico = self.reconstructionCost_MSE(chain_end)
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-            name='train_rbm_cd'
-        )
-
-        return train_rbm
-
-    def buildUpdates_bengio(self, updates, cost, constant):
-        """
-        calcula las actualizaciones de la red sobre sus parametros w hb y vh
-        con momento
-        tasa de aprendizaje para los pesos, y los biases visibles y ocultos
-        """
-        # arreglo los parametros en caso de que no se hayan establecidos, considero las
-        # tasa de aprendizaje para los bias igual al de los pesos
-        if self.params['epsilonvb'] is None:
-            self.params['epsilonvb'] = self.params['epsilonw']
-        if self.params['epsilonvb'] == 0.0:
-            self.params['epsilonvb'] = self.params['epsilonw']
-
-        if self.params['epsilonhb'] is None:
-            self.params['epsilonhb'] = self.params['epsilonw']
-        if self.params['epsilonhb'] == 0.0:
-            self.params['epsilonhb'] = self.params['epsilonw']
-        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
-
-
-        # We must not compute the gradient through the gibbs sampling
-        gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
-        #gparams = theano.tensor.grad(cost, self.internalParams)
-
-        # creo una lista con las actualizaciones viejas (shared guardadas)
-        oldUpdates = [self.vishidinc, self.hidbiasinc, self.visbiasinc]
-
-        # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
-        parametersTuples = zip(self.internalParams, gparams, oldUpdates)
-
-        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
-        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
-        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
-        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
-
-        otherUpdates = []
-
-        for param, delta, oldUpdate in parametersTuples:
-            # segun el paramerto tengo diferentes learning rates
-            if param.name == self.w.name:
-                paramUpdate = momentum * oldUpdate - lr_pesos * delta
-            if param.name == self.visbiases.name:
-                paramUpdate = momentum * oldUpdate - lr_vbias * delta
-            if param.name == self.hidbiases.name:
-                paramUpdate = momentum * oldUpdate - lr_hbias * delta
-            #param es la variable o paramatro
-            #paramUpdate son los incrementos
-            #newParam es la variable mas su incremento
-            newParam = param + paramUpdate
-            otherUpdates.append((param, newParam)) # w-> w+inc ...
-            otherUpdates.append((oldUpdate, paramUpdate))  #winc_old -> winc_new
-
-        updates.update(otherUpdates)
-        return updates
-
-    def entrenamiento_bengio(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
-        # mirar:
-        # https://github.com/hunse/nef-rbm/blob/master/gaussian-binary-rbm.py
-        #
-        #
-        #
-        # ahi esta la actualziacion como lo hace hinton
-
-        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
-        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
-
-        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
-        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
-
-        # para la validacion
-        if validationData is not None:
-            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
-
-        trainer = None
-        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
-        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
-        if pcd:
-            print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
-        else:
-            print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
-        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
-
-        if filtros:
-            # plot los filtros iniciales (sin entrenamiento)
-            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
-
-
-
-        # cantidad de indices... para recorrer el set
-        indexCount = int(data.shape[0]/miniBatchSize)
-        costo = numpy.Inf
-        mse = numpy.Inf
-        fEnergy = numpy.Inf
-        finLinea='\n'
-        finLinea = '\r' if printCompacto else '\n'
-
-        for epoch in range(0, self.params['epocas']):
-            # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {:>3d} '
-                    + 'de {:>3d}, '
-                    + 'error<TrnSet>:{:> 8.5f}, '
-                    + 'MSE<ejemplo> :{:> 8.5f}, '
-                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch+1,
-                        self.params['epocas'],
-                        costo,
-                        mse,
-                        fEnergy),
-                    end=finLinea)
-
-            costo = []
-            mse = []
-            fEnergy = []
-            for batch in range(0, indexCount):
-                # salida[monitoring_cost, mse, deltafreeEnergy]
-                salida = trainer(batch, gibbsSteps)
-
-                costo.append(salida[0])
-                mse.append(salida[1])
-                fEnergy.append(salida[2])
-
-
-            costo = numpy.mean(costo)
-            mse = numpy.mean(mse)
-            fEnergy = numpy.mean(fEnergy)
-
-            self.agregarEstadistico(
-                {'errorEntrenamiento': costo,
-                 'mseEntrenamiento': mse,
-                 'errorValidacion': 0.0,
-                 'errorTesteo': 0.0,
-                 'energiaLibreEntrenamiento': fEnergy,
-                 'energiaLibreValidacion': 0.0})
-
-            if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
-                                    automatico=True)
-
-            # END SET
-        # END epoch
-        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
-
-        self.dibujarEstadisticos()
-        return 1
 
     def reconstruccion(self, muestraV, gibbsSteps=1):
         """
