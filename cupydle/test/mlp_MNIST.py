@@ -116,6 +116,8 @@ if __name__ == "__main__":
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
+    # guardando los parametros aprendidos
+    clasificador.guardarParametros()
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

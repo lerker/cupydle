@@ -20,6 +20,7 @@ import numpy
 import theano
 
 from cupydle.dnn.funciones import sigmoideaTheano
+from warnings import warn
 
 
 class Capa(object):
@@ -83,10 +84,18 @@ class Capa(object):
 
     # funciones para obtener valores
     def get_weights(self):
+        warn("No se deberia utilizar mas, <<getW>>")
         return self.W
 
     def get_bias(self):
+        warn("No se deberia utilizar mas, <<getB>>")
         return self.b
+
+    def getW(self):
+        return self.W.get_value(borrow=True)
+
+    def getB(self):
+        return self.b.get_value(borrow=True)
 
     def set_weights(self, w):
         if isinstance(w, theano.TensorType):

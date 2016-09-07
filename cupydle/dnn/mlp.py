@@ -138,12 +138,10 @@ class MLP(object):
         # las entradas deben ser las salidas de la anterior
         if unidadesEntrada is None:
             assert self.capas != [], "Unidades de entrada para esta capa?."
-            unidadesEntrada =   self.capas[-1].get_weights().\
-                                get_value(borrow=True).shape[1]
+            unidadesEntrada =   self.capas[-1].getW().shape[1]
         else:
             if self.capas != []:    # solo si ya hay carga una capa
-                assert unidadesEntrada ==   self.capas[-1].get_weights().\
-                                            get_value(borrow=True).shape[1]
+                assert unidadesEntrada ==   self.capas[-1].getW().shape[1]
 
         # si la capa no es de clasificacion, es de regresion logisctica
         if not clasificacion:
@@ -444,6 +442,16 @@ class MLP(object):
 
         print("reales", predictor()[1][0:10])
         print("predic", predictor()[0][0:10])
+
+    def guardarParametros(self):
+
+        # se alamacenan los pesos y bias por cada capa
+        for capa in enumerate(self.capas):
+            numpy.save(self.ruta + 'PesosW' + str(capa[0]+1) + '.npy', capa[1].getW())
+            numpy.save(self.ruta + 'BiasB' + str(capa[0]+1) + '.npy', capa[1].getB())
+
+        return 0
+
 
     def construirActualizaciones(self, costo, actualizaciones):
 
