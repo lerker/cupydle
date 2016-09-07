@@ -185,12 +185,13 @@ class controlDelTeclado:
     def matar(self, signum, frame):
         self.matar = True
 
-criterios = {'iteracionesMaximas': iteracionesMaximas,
-            'toleranciaError': toleranciaError,
-            'tiempoTranscurrido': tiempoTranscurrido,
+# diccionario a importar, del cual se llaman a las funciones.
+criterios = {'iteracionesMaximas':  iteracionesMaximas,
+            'toleranciaError':      toleranciaError,
+            'tiempoTranscurrido':   tiempoTranscurrido,
             'noMejorQueAntesError': noMejorQueAntesError,
-            'Patience': Patience,
-            'controlDelTeclado': controlDelTeclado}
+            'Patience':             Patience,
+            'controlDelTeclado':    controlDelTeclado}
 
 
 if __name__ == '__main__':

@@ -105,8 +105,9 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':1})
+        clasificador.setParametroEntrenamiento({'epocas':10})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
+        clasificador.setParametroEntrenamiento({'toleranciaError':0.08})
 
         clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
                                  unidadesSalida=unidadesCapas[1],
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     if rbm :
         print("S E C C I O N        R B M")
         pasosGibbs=1
-        numEpocas=1
+        numEpocas=5
         batchSize=10
 
         miDBN = DBN(name=None, ruta=rutaCompleta)
@@ -219,7 +220,8 @@ if __name__ == "__main__":
                     'activationfuntion':sigmoideaTheano()}
         miDBN.setParametrosAjuste(parametros)
 
-        miDBN.setParametrosAjuste({'epocas':1})
+        miDBN.setParametrosAjuste({'epocas':10})
+        #miDBN.setParametrosAjuste({'toleranciaError':0.08})
 
         miDBN.ajuste(datos=datos,
                      listaPesos=None,

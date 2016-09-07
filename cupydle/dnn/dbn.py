@@ -82,6 +82,7 @@ class rbmParams(object):
                 epsilonhb=None,
                 weightcost=None,
                 momentum=0.0,
+                toleranciaError=0.0,
                 unidadesVisibles=UnidadBinaria(),
                 unidadesOcultas=UnidadBinaria()):
         self.n_visible=n_visible
@@ -94,6 +95,7 @@ class rbmParams(object):
         self.epsilonhb=epsilonhb
         self.weightcost=weightcost
         self.momentum=momentum
+        self.toleranciaError=toleranciaError
         self.batchSize=batchSize
         self.unidadesVisibles=UnidadBinaria()
         self.unidadesOcultas=UnidadBinaria()
@@ -111,7 +113,8 @@ class rbmParams(object):
         print("Tasa de momento:",self.momentum)
         print("Castigo pesos:",self.weightcost)
         print("Pasos de Gibss:", self.pasosGibbs)
-        print("Tamaño del batch:",self.batchSize)
+        print("Tamanio del batch:",self.batchSize)
+        print("Tolerancia del error permitido:",self.toleranciaError)
         print("Tipo de Unidades Visibles:", self.unidadesVisibles)
         print("Tipo de Unidades Ocultas:", self.unidadesOcultas)
         return str("")
@@ -203,6 +206,7 @@ class DBN(object):
         self.parametrosAjuste['momento'] = 0.0
         self.parametrosAjuste['epocas'] = 0.0
         self.parametrosAjuste['activationfuntion'] = sigmoideaTheano()
+        self.parametrosAjuste['toleranciaError'] = 0.0
         return 1
 
     def setParametrosAjuste(self, parametros):
