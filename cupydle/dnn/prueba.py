@@ -88,7 +88,43 @@ print(((ww2-ww3)**2))
 
 
 
+print("\n\n\n")
+
+#ll = theanoGenerator.normal(size=(1,4), avg=0.0, std=1.0)
+from theano.tensor.shared_randomstreams import RandomStreams
+from theano import function
+srng = RandomStreams(seed=234)
+rv_u = srng.uniform((1,4))
+rv_n = srng.normal((1,4))
+f = function([], rv_u)
+g = function([], rv_n, no_default_updates=True)    #Not updating rv_n.rng
+#nearly_zeros = function([], rv_u + rv_u - 2 * rv_u)
+
+#print(nearly_zeros())
+print(g())
+#coso = theano.function([],ll)
+for i in range(10):
+    print(f())
 
 
+from cupydle.dnn.unidades import UnidadGaussiana_prueba as ug
 
+unit = ug(media=0.0, desviacionEstandar=0.1)
+unit.dibujar_histograma()
 
+from cupydle.dnn.funciones import gaussianaTheano as gT
+prob = gT(media=0.0, desviacionEstandar=1.0)
+prob.dibujar()
+
+for i in range(20):
+    cooo = numpy.random.normal(size=(1,5), loc=0.0, scale=0.1)
+    print(cooo)
+
+mu, sigma = 0, 0.1 # mean and standard deviation
+s = numpy.random.normal(mu, sigma, 1000)
+print(abs(mu - numpy.mean(s)) < 0.01)
+
+import matplotlib.pyplot as plt
+count, bins, ignored = plt.hist(s, 30, normed=True)
+plt.plot(bins, 1/(sigma * numpy.sqrt(2 * numpy.pi)) * numpy.exp( - (bins - mu)**2 / (2 * sigma**2) ),linewidth=2, color='r')
+plt.show()

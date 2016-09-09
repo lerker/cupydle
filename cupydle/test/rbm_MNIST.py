@@ -30,6 +30,7 @@ import argparse
 # Dependencias Externas
 ## Core
 from cupydle.dnn.unidades import UnidadBinaria
+from cupydle.dnn.unidades import UnidadGaussiana
 ## Data
 from cupydle.test.mnist.mnist import MNIST
 from cupydle.test.mnist.mnist import open4disk
@@ -119,7 +120,7 @@ if __name__ == "__main__":
 
     red.entrenamiento(data=datos[0][0],
                       miniBatchSize=batchSize,
-                      pcd=True,
+                      pcd=False,
                       gibbsSteps=1,
                       validationData=datos[1][0],
                       filtros=True)
