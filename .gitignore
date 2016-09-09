@@ -76,3 +76,5 @@ cupydle/test/mnist/test[0-1]/*
 cupydle/data/DB_mnist/*
 *.png
 *.pdf
+*.npy
+*.npz
