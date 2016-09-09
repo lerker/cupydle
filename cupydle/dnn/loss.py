@@ -1,38 +1,25 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__      = "Ponzoni, Nelson"
+__copyright__   = "Copyright 2015"
+__credits__     = ["Ponzoni Nelson"]
+__maintainer__  = "Ponzoni Nelson"
+__contact__     = "npcuadra@gmail.com"
+__email__       = "npcuadra@gmail.com"
+__license__     = "GPL"
+__version__     = "1.0.0"
+__status__      = "Production"
+
+
 import numpy as np
 
-__author__ = "Nelson Ponzoni"
-__copyright__ = "Copyright 2015-2016, Proyecto Final de Carrera"
-__credits__ = ["Nelson Ponzoni"]
-__license__ = "GPL"
-__version__ = "20160101"
-__maintainer__ = "Nelson Ponzoni"
-__email__ = "npcuadra@gmail.com"
-__status__ = "Production"
-
-"""
-Loss funtions to evaluate de error, difference of real to expected value
-"""
-
 from cupydle.dnn.utils import vectorize_label
+import theano
 
 
-def mse(value, target):
-    # TODO aca creo que es el error entre el 'target' y la salida de la red
-    # tener en cuenta que la salida de la red puede ser un softmax, por lo tanto
-    # si son por ejemplo 10 salidas, la correspondiente al softmax es la salida esperada
-    # y que ademas esta etiquetada
-    #
-    # antes..
-    """
-    err = (target - value).matrix
-    n = err.size
-    return np.sum(np.square(err)) / (1.0 * n)
-    """
-    value = value - max(value.matrix)
-    softmax = np.exp(value.matrix) / (sum(np.exp(value.matrix)))
-    value = np.argmax(softmax)
-    error = np.square(target - value)
-    return error.matrix[0][0]
+def errorCuadraticoMedio(objetivo, valor):
+    return theano.tensor.mean(theano.tensor.sum((objetivo - valor) ** 2))
 
 
 def mse_prime(value, target):
@@ -71,5 +58,8 @@ def cross_entropy_d(value, target):
     value = vectorize_label(label=value[0], n_classes=len(target))
     return target - value
 
-fun_loss = {'MSE': mse, 'CROSS_ENTROPY': cross_entropy}
+fun_loss = {'errorCuadraticoMedio': errorCuadraticoMedio, 'CROSS_ENTROPY': cross_entropy}
 fun_loss_prime = {'MSE': mse_prime, 'CROSS_ENTROPY': cross_entropy_d}
+
+if __name__ == '__main__':
+    assert False, "Este modulo no es ejecutable!!!"

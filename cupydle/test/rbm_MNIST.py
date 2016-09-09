@@ -100,7 +100,9 @@ if __name__ == "__main__":
                 'momentum':0.0,
                 'weightcost':0.0,
                 'unidadesVisibles':UnidadBinaria(),
-                'unidadesOcultas':UnidadBinaria()}
+                'unidadesOcultas':UnidadBinaria(),
+                'dropoutVisibles': 1.0, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
+                'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
     red.setParams(parametros)
     red.setParams({'epocas':10})
@@ -118,7 +120,7 @@ if __name__ == "__main__":
     red.entrenamiento(data=datos[0][0],
                       miniBatchSize=batchSize,
                       pcd=True,
-                      gibbsSteps=5,
+                      gibbsSteps=1,
                       validationData=datos[1][0],
                       filtros=True)
 

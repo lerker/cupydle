@@ -42,6 +42,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 theanoFloat  = theano.config.floatX
 
 from cupydle.dnn.unidades import UnidadBinaria
+from cupydle.dnn.loss import errorCuadraticoMedio
+from warnings import warn
 
 
 """
@@ -210,6 +212,9 @@ class RBM(object):
         self.params['epocas'] = 0.0
         self.params['unidadesVisibles'] = UnidadBinaria()
         self.params['unidadesOcultas'] = UnidadBinaria()
+        self.params['dropoutVisibles'] = 1.0
+        self.params['dropoutOcultas'] = 1.0
+
         return 1
 
     def set_w(self, w):
@@ -498,6 +503,43 @@ class RBM(object):
 
         return [salidaLineal_V1, probabilidad_V1, muestra_V1]
 
+    def muestrearVdadoH_dropout(self, muestra_H0, mask):
+        salidaLineal_V1 = theano.tensor.dot(muestra_H0, self.w.T) + self.visbiases
+        #muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1*theano.tensor.cast(mask, theanoFloat))
+
+        salidaLineal_V1*=theano.tensor.cast(mask, theanoFloat)
+
+        muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1)
+
+
+        #muestra_V1 *= theano.tensor.cast(mask, theanoFloat)
+        #probabilidad_V1*=theano.tensor.cast(mask, theanoFloat)
+
+        return [salidaLineal_V1, probabilidad_V1, muestra_V1]
+
+
+    def muestrearHdadoV_dropout(self, muestra_V0, mask):
+        # segun hinton
+        # srivastava2014dropout.pdf
+        # Dropout: A Simple Way to Prevent Neural Networks from Overfitting
+
+
+
+        #theano.tensor.cast(mask, theanoFloat)
+        salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
+        #muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1*theano.tensor.cast(mask, theanoFloat))
+
+        salidaLineal_H1 *= theano.tensor.cast(mask, theanoFloat)
+
+        muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
+
+
+        #muestra_H1*=theano.tensor.cast(mask, theanoFloat)
+        #probabilidad_H1*=theano.tensor.cast(mask, theanoFloat)
+
+        return [salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+
     def muestrearHdadoV(self, muestra_V0):
         salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
         muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
@@ -570,6 +612,89 @@ class RBM(object):
         return ([salidaLineal_H0[-1], probabilidad_H0[-1], muestra_H0[-1], salidaLineal_Vk[-1], probabilidad_Vk[-1], muestra_Vk[-1]], updates)
 
     def DivergenciaContrastivaPersistente(self, miniBatchSize, sharedData):
+        # con dropout
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+                # dropout
+        from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+        from numpy.random import randint as npRandint
+        theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+
+        # tamanio de la mascara
+
+        visibleDropout=self.params['dropoutVisibles']
+        hiddenDropout=self.params['dropoutOcultas']
+        dropoutMaskVisible = theanoGenerator.binomial(
+                                size=self.hidbiases.shape,
+                                n=1, p=visibleDropout,
+                                dtype=theanoFloat)
+        dropoutMaskVisible2 = theanoGenerator.binomial(
+                                size=self.x.shape,
+                                n=1, p=visibleDropout,
+                                dtype=theanoFloat)
+        droppedOutVisible = self.x * dropoutMaskVisible2
+
+        dropoutMaskHidden = theanoGenerator.binomial(
+                                size=self.visbiases.shape,
+                                n=1, p=hiddenDropout,
+                                dtype=theanoFloat)
+
+
+        # primer termino del grafiente de la funcion de verosimilitud
+        # la esperanza sobre el conjunto del dato
+        salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV_dropout(droppedOutVisible, mask=dropoutMaskVisible)
+
+        # initialize storage for the persistent chain (state = hidden
+        # layer of chain)
+        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
+                                                     dtype=theanoFloat),
+                                         borrow=True)
+
+        # aproximo el segundo termino del gradiente de la funcion de verosimilitud
+        # por medio de una cadena de Gibbs
+        ([salidaLineal_Vk, probabilidad_Vk, muestra_Vk, salidaLineal_Hk, probabilidad_Hk, muestra_Hk],
+         updates) = self.pasoGibbs22(persistent_chain, steps, drop1=dropoutMaskVisible, drop2=dropoutMaskHidden)
+
+
+        energia_dato = theano.tensor.mean(self.energiaLibre(droppedOutVisible))
+        # TODO ver si le meto la salida lineal o bien la probabilidad
+        energia_modelo = theano.tensor.mean(self.energiaLibre(muestra_Vk))
+        #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
+
+        costo1 = energia_dato - energia_modelo
+
+        # construyo las actualizaciones en los updates (variables shared)
+        updates=self.construirActualizaciones(
+                    updatesOriginal=updates,
+                    probabilidad_H0=probabilidad_H0,
+                    probabilidad_Vk=probabilidad_Vk,
+                    probabilidad_Hk=probabilidad_Hk,
+                    muestra_Vk=muestra_Vk,
+                    miniBatchSize=miniBatchSize)
+
+        costo2 = self.reconstructionCost(salidaLineal_Vk)
+
+        costo3 = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
+
+        #updates[persistent_chain] = muestra_H1[-1]
+        updates.append((persistent_chain, muestra_Hk))
+
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[costo2, costo3, costo1],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+            name='train_rbm_pcd'
+        )
+
+        return train_rbm
+
+    def DivergenciaContrastivaPersistente_backup(self, miniBatchSize, sharedData):
+        # sin dropout
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
@@ -713,7 +838,8 @@ class RBM(object):
         return crossEntropy
 
     def reconstructionCost_MSE(self, reconstrucciones):
-        # mean squared error, error cuadratico medio
+        warn("No se deberia utilizar mas, ver <<loss>>")
+        # mean squared error, error cuadratico medio esta mal este de aca
 
         mse = theano.tensor.mean(
                 theano.tensor.sum(
@@ -722,7 +848,6 @@ class RBM(object):
         )
 
         return mse
-
 
     def pasoGibbs(self, muestra, steps):
         # si fuera de un solo paso, se samplea las ocultas, re recupera las visibles
@@ -774,7 +899,109 @@ class RBM(object):
         return ([salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1], salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1]], updates)
 
 
-    def DivergenciaContrastiva(self, miniBatchSize, sharedData):
+    def pasoGibbs22(self, muestra, steps, drop1, drop2):
+        def unPaso(muestraH, w, vbias, hbias, drop11, drop22):
+            salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH_dropout(muestraH, drop22)
+            #salidaLineal_V1, probabilidad_V1, muestra_V1 = self.muestrearVdadoH(muestraH)
+            salidaLineal_H1, probabilidad_H1, muestra_H1 = self.muestrearHdadoV_dropout(muestra_V1, drop11)
+
+            return [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1]
+
+        ( [salidaLineal_V1, probabilidad_V1, muestra_V1, salidaLineal_H1, probabilidad_H1, muestra_H1],
+          updates) = theano.scan(fn           = unPaso,
+                                 outputs_info = [None, None, None, None, None, muestra],
+                                 non_sequences= [self.w, self.visbiases, self.hidbiases, drop1, drop2],
+                                 n_steps      = steps,
+                                 strict       = True,
+                                 name         = 'scan_pasoGibbs2')
+        return ([salidaLineal_V1[-1], probabilidad_V1[-1], muestra_V1[-1], salidaLineal_H1[-1], probabilidad_H1[-1], muestra_H1[-1]], updates)
+
+
+    def DivergenciaContrastiva(self, miniBatchSize, sharedData, visibleDropout=1):
+        ## con dropout
+        ##
+        steps = theano.tensor.iscalar(name='steps')         # CD steps
+        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
+
+        # dropout
+        from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+        from numpy.random import randint as npRandint
+        theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+
+        # tamanio de la mascara
+
+        # corregir esto como lo hizo mrosca
+        sized = (miniBatchSize, sharedData.get_value(borrow=True).shape[1])
+
+        visibleDropout=self.params['dropoutVisibles']
+        hiddenDropout=self.params['dropoutOcultas']
+        dropoutMaskVisible = theanoGenerator.binomial(
+                                size=self.hidbiases.shape,
+                                n=1, p=visibleDropout,
+                                dtype=theanoFloat)
+        dropoutMaskVisible2 = theanoGenerator.binomial(
+                                size=self.x.shape,
+                                n=1, p=visibleDropout,
+                                dtype=theanoFloat)
+        droppedOutVisible = self.x * dropoutMaskVisible2
+
+        dropoutMaskHidden = theanoGenerator.binomial(
+                                size=self.visbiases.shape,
+                                n=1, p=hiddenDropout,
+                                dtype=theanoFloat)
+
+
+
+        # primer termino del grafiente de la funcion de verosimilitud
+        # la esperanza sobre el conjunto del dato
+        salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV_dropout(droppedOutVisible, mask=dropoutMaskVisible)
+        #salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV_dropout(droppedOutVisible, mask=dropoutMaskVisible, p=visibleDropout)
+
+        # aproximo el segundo termino del gradiente de la funcion de verosimilitud
+        # por medio de una cadena de Gibbs
+        ([salidaLineal_Vk, probabilidad_Vk, muestra_Vk, salidaLineal_Hk, probabilidad_Hk, muestra_Hk],
+         updates) = self.pasoGibbs22(muestra_H0, steps, drop1=dropoutMaskVisible, drop2=dropoutMaskHidden)
+
+
+        #energia_dato = theano.tensor.mean(self.energiaLibre(self.x))
+        energia_dato = theano.tensor.mean(self.energiaLibre(droppedOutVisible))
+        # TODO ver si le meto la salida lineal o bien la probabilidad
+        energia_modelo = theano.tensor.mean(self.energiaLibre(probabilidad_Vk))
+        #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
+
+        costo1 = energia_dato - energia_modelo
+
+        # construyo las actualizaciones en los updates (variables shared)
+        updates=self.construirActualizaciones(
+                    updatesOriginal=updates,
+                    probabilidad_H0=probabilidad_H0,
+                    probabilidad_Vk=probabilidad_Vk,
+                    probabilidad_Hk=probabilidad_Hk,
+                    muestra_Vk=muestra_Vk,
+                    miniBatchSize=miniBatchSize)
+
+        costo2 = self.reconstructionCost(salidaLineal_Vk)
+
+
+        #costo3 = self.reconstructionCost_MSE(droppedOutVisible, probabilidad_Vk)
+        costo3 = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
+
+        train_rbm = theano.function(
+                        inputs=[miniBatchIndex, steps],
+                        outputs=[costo2, costo3, costo1],
+                        updates=updates,
+                        givens={
+                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
+                        },
+            name='train_rbm_cd'
+        )
+
+        return train_rbm
+
+
+    def DivergenciaContrastiva_Backup(self, miniBatchSize, sharedData):
+        # sin dropout
+
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
@@ -875,6 +1102,13 @@ class RBM(object):
         lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
         lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
 
+        # el escalado del dropout es realizado en el ajuste fino... no aca
+        """
+        dropout = self.params['dropoutVisibles']
+        if dropout in [0.0, 0]:
+            dropout = 0.00005
+        dropout = theano.tensor.cast(dropout, dtype=theanoFloat)
+        """
         updates = []
 
         # actualizacion de W
@@ -884,6 +1118,7 @@ class RBM(object):
         delta = positiveDifference - negativeDifference
         wUpdate = momentum * self.vishidinc
         wUpdate += lr_pesos * delta / miniBatchSize
+        #wUpdate *= (1.0/(dropout))
         updates.append((self.w, self.w + wUpdate))
         updates.append((self.vishidinc, wUpdate))
 
