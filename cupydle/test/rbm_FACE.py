@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
     red.setParams(parametros)
-    red.setParams({'epocas':10})
+    red.setParams({'epocas':2})
 
 
     T = temporizador()
@@ -123,10 +123,11 @@ if __name__ == "__main__":
 
 
     red.entrenamiento(data=datos[0][0],
-                      miniBatchSize=batchSize,
+                      tamMiniBatch=batchSize,
+                      tamMacroBatch=datos[1][0].shape[0]//2,
                       pcd=False,
                       gibbsSteps=1,
-                      validationData=datos[1][0],
+                      validationData=False,
                       filtros=True)
 
     final = T.toc()

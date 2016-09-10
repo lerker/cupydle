@@ -1214,6 +1214,13 @@ class RBM(object):
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
+        import time
+        print("commentzzzz")
+        time.sleep(10)
+        print(gpu_info())
+        time.sleep(10)
+        assert False
+
         if tamMacroBatch is None:
             tamMacroBatch = data.shape[0]
 
