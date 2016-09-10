@@ -22,6 +22,20 @@ __version__     = "1.0.0"
 __status__      = "Production"
 
 
+def mostrar_tamaniode(x, level=0):
+    # imprime el tamanio de cualquier objeto pasado
+    print("\t" * level, x.__class__, sys.getsizeof(x), x)
+
+    if hasattr(x, '__iter__'):
+        if hasattr(x, 'items'):
+            for xx in x.items():
+                mostrar_tamaniode(xx, level + 1)
+        else:
+            for xx in x:
+                mostrar_tamaniode(xx, level + 1)
+    return 0
+
+
 def subsample(data, size, balanced=True, seed=123):
     """
 

@@ -1,3 +1,6 @@
+from cupydle.dnn.utils_theano import gpu_info
+print(gpu_info(conversion='Mb'))
+
 import theano
 import numpy
 
@@ -128,3 +131,37 @@ import matplotlib.pyplot as plt
 count, bins, ignored = plt.hist(s, 30, normed=True)
 plt.plot(bins, 1/(sigma * numpy.sqrt(2 * numpy.pi)) * numpy.exp( - (bins - mu)**2 / (2 * sigma**2) ),linewidth=2, color='r')
 plt.show()
+
+
+
+
+###
+###
+"""
+import numpy as np
+import theano.tensor as T
+T.config.floatX = 'float32'
+dataPoints = np.random.random((50000, 784)).astype(T.config.floatX)
+#float32 data type requires 4 bytes
+sizeinGBs = 5000 * 784 * 4 / 1024. / 1024 / 1024 + 0
+print("Data will need GBs of free memory", sizeinGBs)
+"""
+
+
+from cupydle.dnn.utils_theano import gpu_info
+
+import numpy as np
+import theano.tensor as T
+from theano import shared
+T.config.floatX = 'float32'
+
+
+print("inicio")
+print(gpu_info(conversion='Mb'))
+testData = shared(np.random.random((5000, 1000)).astype(T.config.floatX), borrow = True)
+print("despues de 1", gpu_info(conversion='Mb'))
+del testData
+print("despues de 2", gpu_info(conversion='Mb'))
+testData = shared(np.random.random((5000, 1000)).astype(T.config.floatX), borrow = False)
+print("despues de 3", gpu_info(conversion='Mb'))
+

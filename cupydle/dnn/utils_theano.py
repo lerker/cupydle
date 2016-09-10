@@ -12,6 +12,7 @@ __status__      = "Production"
 
 import theano
 import theano.misc.pkl_utils
+import theano.sandbox.cuda.basic_ops as sbcuda
 import theano.tensor
 import numpy
 
@@ -63,3 +64,30 @@ def shared_dataset(data_xy, borrow=True):
     # ``shared_y`` we will have to cast it to int. This little hack
     # lets ous get around this issue
     return shared_x, theano.tensor.cast(shared_y, 'int32')
+
+def gpu_info(conversion='Gb'):
+    """
+    Retorna la informacion relevante de la GPU (memoria)
+    Valores REALES, en base 1024 y no 1000 como lo expresa el fabricante
+
+    :type conversion: str
+    :param conversion: resultado devuelto en Mb o Gb (default)
+    """
+
+    # sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[1]
+    # es una tupla de la forma
+    # (cantidad de momoria libre, cantidad de momeria total)
+
+    # memoria fisica total
+    memoriaTotalMb = sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[1]
+    memoriaTotal = memoriaTotalMb/1024./1024
+    memoriaTotal = (memoriaTotal/1024.) if conversion == 'Gb' else memoriaTotal
+
+    # memoria disponible
+    memoriaOcupadaMb = sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[0]
+    memoriaOcupada = memoriaOcupadaMb/1024./1024/1024
+    memoriaOcupada = (memoriaOcupada/1024.) if conversion == 'Gb' else memoriaOcupada
+
+    memoriaLibre = memoriaTotal - memoriaOcupada
+
+    return memoriaLibre, memoriaOcupada, memoriaTotal
