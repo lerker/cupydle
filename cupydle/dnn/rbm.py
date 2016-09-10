@@ -1214,12 +1214,7 @@ class RBM(object):
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
-        import time
-        print("commentzzzz")
-        time.sleep(10)
-        print(gpu_info())
-        time.sleep(10)
-        assert False
+        print("MEMORIA: ", gpu_info())
 
         if tamMacroBatch is None:
             tamMacroBatch = data.shape[0]
@@ -1270,6 +1265,8 @@ class RBM(object):
 
         costo = numpy.Inf; mse = numpy.Inf; fEnergy = numpy.Inf
         finLinea = '\r' if printCompacto else '\n'
+
+        print("MEMORIA antes de iterar: ", gpu_info())
 
         for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
