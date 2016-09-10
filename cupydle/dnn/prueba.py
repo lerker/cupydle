@@ -155,13 +155,16 @@ import theano.tensor as T
 from theano import shared
 T.config.floatX = 'float32'
 
+import time
 
 print("inicio")
 print(gpu_info(conversion='Mb'))
-testData = shared(np.random.random((5000, 1000)).astype(T.config.floatX), borrow = True)
+testData = shared(np.random.random((50000, 1000)).astype(T.config.floatX), borrow = True)
 print("despues de 1", gpu_info(conversion='Mb'))
+time.sleep(10)
 del testData
 print("despues de 2", gpu_info(conversion='Mb'))
-testData = shared(np.random.random((5000, 1000)).astype(T.config.floatX), borrow = False)
+time.sleep(10)
+testData = shared(np.random.random((50000, 1000)).astype(T.config.floatX), borrow = False)
 print("despues de 3", gpu_info(conversion='Mb'))
-
+time.sleep(10)

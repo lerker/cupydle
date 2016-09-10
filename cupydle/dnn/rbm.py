@@ -43,6 +43,9 @@ theanoFloat  = theano.config.floatX
 
 from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
+
+from cupydle.dnn.utils_theano import gpu_info
+
 from warnings import warn
 
 
