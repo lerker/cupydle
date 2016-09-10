@@ -989,6 +989,13 @@ class RBM(object):
         #costo3 = self.reconstructionCost_MSE(droppedOutVisible, probabilidad_Vk)
         costo3 = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
 
+        """
+        estadisticos_update = []
+        estadistico = (self.sharedEstadisticos, self.sharedEstadisticos + [costo2, costo3, costo1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        estadisticos_update.append(estadistico)
+        updates += estadisticos_update
+        """
+
         train_rbm = theano.function(
                         inputs=[miniBatchIndex, steps],
                         outputs=[costo2, costo3, costo1],
@@ -1200,38 +1207,53 @@ class RBM(object):
         return updates
 
 
-    def entrenamiento(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
+    def entrenamiento(self, data, tamMiniBatch=10, tamMacroBatch=None, pcd=True, gibbsSteps=1, validationData=None, tamMacroBatchVal=None, filtros=False, printCompacto=False):
+        """
+        proceso central de entrenamiento.
+
+        :type tamMiniBatch: int
+        :param tamMiniBatch: cantidad de ejeemplos del subconjunto
+        """
+        if tamMacroBatch is None:
+            tamMacroBatch = data.shape[0]
+
+        tamMacroBatch = int(tamMacroBatch)
+        tamMiniBatch = int(tamMiniBatch)
+
+        assert data.shape[0] % tamMacroBatch == 0
+        assert tamMacroBatch % tamMiniBatch == 0
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
 
-        macro_batch_size = int(data.shape[0]/2)
-        micro_batch_size = int(miniBatchSize)
-        # TODO controlar el tamanio de l macrobatch.. debe ser modificado a gusto ver como mejorarlo
-        #assert data.shape[0] % macro_batch_size == 0
-        #assert macro_batch_size % micro_batch_size == 0
+        macro_batch_count = int(data.shape[0] / tamMacroBatch)
+        micro_batch_count = int(tamMacroBatch / tamMiniBatch)
 
-
-        macro_batch_count = int(data.shape[0] / macro_batch_size)
-        micro_batch_count = int(macro_batch_size / micro_batch_size)
-        sharedData = theano.shared(numpy.empty((macro_batch_size,) + data.shape[1:], dtype=theanoFloat), borrow=True)
-
-        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
-        #sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
+        # buffer para alojar los datos de entrenamiento
+        sharedData = theano.shared(numpy.empty((tamMacroBatch,) + data.shape[1:], dtype=theanoFloat), borrow=True)
 
         # para la validacion
         if validationData is not None:
-            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+            tamMacroBatchVal = validationData.shape[0] if tamMacroBatchVal is None else tamMacroBatchVal
+            #sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
+            macro_batch_val_count = int(validationData.shape[0] / tamMacroBatchVal)
+            sharedDataValidation = theano.shared(numpy.empty((tamMacroBatchVal,) + validationData.shape[1:], dtype=theanoFloat), borrow=True)
+
+
+        """
+        self.sharedEstadisticos = theano.shared(numpy.zeros((10), dtype=theanoFloat))
+        """
+
 
         trainer = None
         self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
         self.fnActivacionUnidSalida = self.params['unidadesOcultas']
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
+            trainer = self.DivergenciaContrastivaPersistente(tamMiniBatch, sharedData)
         else:
             print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
+            trainer = self.DivergenciaContrastiva(tamMiniBatch, sharedData)
         print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
 
         if filtros:
@@ -1239,39 +1261,23 @@ class RBM(object):
             self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
 
 
-
-        # cantidad de indices... para recorrer el set
-        indexCount = int(data.shape[0]/miniBatchSize)
-        costo = numpy.Inf
-        mse = numpy.Inf
-        fEnergy = numpy.Inf
-        finLinea='\n'
+        costo = numpy.Inf; mse = numpy.Inf; fEnergy = numpy.Inf
         finLinea = '\r' if printCompacto else '\n'
 
         for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {:>3d} '
-                    + 'de {:>3d}, '
-                    + 'error<TrnSet>:{:> 8.5f}, '
-                    + 'MSE<ejemplo> :{:> 8.5f}, '
-                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch+1,
-                        self.params['epocas'],
-                        costo,
-                        mse,
-                        fEnergy),
+            print(str('Epoca {:>3d} de {:>3d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+                        epoch+1, self.params['epocas'], costo, mse, fEnergy),
                     end=finLinea)
 
-            costo = []
-            mse = []
-            fEnergy = []
+            costo = []; mse = []; fEnergy = []
             ####
             # el macro batch se agrega aca, la unica diferencia esta en que se cargan los datos dentro
             # y se se ejecuta normalmente
             ####
             for macro_batch_index in range(0,macro_batch_count):
             ###
-                sharedData.set_value(data[macro_batch_index * macro_batch_size: (macro_batch_index + 1) * macro_batch_size], borrow=True)
+                sharedData.set_value(data[macro_batch_index * tamMacroBatch: (macro_batch_index + 1) * tamMacroBatch], borrow=True)
 
                 for batch in range(0, micro_batch_count):
                     # salida[monitoring_cost, mse, deltafreeEnergy]
@@ -1280,11 +1286,18 @@ class RBM(object):
                     costo.append(salida[0])
                     mse.append(salida[1])
                     fEnergy.append(salida[2])
+
             ###
 
             costo = numpy.mean(costo)
             mse = numpy.mean(mse)
             fEnergy = numpy.mean(fEnergy)
+            """
+            costo = self.sharedEstadisticos.get_value()[0] / micro_batch_count
+            mse = self.sharedEstadisticos.get_value()[1] / micro_batch_count
+            fEnergy = self.sharedEstadisticos.get_value()[2] / micro_batch_count
+            self.sharedEstadisticos.set_value([0.0]*10)
+            """
 
             self.agregarEstadistico(
                 {'errorEntrenamiento': costo,
@@ -1295,8 +1308,7 @@ class RBM(object):
                  'energiaLibreValidacion': 0.0})
 
             if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
-                                    automatico=True)
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1), automatico=True)
 
             # END SET
         # END epoch

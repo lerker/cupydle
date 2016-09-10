@@ -106,7 +106,7 @@ if __name__ == "__main__":
                 'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
     red.setParams(parametros)
-    red.setParams({'epocas':10})
+    red.setParams({'epocas':100})
 
 
     T = temporizador()
@@ -119,10 +119,11 @@ if __name__ == "__main__":
 
 
     red.entrenamiento(data=datos[0][0],
-                      miniBatchSize=batchSize,
+                      validationData=datos[1][0],
+                      tamMiniBatch=batchSize,
+                      tamMacroBatch=datos[1][0].shape[0]//2,
                       pcd=False,
                       gibbsSteps=1,
-                      validationData=datos[1][0],
                       filtros=True)
 
     final = T.toc()
@@ -143,3 +144,34 @@ if __name__ == "__main__":
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
+
+
+"""
+lerker@nelo-linux: cupydle [memoria !]$  optirun python3 cupydle/test/rbm_MNIST.py
+Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
+Entrenando una RBM, con [784] unidades visibles y [500] unidades ocultas
+Cantidad de ejemplos para el entrenamiento no supervisado:  50000
+Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
+Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
+Epoca   1 de   5, error<TrnSet>:     inf, MSE<ejemplo> :     inf, EnergiaLibre<ejemplo>:     inf
+Epoca   2 de   5, error<TrnSet>:-90.23674, MSE<ejemplo> : 130.21144, EnergiaLibre<ejemplo>:-3.74406
+Epoca   3 de   5, error<TrnSet>:-82.94151, MSE<ejemplo> : 108.59375, EnergiaLibre<ejemplo>: 1.02042
+Epoca   4 de   5, error<TrnSet>:-81.69224, MSE<ejemplo> : 105.26365, EnergiaLibre<ejemplo>: 1.78799
+Epoca   5 de   5, error<TrnSet>:-80.99998, MSE<ejemplo> : 103.43192, EnergiaLibre<ejemplo>: 2.49729
+
+Tiempo total para entrenamiento: 00:03:19.35
+labels:  [5 5 9 1 0 8 1 6 2 5 3 7 4 0 5 9 6 1 7 3]
+ ... plotting sample 0
+ ... plotting sample 1
+ ... plotting sample 2
+ ... plotting sample 3
+ ... plotting sample 4
+ ... plotting sample 5
+ ... plotting sample 6
+ ... plotting sample 7
+ ... plotting sample 8
+ ... plotting sample 9
+Guardando el modelo en ... /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/mnist/test_RBM/
+Tiempo total para guardar: 00:00:00.43
+ICE default IO error handler doing an exit(), pid = 2172, errno = 32
+"""

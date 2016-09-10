@@ -147,7 +147,7 @@ sizeinGBs = 5000 * 784 * 4 / 1024. / 1024 / 1024 + 0
 print("Data will need GBs of free memory", sizeinGBs)
 """
 
-
+"""
 from cupydle.dnn.utils_theano import gpu_info
 
 import numpy as np
@@ -168,110 +168,27 @@ time.sleep(10)
 testData = shared(np.random.random((50000, 1000)).astype(T.config.floatX), borrow = False)
 print("despues de 3", gpu_info(conversion='Mb'))
 time.sleep(10)
+"""
+
+X = theano.shared(numpy.array([0,1,2,3,4], dtype=theano.config.floatX),borrow=True)
+Y = theano.tensor.vector()
+i = theano.tensor.fscalar()
+#X_update = (X, theano.tensor.set_subtensor(X[2:4], Y))
+X_update = (X, theano.tensor.set_subtensor(X[1], i))
+f = function([i], updates=[X_update])
+f(10)
+print(X.get_value()) # [0 1 100 10 4]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-If you're not revisiting datapoints then there probably isn't any value in using shared variables.
-
-The following code could be modified and used to evaluate the different methods of getting data into your specific computation.
-
-The "input" method is the one that will probably be best when you have no need to revisit data. The "shared_all" method may outperform everything else but only if you can fit the entire dataset in GPU memory. The "shared_batched" allows you to evaluate whether hierarchically batching your data could help.
-
-In the "shared_batched" method, the dataset is divided into many macro batches and each macro batch is divided into many micro batches. A single shared variable is used to hold a single macro batch. The code evaluates all the micro batches within the current macro batch. Once a complete macro batch has been processed the next macro batch is loaded into the shared variable and the code iterates over the micro batches within it again.
-
-In general, it might be expected that small numbers of large memory transfers will operate faster than larger numbers of smaller transfers (where the total transfered is the same for each). But this needs to be tested (e.g. with the code below) before it can be known for sure; YMMV.
-
-The use of the "borrow" parameter may also have a significant impact on the performance, but be aware of the implications before using it.
-
-
-
-
-
-import math
-import timeit
+"""
+from theano import tensor as T
+from theano import function, shared
 import numpy
-import theano
-import theano.tensor as tt
 
-
-def test_input(data, batch_size):
-    assert data.shape[0] % batch_size == 0
-    batch_count = data.shape[0] / batch_size
-    x = tt.tensor4()
-    f = theano.function([x], outputs=x.sum())
-    total = 0.
-    start = timeit.default_timer()
-    for batch_index in xrange(batch_count):
-        total += f(data[batch_index * batch_size: (batch_index + 1) * batch_size])
-    print 'IN\tNA\t%s\t%s\t%s\t%s' % (batch_size, batch_size, timeit.default_timer() - start, total)
-
-
-def test_shared_all(data, batch_size):
-    batch_count = data.shape[0] / batch_size
-    for borrow in (True, False):
-        start = timeit.default_timer()
-        all = theano.shared(data, borrow=borrow)
-        load_time = timeit.default_timer() - start
-        x = tt.tensor4()
-        i = tt.lscalar()
-        f = theano.function([i], outputs=x.sum(), givens={x: all[i * batch_size:(i + 1) * batch_size]})
-        total = 0.
-        start = timeit.default_timer()
-        for batch_index in xrange(batch_count):
-            total += f(batch_index)
-        print 'SA\t%s\t%s\t%s\t%s\t%s' % (
-            borrow, batch_size, batch_size, load_time + timeit.default_timer() - start, total)
-
-
-def test_shared_batched(data, macro_batch_size, micro_batch_size):
-    assert data.shape[0] % macro_batch_size == 0
-    assert macro_batch_size % micro_batch_size == 0
-    macro_batch_count = data.shape[0] / macro_batch_size
-    micro_batch_count = macro_batch_size / micro_batch_size
-    macro_batch = theano.shared(numpy.empty((macro_batch_size,) + data.shape[1:], dtype=theano.config.floatX),
-                                borrow=True)
-    x = tt.tensor4()
-    i = tt.lscalar()
-    f = theano.function([i], outputs=x.sum(), givens={x: macro_batch[i * micro_batch_size:(i + 1) * micro_batch_size]})
-    for borrow in (True, False):
-        total = 0.
-        start = timeit.default_timer()
-        for macro_batch_index in xrange(macro_batch_count):
-            macro_batch.set_value(
-                data[macro_batch_index * macro_batch_size: (macro_batch_index + 1) * macro_batch_size], borrow=borrow)
-            for micro_batch_index in xrange(micro_batch_count):
-                total += f(micro_batch_index)
-        print 'SB\t%s\t%s\t%s\t%s\t%s' % (
-            borrow, macro_batch_size, micro_batch_size, timeit.default_timer() - start, total)
-
-
-def main():
-    numpy.random.seed(1)
-
-    shape = (20000, 3, 32, 32)
-
-    print 'Creating random data with shape', shape
-    data = numpy.random.standard_normal(size=shape).astype(theano.config.floatX)
-
-    print 'Running tests'
-    for macro_batch_size in (shape[0] / pow(10, i) for i in xrange(int(math.log(shape[0], 10)))):
-        test_shared_all(data, macro_batch_size)
-        test_input(data, macro_batch_size)
-        for micro_batch_size in (macro_batch_size / pow(10, i) for i in
-                                 xrange(int(math.log(macro_batch_size, 10)) + 1)):
-            test_shared_batched(data, macro_batch_size, micro_batch_size)
-
-
-main()
+X = shared(numpy.array([0,1,2,3,4]))
+Y = T.vector()
+X_update = (X, T.set_subtensor(X[2:4], Y))
+f = function([Y], updates=[X_update])
+f([100,10])
+print X.get_value() # [0 1 100 10 4]
+"""
