@@ -1214,7 +1214,16 @@ class RBM(object):
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
-        print("MEMORIA: ", gpu_info())
+        #print("MEMORIA: ", gpu_info('Mb'))
+
+        memoria_disponible = gpu_info('Mb')[0] * 0.8
+
+        memoria_dataset = 4 * data.shape[0]/1024./1024.
+        memoria_por_ejemplo = 4 * data.shape[1]/1024./1024.
+        memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
+
+        print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
+
 
         if tamMacroBatch is None:
             tamMacroBatch = data.shape[0]
@@ -1266,7 +1275,7 @@ class RBM(object):
         costo = numpy.Inf; mse = numpy.Inf; fEnergy = numpy.Inf
         finLinea = '\r' if printCompacto else '\n'
 
-        print("MEMORIA antes de iterar: ", gpu_info())
+        print("MEMORIA antes de iterar: ", gpu_info('Mb'))
 
         for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
