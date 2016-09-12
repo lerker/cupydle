@@ -1226,7 +1226,9 @@ class RBM(object):
 
 
         if tamMacroBatch is None:
-            tamMacroBatch = data.shape[0]
+            from cupydle.dnn.utils_theano import calcular_chunk
+            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
+            #tamMacroBatch = data.shape[0]
 
         tamMacroBatch = int(tamMacroBatch)
         tamMiniBatch = int(tamMiniBatch)
@@ -1234,8 +1236,7 @@ class RBM(object):
         assert data.shape[0] % tamMacroBatch == 0
         assert tamMacroBatch % tamMiniBatch == 0
 
-        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
-        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+
 
         macro_batch_count = int(data.shape[0] / tamMacroBatch)
         micro_batch_count = int(tamMacroBatch / tamMiniBatch)
@@ -1276,6 +1277,10 @@ class RBM(object):
         finLinea = '\r' if printCompacto else '\n'
 
         print("MEMORIA antes de iterar: ", gpu_info('Mb'))
+
+        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
+        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
+        print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
         for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal

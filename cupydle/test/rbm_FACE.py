@@ -124,8 +124,8 @@ if __name__ == "__main__":
 
     red.entrenamiento(data=datos[0][0],
                       tamMiniBatch=batchSize,
-                      tamMacroBatch=datos[0][0].shape[0]//2,
-                      #tamMacroBatch=None,
+                      #tamMacroBatch=datos[0][0].shape[0]//2,
+                      tamMacroBatch=None,
                       pcd=False,
                       gibbsSteps=1,
                       validationData=None,

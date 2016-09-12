@@ -92,3 +92,31 @@ def gpu_info(conversion='Gb'):
     porcentajeMemOcu = (memoriaOcupada/memoriaTotal) * 100.
 
     return memoriaLibre, memoriaOcupada, memoriaTotal, porcentajeMemOcu
+
+def calcular_chunk(memoriaDatos, tamMiniBatch, cantidadEjemplos, porcentajeUtil=0.8):
+    """
+    calcula el tamMacroBatch
+    cuantos ejemplos deben enviarse a la gpu por pedazos.
+
+    """
+    tamMacroBatch = None
+    contador = 1
+    memoriaGPU = gpu_info('Mb')[0] * porcentajeUtil
+    while True:
+        a = memoriaGPU / (memoriaDatos / contador)
+        b = (cantidadEjemplos / contador) % tamMiniBatch == 0
+
+        if a >= 1.0 and b:
+            break
+
+        contador +=1
+        if contador == 10000000:
+            assert False, "contador de MacroBatch demasiado alto " + str(contador)
+
+    if contador == 1:
+        tamMacroBatch = cantidadEjemplos
+    else:
+        tamMacroBatch = contador * tamMiniBatch
+
+    return tamMacroBatch
+
