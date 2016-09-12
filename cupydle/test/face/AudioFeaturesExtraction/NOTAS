@@ -1,0 +1,25 @@
+-> features.m
+
+Calcula las 46 características de audio para una pista en particular y las guarda en un archivo con el mismo nombre de video pero "-audio_features.csv" al final
+
+-> get_audio_features.m
+
+Aplica la función anterior para un directorio completo
+
+-> extract_audio_features.sh
+
+Script que aplica la función anterior para todos los directorios de la base de datos utilizada.
+
+-> voice_t0
+
+Estima frames inicial y final de VIDEO donde hay voz, y los guarda en un archivo con el mismo nombre de video pero "-voiced_frames.txt" al final
+
+-> get_voiced_frames.m
+
+Aplica la función anterior para un directorio completo
+
+-> extract_voiced_frames.sh
+
+Script que aplica la función anterior para todos los directorios de la base de datos utilizada.
+
+

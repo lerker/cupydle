@@ -1,0 +1,35 @@
+
+Orden de ejecucion:
+==================
+
+./extract_voiced_frames.sh
+./prom_voiced_frames.sh
+./extract_video_features.sh
+./concatenarVideos.sh
+
+
+Descripcion de los scripts:
+==========================
+
+./extract_voiced_frames.sh
+    Determina donde comienza y termina el frame de voz en el video.
+
+./prom_voiced_frames.sh
+    Promedia de todos los videos, cuantos frames son de voz.
+
+./extract_video_features.sh
+    Llama a ./VideoFeaturesExtraction el cual manda el archivo de video a procesar.
+    Recibe la ruta de un archivo de video .avi. Este programa se encarga de guardar en un archivo "-video_features.csv" 4900 valores (70*35 * 2(zona ojos y boca)) por frame relevante. En este trabajo se determino un promedio de 47 frames relevantes para toda la base de datos. Para determinar este promedio se utilizo el script "prom_voiced_frames.sh"
+
+./concatenarVideos.sh nombreArchivo.csv
+    busca en el directorio (y subdirectorios) todos los archivos con el patron '*video_features.csv'.
+    Cada uno de estos archivos son la concatenacion de los frames caracteristicos de los videos ya procesados de su directorio.
+    Junta todo el contenido en un unico archivo, por linea se corresponde a un ejemplo.
+
+
+
+//PCA:
+
+* Calcula PCA para cada grupo de emociones (6).Por defecto se utilizaron 70 componentes principales.
+* Este programa recibe un archivo de video "all_videos.csv" que contiene todas las características de video ordenadas por emoción.
+* La salida es un archivo "all_videos-pca-projections.csv" el cual representa cada fila del archivo de entrada pero proyectado en su nuevo espacio de 70 valores.
