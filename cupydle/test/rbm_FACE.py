@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
     red.setParams(parametros)
-    red.setParams({'epocas':2})
+    red.setParams({'epocas':100})
 
 
     T = temporizador()
