@@ -1,3 +1,6 @@
+#!/bin/prython3
+# python3 preprocesamiento.py all_videos_features_clases.csv "coso_procesado" 'z_score+min_max'
+
 import numpy as np
 import sys
 
