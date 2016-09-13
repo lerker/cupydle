@@ -107,7 +107,7 @@ if __name__ == "__main__":
         clasificador.setParametroEntrenamiento({'momento':0.0})
         clasificador.setParametroEntrenamiento({'epocas':10})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
-        clasificador.setParametroEntrenamiento({'toleranciaError':0.08})
+        clasificador.setParametroEntrenamiento({'toleranciaError':0.00})
 
         clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
                                  unidadesSalida=unidadesCapas[1],
@@ -164,7 +164,7 @@ if __name__ == "__main__":
         miDBN.addLayer(n_visible=unidadesCapas[0],
                        n_hidden=unidadesCapas[1],
                        numEpoch=numEpocas,
-                       batchSize=batchSize,
+                       tamMiniBatch=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
                        w=pesos1,
@@ -174,7 +174,7 @@ if __name__ == "__main__":
         miDBN.addLayer(#n_visible=500, # coincide con las ocultas de las anteriores
                        n_hidden=unidadesCapas[2],
                        numEpoch=numEpocas,
-                       batchSize=batchSize,
+                       tamMiniBatch=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
                        w=pesos2,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         miDBN.addLayer(#n_visible=100, # coincide con las ocultas de las anteriores
                        n_hidden=unidadesCapas[3],
                        numEpoch=numEpocas,
-                       batchSize=batchSize,
+                       tamMiniBatch=batchSize,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
                        w=pesos3,

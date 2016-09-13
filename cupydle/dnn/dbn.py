@@ -74,7 +74,7 @@ class rbmParams(object):
                 n_visible,
                 n_hidden,
                 epocas,
-                batchSize,
+                tamMiniBatch,
                 epsilonw,
                 pasosGibbs=1,
                 w=None,
@@ -96,7 +96,7 @@ class rbmParams(object):
         self.weightcost=weightcost
         self.momentum=momentum
         self.toleranciaError=toleranciaError
-        self.batchSize=batchSize
+        self.tamMiniBatch=tamMiniBatch
         self.unidadesVisibles=UnidadBinaria()
         self.unidadesOcultas=UnidadBinaria()
 
@@ -113,7 +113,7 @@ class rbmParams(object):
         print("Tasa de momento:",self.momentum)
         print("Castigo pesos:",self.weightcost)
         print("Pasos de Gibss:", self.pasosGibbs)
-        print("Tamanio del batch:",self.batchSize)
+        print("Tamanio del minibatch:",self.tamMiniBatch)
         print("Tolerancia del error permitido:",self.toleranciaError)
         print("Tipo de Unidades Visibles:", self.unidadesVisibles)
         print("Tipo de Unidades Ocultas:", self.unidadesOcultas)
@@ -224,7 +224,7 @@ class DBN(object):
     def addLayer(self,
                 n_hidden,
                 numEpoch,
-                batchSize,
+                tamMiniBatch,
                 epsilonw,        # Learning rate for weights
                 n_visible=None,
                 pasosGibbs=1,
@@ -242,7 +242,7 @@ class DBN(object):
 
         # agrego una capa de rbm a la dbn, con los parametros que le paso
         self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
-                                    epocas=numEpoch, batchSize=batchSize,
+                                    epocas=numEpoch, tamMiniBatch=tamMiniBatch,
                                     epsilonw=epsilonw, pasosGibbs=pasosGibbs,
                                     w=w, epsilonvb=epsilonvb, epsilonhb=epsilonhb,
                                     weightcost=weightcost, momentum=momentum,
@@ -306,7 +306,7 @@ class DBN(object):
                 capaRBM.guardarPesos(nombreArchivo=nombre)
 
             capaRBM.entrenamiento(data=layer_input,   # los datos los binarizo y convierto a float
-                            miniBatchSize=self.params[i].batchSize,
+                            tamMiniBatch=self.params[i].tamMiniBatch,
                             pcd=pcd,
                             gibbsSteps=self.params[i].pasosGibbs,
                             validationData=dataVal,
@@ -318,17 +318,19 @@ class DBN(object):
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # TODO aca debo tener las activaciones de las ocultas
-            [_, _, hiddenActPos] = capaRBM.reconstruccion(muestraV=layer_input)
-            [_, _, dataVal] = capaRBM.reconstruccion(muestraV=dataVal)
+            #[_, _, hiddenActPos] = capaRBM.reconstruccion(muestraV=layer_input)
+            #[_, _, dataVal] = capaRBM.reconstruccion(muestraV=dataVal)
+            [hiddenProbAct, _, _] = capaRBM.muestra(muestraV=layer_input)
+            [dataVal,_,_] = capaRBM.muestra(muestraV=dataVal)
             #hiddenActPos = capaRBM.activacionesOcultas(layer_input)
             #dataVal = capaRBM.activacionesOcultas(dataVal)
 
             print("Guardando las muestras para la siguiente capa..") if DBN.verbose else None
             filename_samples = self.ruta + self.name + "_ActivacionesOcultas" + str(i+1)
-            save(objeto=hiddenActPos, filename=filename_samples, compression='gzip')
+            save(objeto=hiddenProbAct, filename=filename_samples, compression='gzip')
 
             # guardo la salida de la capa para la proxima iteracion
-            self.layersHidAct.append(hiddenActPos)
+            self.layersHidAct.append(hiddenProbAct)
 
             del capaRBM
         # FIN FOR

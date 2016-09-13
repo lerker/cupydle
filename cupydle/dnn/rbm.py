@@ -1429,6 +1429,7 @@ class RBM(object):
 
         puedo pasarle un solo ejemplo o una matrix con varios de ellos por fila
         """
+        warn("esta implementacion no retorna la probabilidad de activacion de las unidades ocultas, por eso queda deprecated, utilizar muestra")
 
         if muestraV.ndim == 1:
             # es un vector, debo cambiar el root 'x' antes de armar el grafo
@@ -1456,6 +1457,42 @@ class RBM(object):
             self.x = viejoRoot
 
         return [probabilidad_V1, muestra_V1, muestra_H1]
+
+    def muestra(self, muestraV, gibbsSteps=1):
+        """
+        realiza la reconstruccion a partir de un ejemplo, efectuando una cadena
+        de markov con n pasos de gibbs sobre la misma
+
+        puedo pasarle un solo ejemplo o una matrix con varios de ellos por fila
+        """
+
+        if muestraV.ndim == 1:
+            # es un vector, debo cambiar el root 'x' antes de armar el grafo
+            # para que coincida con la entrada
+            viejoRoot = self.x
+            self.x = theano.tensor.fvector('x')
+
+        data  = theano.shared(numpy.asarray(a=muestraV, dtype=theanoFloat), borrow=True, name='datoMuestra')
+
+        ([salidaLineal_H1, probabilidad_H1, muestra_H1, salidaLineal_V1, probabilidad_V1, muestra_V1], updates) = self.gibbsVHV(data, gibbsSteps)
+
+        reconstructor = theano.function(
+                        inputs=[],
+                        outputs=[probabilidad_H1[-1], muestra_V1[-1], muestra_H1[-1]],
+                        updates=updates,
+                        #givens={self.x: data},
+                        name='fn_muestra'
+        )
+
+        [probabilidad_H1, muestra_V1, muestra_H1] = reconstructor()
+
+        if muestraV.ndim == 1:
+            # hago el swap
+            self.x = viejoRoot
+
+        del data
+        return [probabilidad_H1, muestra_V1, muestra_H1]
+
 
     def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000, patchesDim=(28,28), binary=False):
         """

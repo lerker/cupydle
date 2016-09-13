@@ -29,5 +29,13 @@ rsync -vz --partial --progress --rsh=ssh preprocesamiento.py gpu:/home/nponzoni/
 docker cp all_videos_features_clases.csv $(docker ps -aq):/root/cupydle/cupydle/test/face/
 
 -> opencv
+-> http://docs.opencv.org/2.4/doc/tutorials/introduction/linux_install/linux_install.html
 https://gist.github.com/dynamicguy/3d1fce8dae65e765f7c4
+-> http://computervisionwithvaibhav.blogspot.com.ar/2015/07/installing-opencv-300-on-ubuntu-1404_24.html
+
+-> sudo nvidia-docker run --name cupydle -v /home/DockerVolumeHomeCupydle/:/root -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu:14.04 /bin/bash
+-> rm -rf /var/lib/apt/lists/*
+-> apt-get remove --purge
+-> https://github.com/uricamic/flandmark/blob/master/INSTALL
+
 

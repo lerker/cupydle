@@ -137,8 +137,8 @@ if __name__ == "__main__":
     #red.dibujarEstadisticos(show=True, save='estadisticos.png')
     #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
 
-    red.sampleo(data=datos[0][0],
-                labels=datos[0][1])
+    #red.sampleo(data=datos[0][0],
+    #            labels=datos[0][1])
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()

@@ -47,9 +47,9 @@ if havedisplay:
   #import matplotlib.pyplot as plt
   import matplotlib.pylab as plt
 else:
-  matplotlib.use('Agg')
   #import matplotlib.pyplot as plt
   import matplotlib.pylab as plt
+  matplotlib.use('Agg')
 
 def display_avalible():
     """
