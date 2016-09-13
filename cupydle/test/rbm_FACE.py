@@ -38,9 +38,6 @@ from cupydle.dnn.utils import temporizador
 from cupydle.dnn.rbm import RBM
 
 
-from numpy import genfromtxt
-
-
 if __name__ == "__main__":
 
     directorioActual= os.getcwd()                                   # directorio actual de ejecucion
@@ -81,12 +78,14 @@ if __name__ == "__main__":
     #datos = [mn.get_training(), mn.get_testing(), mn.get_validation()]
     #datos = [( ((x/255.0).astype(numpy.float32)), y) for x, y in datos]
 
-    b = numpy.load(rutaDatos + 'videos_clases.npz')
+    b = numpy.load(rutaDatos + 'videos_clases_procesados_zscore_minmax.npz')
 
     videos = b['videos']
     clases = b['clases']
+    del b
 
-    datos = [(videos[0:20,0:], clases[0:20]), (videos[21:,0:],clases[21:])]
+    #datos = [(videos[0:20,0:], clases[0:20]), (videos[21:,0:],clases[21:])]
+    datos = [(videos, clases), (videos[100:,0:],clases[100:])]
 
 
     # parametros de la red
@@ -143,7 +142,7 @@ if __name__ == "__main__":
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
-    red.guardar(nombreArchivo="rbm_mnist.zip")
+    red.guardar(nombreArchivo="rbm_face.zip")
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
 
