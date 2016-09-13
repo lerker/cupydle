@@ -239,3 +239,44 @@ class temporizador(object):
         minutes, seconds = divmod(rem, 60)
         tiempo = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
         return tiempo
+
+
+def z_score(datos):
+    # Normalizacion estadistica (Z-score Normalization)
+    # https://en.wikipedia.org/wiki/Standard_score
+    # datos [N x D] (N # de datos, D su dimensionalidad).
+    # x' = (x - mu)/sigma
+    # x = dato de entrada; x' = dato normalizado
+    # mu = media; sigma = desvio estandar
+    mu = np.mean(data, axis = 0)
+    sigma = np.std(data, axis = 0)
+    return (datos - mu) / sigma
+
+def min_max_escalado(datos, min_obj=0.0, max_obj=1.0):
+    # Normalizacion Min-Max
+    # https://en.wikipedia.org/wiki/Normalization_(statistics)
+    # x' = (x-min)/(max-min)*(max_obj-min_obj)+min_obj
+    # x = datos de entrada; x' = dato normalizado
+    # max_obj = limite superior del rango objetivo
+    # min_obj = limite inferior del rango objetivo
+    minimo = np.min(datos)
+    maximo = np.max(datos)
+    x = ((datos - minimo) / (maximo - minimo)) * ( max_obj - min_obj) + min_obj
+    return x
+
+def blanqueo(datos, eigenvalues=100, epison=1e-5):
+    # whitening PCA normalization
+    # https://en.wikipedia.org/wiki/Whitening_transformation
+    # http://cs231n.github.io/neural-networks-2/
+    # Assume input data matrix X of size [N x D]
+    datos -= np.mean(datos, axis = 0) # zero-center the data (important)
+    cov = np.dot(datos.T, datos) / datos.shape[0] # get the data covariance matrix
+    U,S,V = np.linalg.svd(cov)
+    datos_rot = np.dot(datos, U) # decorrelate the data
+    # similar a PCA...
+    # se quedan con los eigenvalues (dimensiones) mas importantes (contienen mas varianza)
+    datos_rot_reduced = np.dot(datos, U[:,:eigenvalues]) # Xrot_reduced becomes [N x 100]
+    # whiten the data:
+    # divide by the eigenvalues (which are square roots of the singular values)
+    datos_white = datos_rot / np.sqrt(S + epison)
+    return datos_white
