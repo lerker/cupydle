@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     # parametros de la red
     n_visible = 230300
-    n_hidden  = 500
+    n_hidden  = 5000
     batchSize = 10
 
     # creo la red
