@@ -78,3 +78,4 @@ cupydle/data/DB_mnist/*
 *.pdf
 *.npy
 *.npz
+*.csv
