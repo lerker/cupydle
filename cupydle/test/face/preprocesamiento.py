@@ -28,7 +28,7 @@ nombre_archivo_salida = sys.argv[2]
 # tipo de procesamiento: 'z_score', 'min_max', 'blanqueo', 'z_score+min_max'
 procesamiento = sys.argv[3]
 
-videos = iter_loadtxt(filename=nombre_archivo, delimiter=' ', dtype=np.float32, skiprows=710)
+videos = iter_loadtxt(filename=nombre_archivo, delimiter=' ', dtype=np.float32, skiprows=0)
 
 data   = videos[:,1:].astype(np.float32)
 clases = videos[:,0].astype(np.int8)
