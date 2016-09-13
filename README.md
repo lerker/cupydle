@@ -25,11 +25,12 @@ Funcionalidades:
 
 - Maquinas de Boltzmann Restringidas (RBM)
   - Entrenamiento
+    - [x] MacroBatch, copia por chunks hacia la GPU.
     - [x] Algoritmo de Divergencia Constrastiva de n pasos de Gibbs (CD_n)
     - [x] Algoritmo de Divergencia Constrastiva Persistente de n pasos de Gibbs (PCD_n)
-    - [ ] Weight decay, momento, batch-learning
+    - [x] Momento, batch-learning
     - [x] Unidades Ocultas Binarias.
-    - [ ] Unidades Ocultas Gausianas.
+    - [x] Unidades Ocultas Gausianas.
     - [x] Función de costo, error cuadratico medio (MSE).
     - [x] Función de costo, entropia cruzada.
     - [x] Función de costo, Energia Libre.
@@ -42,7 +43,7 @@ Funcionalidades:
 - Redes de Creencia Profunda (DBN)
   - Entrenamiento (_no supervisado_)
     - [x] Apilado de RBMs en capas.
-    - [ ] Almacenamiento.
+    - [x] Almacenamiento.
   - Entrenamiento (_supervisado_)
     - [x] Recuperacion de las capas, pesos ya entrenados.
     - [x] Ajuste de los pesos por medio de un Perceptron Multi-Capa (MLP).
@@ -51,11 +52,11 @@ Funcionalidades:
 - Redes Neuronales Generales (MLP)
   - Entrenamiento
     - [x] Numero variable de capas, capas logisticas, softmax.
-    - [x] Funciones de activacion varias, Sigmoid.
+    - [x] Funciones de activacion varias, Sigmoidea.
     - [x] Algoritmo del Gradiente Descendiente Estocastico (SGD)
       - [x] Calculo de gradientes, retropropagacion del error.
       - [ ] Tecnicas, 'patience'....
-    - [x] Weight decay, momentum, batch-learning.
+    - [x] momento, batch-learning.
     - [x] Función de costo, entropia cruzada.
     - [x] Función de costo, error cuadratico medio (MSE).
 
@@ -65,6 +66,9 @@ Funcionalidades:
     - [x] Visualización de los datos.
     - [x] Visualización de los filtros. :interrobang: (realizar la funcion en rbm que genere los filtro a partir de patches cuadrados...)
     - [x] Muestreo de varios ejemplos a traves de sucesivas cadenas de Markov.
+  - FACE
+    - [x] Pre-procesamiento de datos crudos
+    - [x] Obtencion de datos pre-procesados con PCA
 
 Notas GP-GPU
 ------------
