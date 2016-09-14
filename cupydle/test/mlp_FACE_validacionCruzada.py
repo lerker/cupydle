@@ -94,7 +94,7 @@ if __name__ == "__main__":
     print("Numero de particiones: ", conjuntos)
     print("Porcentaje entrenamiento/validacion: ",porcentaje)
 
-    errorTRN_conjunto = []; errorVAL_conjunto = []; erroTST_conjunto = []
+    errorTRN_conjunto = []; errorVAL_conjunto = []; errorTST_conjunto = []
 
     for train_index, test_index in skf:
         contador +=1
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
         errorTRN_conjunto.append(errorTRN)
         errorVAL_conjunto.append(errorVAL)
-        erroTST_conjunto.append(errorTST)
+        errorTST_conjunto.append(errorTST)
 
 
     final_todo = T.toc()
