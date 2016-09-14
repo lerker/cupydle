@@ -107,8 +107,8 @@ if __name__ == "__main__":
         datos = []
         cantidad = int(len(train_index)*porcentaje)
 
-        datosTRN = (videos[train_index[cantidad:]], clases[train_index[cantidad:]])
-        datosVAL = (videos[train_index[:cantidad]],clases[train_index[:cantidad]])
+        datosTRN = (videos[train_index[:cantidad]], clases[train_index[:cantidad]])
+        datosVAL = (videos[train_index[cantidad:]],clases[train_index[cantidad:]])
         datosTST = (videos[test_index],clases[test_index])
 
         print("Cantidad de clases en el conjunto Entrenamiento: ", numpy.bincount(datosTRN[1]))
