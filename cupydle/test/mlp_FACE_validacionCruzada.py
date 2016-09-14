@@ -83,13 +83,19 @@ if __name__ == "__main__":
     del b #libera memoria
     skf = StratifiedKFold(clases, n_folds=conjuntos)
 
+    assert porcenjate <= 1.0, "El porcenje no puede ser superior a 1"
 
     T = temporizador()
-        inicio_todo = T.tic()
+    inicio_todo = T.tic()
 
     contador = 0
 
+    print("Prueba con tecnicas de validacion cruzada...")
+    print("Numero de particiones: ", conjuntos)
+    print("Porcentaje entrenamiento/validacion: " porcenjate)
+
     for train_index, test_index in skf:
+
         contador +=1
         # lista de tupas, [(x_trn, y_trn), ...]
         # los datos estan normalizados...
