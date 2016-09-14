@@ -288,7 +288,6 @@ class MLP(object):
         toleranciaErr = criterios['toleranciaError'](self.parametrosEntrenamiento['toleranciaError'])
 
         # inicio del entrenamiento por epocas
-        print(self.estadisticos)
         try:
             while looping:
 
@@ -297,7 +296,7 @@ class MLP(object):
                 # entreno con todo el conjunto de minibatches
                 costoEntrenamiento = [train_model(i) for i in range(n_train_batches)]
                 costoEntrenamiento = numpy.mean(costoEntrenamiento) # su media
-                self.estadisticos['errorEntrenamiento'].append(errorEntrenamiento)
+                self.estadisticos['errorEntrenamiento'].append(costoEntrenamiento)
 
                 errorValidacion = [validate_model(i) for i in range(n_valid_batches)]
                 errorValidacion = numpy.mean(errorValidacion)
