@@ -97,6 +97,7 @@ if __name__ == "__main__":
     for train_index, test_index in skf:
         contador +=1
         print("Particion < " + str(contador) + " >")
+
         # lista de tupas, [(x_trn, y_trn), ...]
         # los datos estan normalizados...
         datos = []
@@ -142,6 +143,7 @@ if __name__ == "__main__":
                               batch_size=tambatch)
         final = T.toc()
         print("Tiempo para entrenamiento: {}".format(T.transcurrido(inicio, final)))
+        print(clasificador.estadisticos)
 
     final_todo = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))

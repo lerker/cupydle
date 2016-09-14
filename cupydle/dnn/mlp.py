@@ -84,6 +84,9 @@ class MLP(object):
         self.parametrosEntrenamiento = {}
         self._initParametrosEntrenamiento()
 
+
+        self.estadisticos = {'errorEntrenamiento':[], 'errorValidacion':[], 'errorTest':[]}
+
         # donde se alojan los datos
         self.ruta = ruta
 
@@ -258,12 +261,12 @@ class MLP(object):
 
 
         k = self.predict()
-        ll = trainY
+        ll = testY
         predictor = theano.function(
                         inputs=[],
                         outputs=[k,ll],
                         givens={
-                            self.x: trainX},
+                            self.x: testX},
                         name='predictor'
         )
 
@@ -293,9 +296,11 @@ class MLP(object):
                 # entreno con todo el conjunto de minibatches
                 costoEntrenamiento = [train_model(i) for i in range(n_train_batches)]
                 costoEntrenamiento = numpy.mean(costoEntrenamiento) # su media
+                self.estadisticos['errorEntrenamiento'].append(errorEntrenamiento)
 
                 errorValidacion = [validate_model(i) for i in range(n_valid_batches)]
                 errorValidacion = numpy.mean(errorValidacion)
+                self.estadisticos['errorValidacion'].append(errorValidacion)
 
                 print(str('Epoca {:>3d} de {:>3d}, '
                         + 'Costo entrenamiento {:> 8.5f}, '
@@ -310,6 +315,7 @@ class MLP(object):
 
                     errorTest = [test_model(i) for i in range(n_test_batches)]
                     errorTest = numpy.mean(errorTest)
+                    self.estadisticos['errorTest'].append(errorTest)
                     print('|---->>Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
 
 
@@ -330,142 +336,8 @@ class MLP(object):
         print('Entrenamiento Finalizado. Mejor puntaje de validacion: {:> 8.5f} con un performance en el test de {:> 8.5f}'.format
               (errorValidacionHistorico * 100., errorTest * 100.))
 
-
-
-
-        print("reales", predictor()[1][0:20])
-        print("predic", predictor()[0][0:20])
-
-    def train_bengio(self, trainSet, validSet, testSet, batch_size):
-
-        assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
-
-        y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
-                                        # [int] labels
-
-        trainX, trainY  = shared_dataset(trainSet)
-        validX, validY  = shared_dataset(validSet)
-        testX, testY    = shared_dataset(testSet)
-
-        n_train_batches = trainX.get_value(borrow=True).shape[0] // batch_size
-        n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
-        n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
-
-        # necesito actualizar los costos, si no hago este paso no tengo
-        # los valores requeridos
-        self.costos(y)
-
-        # actualizaciones
-        updates = []
-        updates = self.construirActualizaciones(costo=self.cost,
-                                                actualizaciones=updates)
-        costo = (self.cost +
-                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
-                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
-
-        train_model, validate_model, test_model = self.construirFunciones(
-                                        datosEntrenamiento=shared_dataset(trainSet),
-                                        datosValidacion=shared_dataset(validSet),
-                                        datosTesteo=shared_dataset(testSet),
-                                        cost=costo,
-                                        batch_size=batch_size,
-                                        updates=updates,
-                                        y=y)
-
-
-        k = self.predict()
-        ll = trainY
-        predictor = theano.function(
-                        inputs=[],
-                        outputs=[k,ll],
-                        givens={
-                            self.x: trainX},
-                        name='predictor'
-        )
-
-        print('Entrenando') if MLP.verbose else None
-
-        # early-stopping parameters
-        patience = 10000  # look as this many examples regardless
-        patience_increase = 2  # wait this much longer when a new best is
-                               # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                       # considered significant
-        validation_frequency = min(n_train_batches, patience // 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        best_validation_loss = numpy.inf
-        best_iter = 0
-        test_score = 0.
-
-        epoca = 0
-        done_looping = False
-
-        #from cupydle.dnn.stops import iteracionesMaximas
-        from cupydle.dnn.stops import criterios
-        iteraciones = criterios['iteracionesMaximas'](maxIter=self.parametrosEntrenamiento['epocas'])
-
-
-        #while (epoca < self.parametrosEntrenamiento['epocas']) and (not done_looping):
-        while (not iteraciones(resultados=epoca)) and (not done_looping):
-
-            epoca = epoca + 1
-
-            # por cada minibatch
-            for minibatch_index in range(n_train_batches):
-
-                minibatch_avg_cost = train_model(minibatch_index)
-                # iteration number
-                iter = (epoca - 1) * n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-                    # compute zero-one loss on validation set
-                    validation_losses = [validate_model(i) for i
-                                         in range(n_valid_batches)]
-                    this_validation_loss = numpy.mean(validation_losses)
-
-                    print(
-                        'epoca %i, error validacion %f %%' %
-                        (
-                            epoca,
-                            this_validation_loss * 100.
-                        )
-                    )
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-                        #improve patience if loss improvement is good enough
-                        if (
-                            this_validation_loss < best_validation_loss *
-                            improvement_threshold
-                        ):
-                            patience = max(patience, iter * patience_increase)
-
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-
-                        # test it on the test set
-                        test_losses = [test_model(i) for i
-                                       in range(n_test_batches)]
-                        test_score = numpy.mean(test_losses)
-
-                        print(('     epoca %i, error test del modelo %f %%') %
-                              (epoca, test_score * 100.))
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-
-
-        print(('Optimizacion Completada. Mejor puntaje de validacion: %f %% '
-               'con un performance en el test de %f %%') %
-              (best_validation_loss * 100., test_score * 100.))
-
-        print("reales", predictor()[1][0:10])
-        print("predic", predictor()[0][0:10])
+        print("reales", predictor()[1][0:25])
+        print("predic", predictor()[0][0:25])
 
     def guardarParametros(self):
 
