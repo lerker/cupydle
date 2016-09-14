@@ -126,8 +126,8 @@ if __name__ == "__main__":
         clasificador = MLP(clasificacion=True, rng=None, ruta=ruta_kfold)
 
         # se agregan los parametros
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
-        clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.1})
+        clasificador.setParametroEntrenamiento({'regularizadorL1':0.0001})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
