@@ -154,9 +154,9 @@ if __name__ == "__main__":
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))
 
     print("PROMEDIO de ERRORES para los {} conjuntos".format(contador))
-    print(errorTRN_conjunto)
-    print(errorVAL_conjunto)
-    print(errorTST_conjunto)
+    print(numpy.mean(errorTRN_conjunto))
+    print(numpy.mean(errorVAL_conjunto))
+    print(numpy.mean(errorTST_conjunto))
     print("Error Entrenamiento: {5.8f} | Error Validacion: {5.8f} | Error Test: {5.8f}".format(numpy.mean(errorTRN_conjunto), numpy.mean(errorVAL_conjunto), numpy.mean(errorTST_conjunto)))
 
     # guardando los parametros aprendidos
