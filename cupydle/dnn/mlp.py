@@ -202,9 +202,15 @@ class MLP(object):
         return self.capas[-1].predict()
 
 
-    def train(self, trainSet, validSet, testSet, batch_size):
+    def entrenar(self, trainSet, validSet, testSet, batch_size):
 
         assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
+
+        tamMiniBatch = batch_size
+        tamMacroBatch = 10
+        print("Entrenando un MLP, con [{}] unidades de entrada y [{}] unidades por capa".format(self.capas[0].b.shape[0], self.capas[1].b.shape[0,))
+        print("Cantidad de ejemplos para el entrenamiento supervisado: ", 10)
+        print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
         y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
                                         # [int] labels

@@ -46,6 +46,9 @@ Descripcion de los scripts:
     -b batchsize
     -e numero de epocas
 
+    python3 cupydle/test/mlp_FACE.py -d test_MLP -l 230300 1000 500 6 -e 500
+
+
 
 
 //PCA:

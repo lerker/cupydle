@@ -111,10 +111,10 @@ if __name__ == "__main__":
     inicio = T.tic()
 
     # se entrena la red
-    clasificador.train( trainSet=datos[0],
-                        validSet=datos[1],
-                        testSet=datos[2],
-                        batch_size=tambatch)
+    clasificador.entrenar(trainSet=datos[0],
+                          validSet=datos[1],
+                          testSet=datos[2],
+                          batch_size=tambatch)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
