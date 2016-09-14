@@ -104,9 +104,10 @@ if __name__ == "__main__":
     # la primera es la que indica la entrada
     # las intermedias son de regresion
     # la ultima es de clasificaicon
-    clasificador.agregarCapa(unidadesEntrada=capas[0], unidadesSalida=capas[1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
-    for idx, capa in enumerate(capas[1:-1]):
-        clasificador.agregarCapa(unidadesSalida=capa, clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
+    #clasificador.agregarCapa(unidadesEntrada=capas[0], unidadesSalida=capas[1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
+    #for idx, capa in enumerate(capas[0:-1]):
+    for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
+        clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
     T = temporizador()
