@@ -210,7 +210,7 @@ class MLP(object):
         tamMacroBatch = 10
         unidades = [self.capas[0].getW().shape[0]]
         unidades.extend([c.shape[0] for c in self.capas.getB()])
-        print("Entrenando un MLP, con [{}] unidades de entrada y [{}] unidades por capa".format(unidades[0], str(unidades[1:]))
+        print("Entrenando un MLP, con [{}] unidades de entrada y [{}] unidades por capa".format(unidades[0], str(unidades[1:])))
         print("Cantidad de ejemplos para el entrenamiento supervisado: ", 10)
         print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
