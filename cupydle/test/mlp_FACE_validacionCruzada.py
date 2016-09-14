@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Prueba de un MLP sobre FACE -- Validacion Cruzada --.')
     parser.add_argument('-d', '--directorio',   type=str,   dest="directorio",  default='test_MLP', help="Carpeta donde se almacena la corrida actual")
     parser.add_argument('--dataset',            type=str,   dest="dataset",     default='videos_clases_procesados_zscore_minmax.npz', help="Archivo donde esta el dataset, [videos, clases].npz")
+    parser.add_argument('--nombreCarpetaFold',  type=str,   dest="carpetaConjunto", default='K_fold', help="Nombre de la carpeta donde se almacenan individualmento cada corrida")
     parser.add_argument('-l', '--capas',        type=int,   dest="capas",       required=True,      nargs='+',          help="Capas del MLP, #entrada, #oculta1, .... , #salida")
     parser.add_argument('-b', '--batchsize',    type=int,   dest="tambatch",    default=10,         required=False,     help="Tamanio del minibatch para el entrenamiento")
     parser.add_argument('-e', '--epocas',       type=int,   dest="epocas",      default=10,         required=False,     help="Cantidad de epocas")
@@ -56,6 +57,7 @@ if __name__ == "__main__":
     epocas                = argumentos.epocas
     conjuntos             = argumentos.folds
     porcentaje            = argumentos.porcentaje
+    carpetaConjunto       = argumentos.carpetaConjunto
 
 
     # configuraciones con respecto a los directorios
@@ -112,12 +114,10 @@ if __name__ == "__main__":
         datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
 
         # creo la red
-        ruta_kfold = rutaCompleta + 'Kf_' + str(contador) + '/'
+        ruta_kfold = rutaCompleta + carpetaConjunto + str(contador) + '/'
         os.makedirs(ruta_kfold) if not os.path.exists(ruta_kfold) else None
 
-        clasificador = MLP(clasificacion=True,
-                           rng=None,
-                           ruta=ruta_kfold)
+        clasificador = MLP(clasificacion=True, rng=None, ruta=ruta_kfold)
 
         # se agregan los parametros
         clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
