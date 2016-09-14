@@ -134,7 +134,6 @@ if __name__ == "__main__":
             clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
         clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
-        assert False
         inicio = T.tic()
         # se entrena la red
         clasificador.entrenar(trainSet=datos[0],
