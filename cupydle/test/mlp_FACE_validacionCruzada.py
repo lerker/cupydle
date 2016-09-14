@@ -94,6 +94,8 @@ if __name__ == "__main__":
     print("Numero de particiones: ", conjuntos)
     print("Porcentaje entrenamiento/validacion: ",porcentaje)
 
+    errorTRN_conjunto = []; errorVAL_conjunto = []; erroTST_conjunto = []
+
     for train_index, test_index in skf:
         contador +=1
         print("Particion < " + str(contador) + " >")
@@ -136,16 +138,23 @@ if __name__ == "__main__":
 
         inicio = T.tic()
         # se entrena la red
-        clasificador.entrenar(trainSet=datos[0],
-                              validSet=datos[1],
-                              testSet=datos[2],
-                              batch_size=tambatch)
+        errorTRN, errorVAL, erroTest = clasificador.entrenar(trainSet=datos[0],
+                                                             validSet=datos[1],
+                                                             testSet=datos[2],
+                                                             batch_size=tambatch)
         final = T.toc()
         print("Tiempo para entrenamiento: {}".format(T.transcurrido(inicio, final)))
-        print(clasificador.estadisticos)
+
+        errorTRN_conjunto.append(errorTRN)
+        errorVAL_conjunto.append(errorVAL)
+        erroTST_conjunto.append(errorTest)
+
 
     final_todo = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))
+
+    print("PROMEDIO de ERRORES para los {} conjuntos".format(contador))
+    print("Error Entrenamiento: {5.8f} | Error Validacion: {5.8f} | Error Test: {5.8f}".format(numpy.mean(errorTRN_conjunto), numpy.mean(errorVAL_conjunto), numpy.mean(errorTST(conjunto))))
 
     # guardando los parametros aprendidos
     clasificador.guardarParametros()

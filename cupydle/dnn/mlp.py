@@ -279,13 +279,16 @@ class MLP(object):
         print('Entrenando') if MLP.verbose else None
 
         # early-stopping parameters
+        costoEntrenamiento = numpy.inf
         errorValidacionHistorico = numpy.inf
+        errorTest=numpy.Inf
+
         epoca = 0
         looping = True
-        errorTest=0.0
 
         iteracionesMax = criterios['iteracionesMaximas'](maxIter=self.parametrosEntrenamiento['epocas'])
         toleranciaErr = criterios['toleranciaError'](self.parametrosEntrenamiento['toleranciaError'])
+
 
         # inicio del entrenamiento por epocas
         try:
@@ -338,6 +341,8 @@ class MLP(object):
 
         print("reales", predictor()[1][0:25])
         print("predic", predictor()[0][0:25])
+
+        return costoEntrenamiento, errorValidacionHistorico, errorTest
 
     def guardarParametros(self):
 
