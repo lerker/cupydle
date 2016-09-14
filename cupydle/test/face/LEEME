@@ -6,6 +6,7 @@ Orden de ejecucion:
 ./prom_voiced_frames.sh
 ./extract_video_features.sh
 ./concatenarVideos.sh
+./preprocesamiento.py all_videos_features_clases.csv "coso_procesado" 'z_score+min_max'
 
 
 Descripcion de los scripts:
@@ -21,10 +22,29 @@ Descripcion de los scripts:
     Llama a ./VideoFeaturesExtraction el cual manda el archivo de video a procesar.
     Recibe la ruta de un archivo de video .avi. Este programa se encarga de guardar en un archivo "-video_features.csv" 4900 valores (70*35 * 2(zona ojos y boca)) por frame relevante. En este trabajo se determino un promedio de 47 frames relevantes para toda la base de datos. Para determinar este promedio se utilizo el script "prom_voiced_frames.sh"
 
-./concatenarVideos.sh nombreArchivo.csv
+./concatenarVideos.sh <nombreArchivo.csv>
     busca en el directorio (y subdirectorios) todos los archivos con el patron '*video_features.csv'.
     Cada uno de estos archivos son la concatenacion de los frames caracteristicos de los videos ya procesados de su directorio.
     Junta todo el contenido en un unico archivo, por linea se corresponde a un ejemplo.
+
+./preprocesamiento.py
+    recibe el archivo crudo, 'nombreArchivo.csv' del script anterior y realiza el procesamiento indicado: ('min_max_escalado', 'z_score', 'blanqueo', 'z_score+min_max')
+    retorna un archivo numpy.narray comprimido en un tipo .npz
+    argumentos:
+        [0] archivoCrudo.csv
+        [1] archivoSalida
+        [2] tipoProceso
+
+
+// MLP
+
+./cupydle/test/mlp_FACE.py <-d> <--dataset> <-l> <-b> <-e>
+    ejecuta el main loop para el entrenamiento del dataset especifico para el conjunto de datos de emociones
+    -d directorio donde se alamcenan los datos generados
+    --dataset conjunto de datos especificos
+    -l capas que componen al mlp
+    -b batchsize
+    -e numero de epocas
 
 
 
