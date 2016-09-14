@@ -47,6 +47,8 @@ from cupydle.dnn.utils_theano import shared_dataset
 from cupydle.dnn.stops import criterios
 
 from cupydle.dnn.utils_theano import gpu_info
+from cupydle.dnn.utils_theano import calcular_chunk
+
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
     # para acceder a el -> MLP.verbose
@@ -203,12 +205,11 @@ class MLP(object):
         return self.capas[-1].predict()
 
 
-    def entrenar(self, trainSet, validSet, testSet, batch_size):
+    def entrenar(self, trainSet, validSet, testSet, batch_size, tamMacroBatch=None):
 
         assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
 
         tamMiniBatch = batch_size
-        tamMacroBatch = 10
 
         y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
                                         # [int] labels
@@ -231,6 +232,8 @@ class MLP(object):
 
         print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
 
+        if tamMacroBatch is None:
+            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=n_train_batches*batch_size)
 
         # necesito actualizar los costos, si no hago este paso no tengo
         # los valores requeridos

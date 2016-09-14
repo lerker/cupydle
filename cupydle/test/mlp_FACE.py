@@ -80,9 +80,9 @@ if __name__ == "__main__":
     # lista de tupas, [(x_trn, y_trn), ...]
     # los datos estan normalizados...
     datos = []
-    datosTRN = (videos, clases)
-    datosVAL = (videos[100:200,0:],clases[100:200])
-    datosTST = (videos[200:300,0:],clases[200:300:])
+    datosTRN = (videos[0:550,:], clases[0:550])
+    datosVAL = (videos[550:670,:],clases[550:670])
+    datosTST = (videos[670:,:],clases[670:])
 
     datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
 

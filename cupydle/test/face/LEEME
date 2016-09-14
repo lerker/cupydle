@@ -56,3 +56,15 @@ Descripcion de los scripts:
 * Calcula PCA para cada grupo de emociones (6).Por defecto se utilizaron 70 componentes principales.
 * Este programa recibe un archivo de video "all_videos.csv" que contiene todas las características de video ordenadas por emoción.
 * La salida es un archivo "all_videos-pca-projections.csv" el cual representa cada fila del archivo de entrada pero proyectado en su nuevo espacio de 70 valores.
+
+
+####
+https://gist.github.com/lerker/237e613498a00dbca7415dbd992b6b80
+
+pruebas ejecutadas
+sin shuffling
+    230300 500 6
+        60 epoch error val and test ~ 36%
+con shuffling
+    2300300 500 6
+
