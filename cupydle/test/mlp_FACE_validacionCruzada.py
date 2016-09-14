@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     print("Prueba con tecnicas de validacion cruzada...")
     print("Numero de particiones: ", conjuntos)
-    print("Porcentaje entrenamiento/validacion: " porcentaje)
+    print("Porcentaje entrenamiento/validacion: ",porcentaje)
 
     for train_index, test_index in skf:
         contador +=1
