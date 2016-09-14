@@ -288,6 +288,7 @@ class MLP(object):
         toleranciaErr = criterios['toleranciaError'](self.parametrosEntrenamiento['toleranciaError'])
 
         # inicio del entrenamiento por epocas
+        print(self.estadisticos)
         try:
             while looping:
 
