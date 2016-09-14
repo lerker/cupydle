@@ -92,11 +92,11 @@ if __name__ == "__main__":
 
     print("Prueba con tecnicas de validacion cruzada...")
     print("Numero de particiones: ", conjuntos)
-    print("Porcentaje entrenamiento/validacion: " porcenjate)
+    print("Porcentaje entrenamiento/validacion: " porcentaje)
 
     for train_index, test_index in skf:
-
         contador +=1
+        print("Particion < " + str(contador) + " >")
         # lista de tupas, [(x_trn, y_trn), ...]
         # los datos estan normalizados...
         datos = []
