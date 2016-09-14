@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
         # creo la red
         ruta_kfold = rutaCompleta + 'Kf_' + str(contador) + '/'
-        os.makedirs(ruta_kfold)
+        os.makedirs(ruta_kfold) if not os.path.exists(ruta_kfold) else None
 
         clasificador = MLP(clasificacion=True,
                            rng=None,
