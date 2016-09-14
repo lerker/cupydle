@@ -46,6 +46,7 @@ from cupydle.dnn.utils_theano import shared_dataset
 
 from cupydle.dnn.stops import criterios
 
+from cupydle.dnn.utils_theano import gpu_info
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
     # para acceder a el -> MLP.verbose
@@ -208,12 +209,6 @@ class MLP(object):
 
         tamMiniBatch = batch_size
         tamMacroBatch = 10
-        unidades = [self.capas[0].getW().shape[0]]
-        unidades.extend([c.getB().shape[0] for c in self.capas])
-        print(self.capas)
-        print("Entrenando un MLP, con [{}] unidades de entrada y {} unidades por capa".format(unidades[0], str(unidades[1:])))
-        print("Cantidad de ejemplos para el entrenamiento supervisado: ", 10)
-        print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
         y = theano.tensor.ivector('y')  # the labels are presented as 1D vector of
                                         # [int] labels
@@ -225,6 +220,17 @@ class MLP(object):
         n_train_batches = trainX.get_value(borrow=True).shape[0] // batch_size
         n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
         n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
+
+
+        print("MEMORIA: ", gpu_info('Mb'))
+        memoria_disponible = gpu_info('Mb')[0] * 0.8
+
+        memoria_dataset = 4 * n_train_batches*batch_size/1024./1024.
+        memoria_por_ejemplo = 4 * trainX.get_value(borrow=True).shape[1]/1024./1024.
+        memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
+
+        print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
+
 
         # necesito actualizar los costos, si no hago este paso no tengo
         # los valores requeridos
@@ -258,6 +264,12 @@ class MLP(object):
                         name='predictor'
         )
 
+        unidades = [self.capas[0].getW().shape[0]]
+        unidades.extend([c.getB().shape[0] for c in self.capas])
+        print("Entrenando un MLP, con [{}] unidades de entrada y {} unidades por capa".format(unidades[0], str(unidades[1:])))
+        print("Cantidad de ejemplos para el entrenamiento supervisado: ", n_train_batches*batch_size)
+        print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
+        print("MEMORIA antes de iterar: ", gpu_info('Mb'))
         print('Entrenando') if MLP.verbose else None
 
         # early-stopping parameters
@@ -295,7 +307,7 @@ class MLP(object):
 
                     errorTest = [test_model(i) for i in range(n_test_batches)]
                     errorTest = numpy.mean(errorTest)
-                    print('     Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
+                    print('|---->>Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
 
 
                 # para concatenar meter un or
@@ -318,8 +330,8 @@ class MLP(object):
 
 
 
-        print("reales", predictor()[1][0:10])
-        print("predic", predictor()[0][0:10])
+        print("reales", predictor()[1][0:20])
+        print("predic", predictor()[0][0:20])
 
     def train_bengio(self, trainSet, validSet, testSet, batch_size):
 
