@@ -83,7 +83,7 @@ if __name__ == "__main__":
     del b #libera memoria
     skf = StratifiedKFold(clases, n_folds=conjuntos)
 
-    assert porcenjate <= 1.0, "El porcenje no puede ser superior a 1"
+    assert porcentaje <= 1.0, "El porcenje no puede ser superior a 1"
 
     T = temporizador()
     inicio_todo = T.tic()
