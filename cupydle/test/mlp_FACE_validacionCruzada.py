@@ -111,7 +111,13 @@ if __name__ == "__main__":
         datosVAL = (videos[train_index[:cantidad]],clases[train_index[:cantidad]])
         datosTST = (videos[test_index],clases[test_index])
 
+        print("Cantidad de clases en el conjunto Entrenamiento: ", numpy.bincount(datosTRN[1]))
+        print("Cantidad de clases en el conjunto Validacion: ", numpy.bincount(datosVAL[1]))
+        print("Cantidad de clases en el conjunto Test: ", numpy.bincount(datosTST[1]))
+
         datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
+
+        del datosTRN ; del datosVAL; del datosTST
 
         # creo la red
         ruta_kfold = rutaCompleta + carpetaConjunto + str(contador) + '/'
@@ -149,6 +155,8 @@ if __name__ == "__main__":
         errorVAL_conjunto.append(errorVAL)
         errorTST_conjunto.append(errorTST)
 
+        # guardando los parametros aprendidos
+        clasificador.guardarParametros()
 
     final_todo = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))
@@ -157,9 +165,6 @@ if __name__ == "__main__":
     print("Error Entrenamiento: ", numpy.mean(errorTRN_conjunto) * 100.)
     print("Error Validacion: ", numpy.mean(errorVAL_conjunto) * 100.)
     print("Error Testeo: ", numpy.mean(errorTST_conjunto) * 100.)
-
-    # guardando los parametros aprendidos
-    clasificador.guardarParametros()
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
