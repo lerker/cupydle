@@ -73,6 +73,9 @@ if __name__ == "__main__":
     b = numpy.load(rutaDatos + dataset)
     videos = b['videos']
     clases = b['clases']
+    print(clases)
+    clases -= 1
+    print(clases)
     del b #libera memoria
 
     # lista de tupas, [(x_trn, y_trn), ...]
