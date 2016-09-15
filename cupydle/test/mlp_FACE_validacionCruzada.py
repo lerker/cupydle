@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--epocas',       type=int,   dest="epocas",      default=10,         required=False,     help="Cantidad de epocas")
     parser.add_argument('-f', '--folds',        type=int,   dest="folds",       default=6,          required=False,     help="Cantidad de conjuntos para la validacion cruzada")
     parser.add_argument('-p', '--porcentaje',   type=float, dest="porcentaje",  default=0.8,        required=False,     help="Porcentaje en que el conjunto de entrenamiento se detina para entrenar y validar")
+    parser.add_argument('-lr', '--tasaApre',    type=float, dest="tasaAprendizaje",default=0.01,    required=False,     help="Tasa de aprendizaje para el ajuste de los pesos en el gradiente estocastico")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     conjuntos             = argumentos.folds
     porcentaje            = argumentos.porcentaje
     carpetaConjunto       = argumentos.carpetaConjunto
+    tasaAprendizaje       = argumentos.tasaAprendizaje
 
 
     # configuraciones con respecto a los directorios
@@ -126,7 +128,7 @@ if __name__ == "__main__":
         clasificador = MLP(clasificacion=True, rng=None, ruta=ruta_kfold)
 
         # se agregan los parametros
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.1})
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':tasaAprendizaje})
         clasificador.setParametroEntrenamiento({'regularizadorL1':0.0001})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})

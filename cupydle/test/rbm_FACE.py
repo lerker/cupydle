@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--epocas',       type=int,   dest="epocas",      default=10,         required=False,     help="Cantidad de epocas")
     parser.add_argument('-p', '--porcentaje',   type=float, dest="porcentaje",  default=0.8,        required=False,     help="Porcentaje en que el conjunto de entrenamiento se detina para entrenar y testeo")
     parser.add_argument('-v', '--visibles',     type=int,   dest="visibles",    default=230300,     required=False,     help="Cantidad de Unidades Visibles")
-    parser.add_argument('-o', '--ocultas',     type=int,   dest="ocultas",    default=100,        required=False,     help="Cantidad de Unidades Ocultas")
+    parser.add_argument('-o', '--ocultas',      type=int,   dest="ocultas",     default=100,        required=False,     help="Cantidad de Unidades Ocultas")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
