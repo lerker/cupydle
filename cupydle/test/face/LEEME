@@ -24,20 +24,38 @@ Descripcion de los scripts:
     Llama a ./VideoFeaturesExtraction el cual manda el archivo de video a procesar.
     Recibe la ruta de un archivo de video .avi. Este programa se encarga de guardar en un archivo "-video_features.csv" 4900 valores (70*35 * 2(zona ojos y boca)) por frame relevante. En este trabajo se determino un promedio de 47 frames relevantes para toda la base de datos. Para determinar este promedio se utilizo el script "prom_voiced_frames.sh"
 
-./concatenarVideos.sh <nombreArchivo.csv>
-    busca en el directorio (y subdirectorios) todos los archivos con el patron '*video_features.csv'.
+./concatenarVideos.sh <archivoSalida.csv>
+    Busca en el directorio (y subdirectorios) todos los archivos con el patron '*video_features.csv' el cual contiene todas la caracteristicas que fueron estraidas previamente. (4900 valores) por frames (47)
     Cada uno de estos archivos son la concatenacion de los frames caracteristicos de los videos ya procesados de su directorio.
-    Junta todo el contenido en un unico archivo, por linea se corresponde a un ejemplo.
+    Argumentos:
+        [0] nombreArchivoSalida.csv donde de almacena el archivo resultalte
+    Retorno:
+        Archivo del tipo 'csv' el cual contine por cada fila un ejemplo. Cada uno al inicio contiene la etiqueta (6) caracteristica de la emocion (1,2...6). El archivo resultante es de 720x230300
+    Junta todo el contenido en un unico archivo, por linea se corresponde a un ejemplo (720x230300)
+    >>> ./concatenarVideos.sh all_videos_features_clases.csv
 
-./pca.py
+./pca.py <archivo_entrada> <#componentes> <archivo_salida>
+    Calcula PCA para cada grupo de emociones (6).Por defecto se utilizaron 70 componentes principales.
+    Argumentos:
+        [0] archivoEntrada[.csv][.npz]
+        [1] # de componentes de la proyeccion pca
+        [2] archivoSalida, se le concatena .npz (comprimido de numpy)
+    Retorno:
+        Archivo comprimido de NUMPY, .npz. Se lee como diccionario donde las keys son 'videos' y 'clases' para los videos y las clases respectivamente.
+    >>> python3 pca.py all_videos_features_clases_shuffled.csv 70 videos_pca_70_features_raw
+    >>> python3 pca.py all_videos_features_clases_shuffled.csv 85 videos_pca_85_features_raw
 
-./preprocesamiento.py
-    recibe el archivo crudo, 'nombreArchivo.csv' del script anterior y realiza el procesamiento indicado: ('min_max_escalado', 'z_score', 'blanqueo', 'z_score+min_max')
+
+./preprocesamiento.py <archivoEntrada> <archivoSalida> <proceso>
+    Recibe el archivo y lo procesa con algunos de los normalizadores predefinidos ('min_max_escalado', 'z_score', 'blanqueo', 'z_score+min_max')
+    Argum
     retorna un archivo numpy.narray comprimido en un tipo .npz
     argumentos:
         [0] archivoCrudo.csv
         [1] archivoSalida
         [2] tipoProceso
+    >>> python3 preprocesamiento.py all_videos_features_clases.npz "coso_procesado" 'z_score+min_max'
+    >>> python3 preprocesamiento.py videos_pca_85_features_raw.npz videos_pca_85_features_procesado_minmax "min_max"
 
 
 // MLP

@@ -11,8 +11,8 @@ cantidad_componentes = int(sys.argv[2])
 archivo_salida       = str(sys.argv[3])
 
 
-print("Archivo entrada: ", archivo_entrada)
-print("Archivo salida: ", archivo_salida)
+print("Archivo entrada: ",  archivo_entrada)
+print("Archivo salida: ",   archivo_salida + '.npz')
 print("Cantidad de componentes: ", cantidad_componentes)
 
 ### funcion de ayuda que carga un archivo gigande csv
