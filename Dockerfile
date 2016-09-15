@@ -26,6 +26,7 @@ RUN apt-get update && \
     python3-pip \
     python3-nose \
     python3-matplotlib \
+    python3-tk \
     libopenblas-dev \
     git \
     gcc-4.6 \
