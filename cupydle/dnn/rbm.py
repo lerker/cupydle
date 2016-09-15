@@ -1220,7 +1220,7 @@ class RBM(object):
         print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
         if tamMacroBatch is None:
-            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=cantidad_ejemplos)
+            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
 
         tamMacroBatch = int(tamMacroBatch)
         tamMiniBatch = int(tamMiniBatch)
