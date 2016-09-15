@@ -40,10 +40,30 @@ from cupydle.dnn.rbm import RBM
 
 if __name__ == "__main__":
 
-    directorioActual= os.getcwd()                                   # directorio actual de ejecucion
+    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre FACE')
+    parser.add_argument('-d', '--directorio',   type=str,   dest="directorio",  default='test_RBM', help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--dataset',            type=str,   dest="dataset",     default='videos_clases_procesados_zscore_minmax.npz', help="Archivo donde esta el dataset, [videos, clases].npz")
+    parser.add_argument('-b', '--batchsize',    type=int,   dest="tambatch",    default=10,         required=False,     help="Tamanio del minibatch para el entrenamiento")
+    parser.add_argument('-e', '--epocas',       type=int,   dest="epocas",      default=10,         required=False,     help="Cantidad de epocas")
+    parser.add_argument('-p', '--porcentaje',   type=float, dest="porcentaje",  default=0.8,        required=False,     help="Porcentaje en que el conjunto de entrenamiento se detina para entrenar y testeo")
+    parser.add_argument('-v', '--visibles',     type=int,   dest="visibles",    default=230300,     required=False,     help="Cantidad de Unidades Visibles")
+    parser.add_argument('-o', '--ocultas',     type=int,   dest="ocultas",    default=100,        required=False,     help="Cantidad de Unidades Ocultas")
+    argumentos = parser.parse_args()
+
+    # parametros pasados por consola
+    directorio_ejecucion  = argumentos.directorio
+    dataset               = argumentos.dataset
+    tambatch              = argumentos.tambatch
+    epocas                = argumentos.epocas
+    porcentaje            = argumentos.porcentaje
+    visibles              = argumentos.visibles
+    ocultas               = argumentos.ocultas
+
+    # configuraciones con respecto a los directorios
+    directorioActual= os.getcwd()                                  # directorio actual de ejecucion
     rutaTest        = directorioActual + '/cupydle/test/face/'     # sobre el de ejecucion la ruta a los tests
     rutaDatos       = directorioActual + '/cupydle/data/DB_face/'  # donde se almacenan la base de datos
-    carpetaTest     = 'test_rbm/'                                   # carpeta a crear para los tests
+    carpetaTest     = directorio_ejecucion + '/'                   # carpeta a crear para los tests
     rutaCompleta    = rutaTest + carpetaTest
 
     if not os.path.exists(rutaCompleta):        # si no existe la crea
@@ -54,49 +74,23 @@ if __name__ == "__main__":
         print("Creando la base de datos en:", rutaDatos)
         os.makedirs(rutaDatos)
 
-
-    setName = "face"
-
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre FACE.')
-    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
-    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
-    args = parser.parse_args()
-
-    guardar = args.guardar
-    modelName = args.modelo
-    #modelName = 'capa1.pgz'
-
-
-    # obtengo todos los subconjuntos
-    #train_img,  train_labels= mn.get_training()
-    #test_img,   test_labels = mn.get_testing()
-    #val_img,    val_labels  = mn.get_validation()
+    # se cargan  los datos, debe ser un archivo comprimido, en el cual los
+    # arreglos estan en dos archivos, 'videos' y 'clases'
+    b = numpy.load(rutaDatos + dataset)
+    videos = b['videos']
+    clases = b['clases']
+    del b #libera memoria
+    # las clases estan desde 1..6, deben ser desde 0..5
+    clases -= 1
 
     # lista de tupas, [(x_trn, y_trn), ...]
     # los datos estan normalizados...
-
-    #datos = [mn.get_training(), mn.get_testing(), mn.get_validation()]
-    #datos = [( ((x/255.0).astype(numpy.float32)), y) for x, y in datos]
-
-    b = numpy.load(rutaDatos + 'videos_clases_procesados_zscore_minmax.npz')
-
-    videos = b['videos']
-    clases = b['clases']
-    del b
-
-    #datos = [(videos[0:20,0:], clases[0:20]), (videos[21:,0:],clases[21:])]
-    datos = [(videos, clases), (videos[100:,0:],clases[100:])]
-
-
-    # parametros de la red
-    n_visible = 230300
-    n_hidden  = 5000
-    batchSize = 10
+    datos = []
+    cantidad = int(clases.shape[0] * porcentaje)
+    datos = [(videos[:cantidad], clases[:cantidad]), (videos[cantidad:],clases[cantidad:])]
 
     # creo la red
-    red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
-    #red.dibujarPesos(red.get_pesos... )
-    #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
+    red = RBM(n_visible=visibles, n_hidden=ocultas, ruta=rutaCompleta)
 
     parametros={'epsilonw':0.1,
                 'epsilonvb':0.1,
@@ -109,21 +103,13 @@ if __name__ == "__main__":
                 'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
     red.setParams(parametros)
-    red.setParams({'epocas':100})
-
+    red.setParams({'epocas':epocas})
 
     T = temporizador()
     inicio = T.tic()
 
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0], gibbsSteps=1)
-    #MNIST.plot_one_digit((train_img/255.0).astype(numpy.float32)[0])
-    #MNIST.plot_one_digit(salida)
-
-
     red.entrenamiento(data=datos[0][0],
-                      tamMiniBatch=batchSize,
-                      #tamMacroBatch=datos[0][0].shape[0]//2,
+                      tamMiniBatch=tambatch,
                       tamMacroBatch=None,
                       pcd=False,
                       gibbsSteps=1,
@@ -132,13 +118,6 @@ if __name__ == "__main__":
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
-
-    # guardo los estadisticos
-    #red.dibujarEstadisticos(show=True, save='estadisticos.png')
-    #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
-
-    #red.sampleo(data=datos[0][0],
-    #            labels=datos[0][1])
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
