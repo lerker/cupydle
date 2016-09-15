@@ -1214,14 +1214,13 @@ class RBM(object):
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
-        #print("MEMORIA: ", gpu_info('Mb'))
-
-        memoria_disponible = gpu_info('Mb')[0] * 0.8
+        # memoria que hago utilizable, le calculo un porcentaje debido a que se pierde un poco en la allocacion por fragmentacion
+        memoria_disponible = gpu_info('Mb')[0] * 0.9
 
         memoria_dataset = 4 * data.shape[0]/1024./1024.
         memoria_por_ejemplo = 4 * data.shape[1]/1024./1024.
         memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
-
+        print(data.shape)
         print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
 
         assert False
