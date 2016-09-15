@@ -2,15 +2,22 @@
 AUDIO
 =====
 
-Orden de ejecucion
-==================
+El Objetivo de este conjunto de scripts es extraer caracteristicas del audio de cada video. Ya que la dimension es muy alta (tasa de muestreo de 44100 bit/s) para el archivo de audio ya cortado donde interesa, entonces lo que se desea es estraer componentes caracteristicas de cada archivo y guardarlas en un formato manejable.
+
+Se requieren algunos scripts que se integran a matlab, desde los siguientes repositorios:
+
+-> http://labrosa.ee.columbia.edu/matlab/audioread/
+-> http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
+
+Orden de ejecucion:
+-------------------
 
 ./extractorWav.py
 ./extractorAudioRaw.sh
 
 
 Descripcion de los scripts:
-===========================
+---------------------------
 
 ./extractorWav.py
     A partir de la pista de audio .wav se corta la misma en referencia a los frames de inicio y fin del video de procedencia de dicha pista.
@@ -29,16 +36,17 @@ Descripcion de los scripts:
     Restorno:
         archivos individuales .csv correspodientes a cada pista de audio
 
-
-
-
-
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 VIDEO
 =====
 
+El objetivo es extraer del video factores caracteristicos que se relacionan con una emocion humana, como ser una mueca o sonriasa...
+Se extrae de cada video la zona de los ojos y boca donde el hablante emite algun sonido. Con ello contamos con el archivo 'crudo' de datos. Otro proceso es reducir la dimensionalidad anterior (230300 -> X < 150) gracias a tecnicas como PCA.
+
 Orden de ejecucion:
-==================
+-------------------
 
 ./extract_voiced_frames.sh
 ./prom_voiced_frames.sh
@@ -50,7 +58,7 @@ Orden de ejecucion:
 
 
 Descripcion de los scripts:
-==========================
+---------------------------
 
 ./extract_voiced_frames.sh
     Determina donde comienza y termina el frame de voz en el video.
@@ -97,6 +105,8 @@ Descripcion de los scripts:
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 MLP
 ===
 

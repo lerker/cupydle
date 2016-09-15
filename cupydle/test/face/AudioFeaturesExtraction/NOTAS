@@ -1,3 +1,5 @@
+El Objetivo de este conjunto de scripts es extraer caracteristicas del audio de cada video. Ya que la dimension es muy alta (tasa de muestreo de 44100 bit/s) para el archivo de audio ya cortado donde interesa, entonces lo que se desea es estraer componentes caracteristicas de cada archivo y guardarlas en un formato manejable.
+
 -> features.m
 
 Calcula las 46 características de audio para una pista en particular y las guarda en un archivo con el mismo nombre de video pero "-audio_features.csv" al final
