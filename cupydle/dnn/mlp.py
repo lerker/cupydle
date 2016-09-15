@@ -351,7 +351,7 @@ class MLP(object):
             numpy.save(self.ruta + 'PesosW' + str(capa[0]+1) + '.npy', capa[1].getW())
             numpy.save(self.ruta + 'BiasB' + str(capa[0]+1) + '.npy', capa[1].getB())
 
-        return 0
+        return 1
 
 
     def construirActualizaciones(self, costo, actualizaciones):

@@ -238,15 +238,15 @@ class RBM(object):
 
     @property
     def get_w(self):
-        return self.w.get_value()
+        return self.w.get_value(borrow=True)
 
     @property
     def get_biasVisible(self):
-        return self.visbiases.get_value()
+        return self.visbiases.get_value(borrow=True)
 
     @property
     def get_biasOculto(self):
-        return self.hidbiases.get_value()
+        return self.hidbiases.get_value(borrow=True)
 
     @property
     def printParams(self):
@@ -1097,7 +1097,13 @@ class RBM(object):
         return train_rbm
 
     def construirActualizaciones(self, updatesOriginal, probabilidad_H0, probabilidad_Vk, probabilidad_Hk, muestra_Vk, miniBatchSize):
-
+        """
+        calcula las actualizaciones de la red sobre sus parametros w hb y vh
+        con momento
+        tasa de aprendizaje para los pesos, y los biases visibles y ocultos
+        """
+        # arreglo los parametros en caso de que no se hayan establecidos, considero las
+        # tasa de aprendizaje para los bias igual al de los pesos
         if self.params['epsilonvb'] is None:
             self.params['epsilonvb'] = self.params['epsilonw']
         if self.params['epsilonvb'] == 0.0:
@@ -1270,11 +1276,7 @@ class RBM(object):
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
         print("Tamanio del MiniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
-        for epoch in range(0, self.params['epocas']):
-            # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {:>3d} de {:>3d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch+1, self.params['epocas'], costo, mse, fEnergy),
-                    end=finLinea)
+        for epoch in range(1, self.params['epocas']):
 
             costo = []; mse = []; fEnergy = []
             ####
@@ -1313,94 +1315,13 @@ class RBM(object):
                  'energiaLibreEntrenamiento': fEnergy,
                  'energiaLibreValidacion': 0.0})
 
-            if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1), automatico=True)
-
-            # END SET
-        # END epoch
-        print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
-
-        self.dibujarEstadisticos()
-        return 1
-
-    def entrenamiento_backup_sinMACROBATCH(self, data, miniBatchSize=10, pcd=True, gibbsSteps=1, validationData=None, filtros=False, printCompacto=False):
-
-        print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
-        print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
-
-        # convierto todos los datos a una variable shared de theano para llevarla a la GPU
-        sharedData  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='TrainingData')
-
-        # para la validacion
-        if validationData is not None:
-            sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
-
-        trainer = None
-        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
-        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
-        if pcd:
-            print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastivaPersistente(miniBatchSize, sharedData)
-        else:
-            print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
-            trainer = self.DivergenciaContrastiva(miniBatchSize, sharedData)
-        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
-
-        if filtros:
-            # plot los filtros iniciales (sin entrenamiento)
-            self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
-
-
-
-        # cantidad de indices... para recorrer el set
-        indexCount = int(data.shape[0]/miniBatchSize)
-        costo = numpy.Inf
-        mse = numpy.Inf
-        fEnergy = numpy.Inf
-        finLinea='\n'
-        finLinea = '\r' if printCompacto else '\n'
-
-        for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {:>3d} '
-                    + 'de {:>3d}, '
-                    + 'error<TrnSet>:{:> 8.5f}, '
-                    + 'MSE<ejemplo> :{:> 8.5f}, '
-                    + 'EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch+1,
-                        self.params['epocas'],
-                        costo,
-                        mse,
-                        fEnergy),
+            print(str('Epoca {:>3d} de {:>3d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+                        epoch, self.params['epocas'], costo, mse, fEnergy),
                     end=finLinea)
 
-            costo = []
-            mse = []
-            fEnergy = []
-            for batch in range(0, indexCount):
-                # salida[monitoring_cost, mse, deltafreeEnergy]
-                salida = trainer(batch, gibbsSteps)
-
-                costo.append(salida[0])
-                mse.append(salida[1])
-                fEnergy.append(salida[2])
-
-
-            costo = numpy.mean(costo)
-            mse = numpy.mean(mse)
-            fEnergy = numpy.mean(fEnergy)
-
-            self.agregarEstadistico(
-                {'errorEntrenamiento': costo,
-                 'mseEntrenamiento': mse,
-                 'errorValidacion': 0.0,
-                 'errorTesteo': 0.0,
-                 'energiaLibreEntrenamiento': fEnergy,
-                 'energiaLibreValidacion': 0.0})
-
             if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch+1),
-                                    automatico=True)
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch), automatico=True)
 
             # END SET
         # END epoch
@@ -1408,7 +1329,6 @@ class RBM(object):
 
         self.dibujarEstadisticos()
         return 1
-
 
     def reconstruccion(self, muestraV, gibbsSteps=1):
         """
@@ -1610,7 +1530,7 @@ class RBM(object):
         :return:
         """
         #from cupydle.dnn.utils import save as saver
-
+        warn("esta funcion sera <<deprecated>>, ver por guardarPrametros etc")
         ruta = self.ruta
         import time
 
@@ -1631,9 +1551,11 @@ class RBM(object):
         return
     # END SAVE
 
-    def guardarPesos(self, nombreArchivo):
-        numpy.save(self.ruta + nombreArchivo + '.npy', self.get_w)
-
+    def guardarPrametros(self, nombreArchivo):
+        """
+        guarda los parametros de la red en formato comprimido
+        """
+        numpy.savez_compressed(self.ruta + nombreArchivo + '.npz', w=self.get_w, visBias=self.get_biasVisible, hidBias=self.get_biasOculto)
         return 1
 
     @staticmethod

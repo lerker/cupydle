@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
-    red.guardar(nombreArchivo="rbm_face.zip")
+    red.guardarPrametros(nombreArchivo="RBM_face")
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
 
