@@ -81,11 +81,13 @@ def gpu_info(conversion='Gb'):
     # memoria fisica total
     memoriaTotalMb = sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[1]
     memoriaTotal = memoriaTotalMb/1024./1024
+    memoriaTotal = memoriaTotalMb/1024.
     memoriaTotal = (memoriaTotal/1024.) if conversion == 'Gb' else memoriaTotal
 
     # memoria disponible
     memoriaLibreMb = sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[0]
     memoriaLibre = memoriaLibreMb/1024./1024
+    memoriaLibre = memoriaLibreMb/1024.
     memoriaLibre = (memoriaLibre/1024.) if conversion == 'Gb' else memoriaLibre
 
     memoriaOcupada = memoriaTotal - memoriaLibre

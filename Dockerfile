@@ -36,6 +36,9 @@ RUN apt-get update && \
 # Install theano with python3
 RUN pip3 install Theano
 
+# Install Pillow
+RUN pip3 install Pillow
+
 #### probar si desistalo gcc-4.8 anda directamente
 
 # Change the default gcc
@@ -69,6 +72,9 @@ RUN echo "Instalando driver" && ./cuda_6.5.14_linux_64.run -silent --driver --ov
 ENV PATH /usr/local/cuda/bin:${PATH}
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 ENV PYTHONPATH /root/cupydle/
+
+#cleanup
+RUN apt-get clean && apt-get autoclean && rm -rf /var/lib/apt/lists/*
 
 # Ejemplo
 WORKDIR /root/NVIDIA_CUDA-6.5_Samples/1_Utilities/deviceQuery
