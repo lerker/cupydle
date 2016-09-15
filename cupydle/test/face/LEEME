@@ -1,4 +1,19 @@
 
+AUDIO
+=====
+
+
+
+
+
+
+
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+VIDEO
+=====
+
 Orden de ejecucion:
 ==================
 
@@ -58,7 +73,9 @@ Descripcion de los scripts:
     >>> python3 preprocesamiento.py videos_pca_85_features_raw.npz videos_pca_85_features_procesado_minmax "min_max"
 
 
-// MLP
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+MLP
+===
 
 ./cupydle/test/mlp_FACE.py <-d> <--dataset> <-l> <-b> <-e>
     ejecuta el main loop para el entrenamiento del dataset especifico para el conjunto de datos de emociones
@@ -68,16 +85,8 @@ Descripcion de los scripts:
     -b batchsize
     -e numero de epocas
 
-    python3 cupydle/test/mlp_FACE.py -d test_MLP -l 230300 1000 500 6 -e 500
+    >>> python3 cupydle/test/mlp_FACE.py -d test_MLP -l 230300 1000 500 6 -e 500
 
-
-
-
-//PCA:
-
-* Calcula PCA para cada grupo de emociones (6).Por defecto se utilizaron 70 componentes principales.
-* Este programa recibe un archivo de video "all_videos.csv" que contiene todas las características de video ordenadas por emoción.
-* La salida es un archivo "all_videos-pca-projections.csv" el cual representa cada fila del archivo de entrada pero proyectado en su nuevo espacio de 70 valores.
 
 
 
