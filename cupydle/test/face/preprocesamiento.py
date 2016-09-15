@@ -48,7 +48,7 @@ else:
     assert False, "ARCHIVO NO PROCESABLE con la terminacion dada"
 
 print("Archivo:\t",       archivo_entrada)
-print("Archivo crudo:\t", videos.shape)
+print("Archivo crudo:\t", videos.shape+1)
 print("Videos crudo:\t",  videos.shape,   "\ttipo: ", videos.dtype)
 print("Clases:\t\t",      clases.shape, "\ttipo: ", clases.dtype)
 
