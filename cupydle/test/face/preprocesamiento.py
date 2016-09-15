@@ -1,5 +1,5 @@
 #!/bin/prython3
-# python3 preprocesamiento.py all_videos_features_clases.csv "coso_procesado" 'z_score+min_max'
+# python3 preprocesamiento.py all_videos_features_clases.npz "coso_procesado" 'z_score+min_max'
 
 import numpy as np
 import sys
@@ -23,7 +23,7 @@ def iter_loadtxt(filename, delimiter=' ', skiprows=0, dtype=float):
 
 # se le pasa por argumentos el nombre del archivo
 # 'all_videos_features_clases.csv'
-nombre_archivo = sys.argv[1]
+archivo_entrada = sys.argv[1]
 
 # archivo de salida comprimido
 nombre_archivo_salida = sys.argv[2]
@@ -31,14 +31,25 @@ nombre_archivo_salida = sys.argv[2]
 # tipo de procesamiento: 'z_score', 'min_max', 'blanqueo', 'z_score+min_max'
 procesamiento = sys.argv[3]
 
-videos = iter_loadtxt(filename=nombre_archivo, delimiter=' ', dtype=np.float32, skiprows=0)
 
-data   = videos[:,1:].astype(np.float32)
-clases = videos[:,0].astype(np.int8)
+videos = None
+clases = None
+if archivo_entrada.find('.npz') != -1: # es un archivo comprimido, por lo que supongo que debo estraer las cosas...
+    data   = np.load(archivo_entrada)
+    videos = data['videos']
+    clases = data['clases']
+    del data #libera memoria
+elif archivo_entrada.find('.csv') != -1: # es un tipo csv crudo, cargo con la ayuda
+    data   = iter_loadtxt(filename=archivo_entrada, delimiter=' ', dtype=np.float32, skiprows=0)
+    videos = data[:,1:].astype(np.float32)
+    clases = data[:,0].astype(np.int8)
+    del data #libera memoria
+else:
+    assert False, "ARCHIVO NO PROCESABLE con la terminacion dada"
 
-print("Archivo:\t",       nombre_archivo)
+print("Archivo:\t",       archivo_entrada)
 print("Archivo crudo:\t", videos.shape)
-print("Videos crudo:\t",  data.shape,   "\ttipo: ", data.dtype)
+print("Videos crudo:\t",  videos.shape,   "\ttipo: ", videos.dtype)
 print("Clases:\t\t",      clases.shape, "\ttipo: ", clases.dtype)
 
 
@@ -52,18 +63,8 @@ def z_score(datos):
     # x' = (x - mu)/sigma
     # x = dato de entrada; x' = dato normalizado
     # mu = media; sigma = desvio estandar
-    mu = np.mean(data, axis = 0)
-    sigma = np.std(data, axis = 0)
-    return (datos - mu) / sigma
-def z_score(datos):
-    # Normalizacion estadistica (Z-score Normalization)
-    # https://en.wikipedia.org/wiki/Standard_score
-    # datos [N x D] (N # de datos, D su dimensionalidad).
-    # x' = (x - mu)/sigma
-    # x = dato de entrada; x' = dato normalizado
-    # mu = media; sigma = desvio estandar
-    mu = np.mean(data, axis = 0)
-    sigma = np.std(data, axis = 0)
+    mu = np.mean(datos, axis = 0)
+    sigma = np.std(datos, axis = 0)
     return (datos - mu) / sigma
 
 def min_max_escalado(datos, min_obj=0.0, max_obj=1.0):
@@ -99,19 +100,19 @@ def blanqueo(datos, eigenvalues=100, epison=1e-5):
 
 # procesando los datos segun el tipo seleccionado
 if procesamiento == 'min_max':
-    data = min_max_escalado(data)
+    videos = min_max_escalado(videos)
 elif procesamiento == 'z_score':
-    data = z_score(data)
+    videos = z_score(videos)
 elif procesamiento == 'blanqueo':
-    data = blanqueo(data)
+    videos = blanqueo(videos)
 elif procesamiento == 'z_score+min_max':
-    data = min_max_escalado(z_score(data))
+    videos = min_max_escalado(z_score(videos))
 else:
     assert False, "no existe ese tipo de procesamiento"
 
 # almacenamiento comprimido
 # en un solo archivo, dentro se encuentra cada array con el nombre otorgado en le kword
-np.savez_compressed(nombre_archivo_salida + '.npz', videos=data, clases=clases)
+np.savez_compressed(nombre_archivo_salida + '.npz', videos=videos, clases=clases)
 
 
 

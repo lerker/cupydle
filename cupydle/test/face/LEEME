@@ -5,8 +5,10 @@ Orden de ejecucion:
 ./extract_voiced_frames.sh
 ./prom_voiced_frames.sh
 ./extract_video_features.sh
+
 ./concatenarVideos.sh
-./preprocesamiento.py all_videos_features_clases.csv "coso_procesado" 'z_score+min_max'
+./pca.py all_videos_features_clases[shuffled].csv 70 all_videos_pca_70.npz
+./preprocesamiento.py all_videos_pca_70.npz "coso_procesado" 'z_score+min_max'
 
 
 Descripcion de los scripts:
@@ -26,6 +28,8 @@ Descripcion de los scripts:
     busca en el directorio (y subdirectorios) todos los archivos con el patron '*video_features.csv'.
     Cada uno de estos archivos son la concatenacion de los frames caracteristicos de los videos ya procesados de su directorio.
     Junta todo el contenido en un unico archivo, por linea se corresponde a un ejemplo.
+
+./pca.py
 
 ./preprocesamiento.py
     recibe el archivo crudo, 'nombreArchivo.csv' del script anterior y realiza el procesamiento indicado: ('min_max_escalado', 'z_score', 'blanqueo', 'z_score+min_max')
@@ -58,13 +62,4 @@ Descripcion de los scripts:
 * La salida es un archivo "all_videos-pca-projections.csv" el cual representa cada fila del archivo de entrada pero proyectado en su nuevo espacio de 70 valores.
 
 
-####
-https://gist.github.com/lerker/237e613498a00dbca7415dbd992b6b80
-
-pruebas ejecutadas
-sin shuffling
-    230300 500 6
-        60 epoch error val and test ~ 36%
-con shuffling
-    2300300 500 6
 
