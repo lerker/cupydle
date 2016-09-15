@@ -90,6 +90,20 @@ def gpu_info(conversion='Gb'):
 
     return memoriaLibre, memoriaOcupada, memoriaTotal, porcentajeMemOcu
 
+def calcular_memoria_requerida(cantidad_ejemplos, cantidad_valores, tamMiniBatch):
+    """
+    calcula la memoria necesaria para la reserva de memoria y chuncks segun el
+    dataset y minibacth
+    """
+    memoria_disponible = gpu_info('Mb')[0] #* 0.9
+
+    # el 4 es por lo que ocupa un byte, todo a -> Mb
+    memoria_dataset = 4 * cantidad_ejemplos * cantidad_valores / 1024. / 1024.
+    memoria_por_ejemplo = 4 * cantidad_valores / 1024. / 1024.
+    memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
+
+    return memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch
+
 def calcular_chunk(memoriaDatos, tamMiniBatch, cantidadEjemplos, porcentajeUtil=0.9):
     """
     calcula el tamMacroBatch
@@ -99,7 +113,6 @@ def calcular_chunk(memoriaDatos, tamMiniBatch, cantidadEjemplos, porcentajeUtil=
     tamMacroBatch = None
     contador = 1
     memoriaGPU = gpu_info('Mb')[0] * porcentajeUtil
-    print("MEMORIA GPU",memoriaGPU)
     while True:
         a = memoriaGPU / (memoriaDatos / contador)
         b = (cantidadEjemplos / contador) % tamMiniBatch == 0
@@ -109,8 +122,7 @@ def calcular_chunk(memoriaDatos, tamMiniBatch, cantidadEjemplos, porcentajeUtil=
 
         contador +=1
         if contador == 10000000:
-            print("A",a,"B",b)
-            assert False, "contador de MacroBatch demasiado alto " + str(contador)
+            assert False, "contador de MacroBatch demasiado alto, es eficiente? " + str(contador)
 
     if contador == 1:
         tamMacroBatch = cantidadEjemplos
@@ -118,4 +130,3 @@ def calcular_chunk(memoriaDatos, tamMiniBatch, cantidadEjemplos, porcentajeUtil=
         tamMacroBatch = contador * tamMiniBatch
 
     return tamMacroBatch
-

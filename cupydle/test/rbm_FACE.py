@@ -85,14 +85,14 @@ if __name__ == "__main__":
 
     # lista de tupas, [(x_trn, y_trn), ...]
     # los datos estan normalizados...
-    datos = []
     cantidad = int(clases.shape[0] * porcentaje)
     # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
     # es por ello que acomodo la cantidad hasta que quepa
     while (cantidad % tambatch):
         cantidad += 1
+        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
 
-    print(cantidad)
+    datos = []
     datos = [(videos[:cantidad], clases[:cantidad]), (videos[cantidad:],clases[cantidad:])]
 
     # creo la red

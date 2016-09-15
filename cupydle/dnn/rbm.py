@@ -45,6 +45,8 @@ from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
 
 from cupydle.dnn.utils_theano import gpu_info
+from cupydle.dnn.utils_theano import calcular_chunk
+from cupydle.dnn.utils_theano import calcular_memoria_requerida
 
 from warnings import warn
 
@@ -1214,26 +1216,16 @@ class RBM(object):
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
-        # memoria que hago utilizable, le calculo un porcentaje debido a que se pierde un poco en la allocacion por fragmentacion
-        memoria_disponible = gpu_info('Mb')[0] #* 0.9
-
-        cantidad_ejemplos, cantidad_valores = data.shape
-
-        # el 4 es por lo que ocupa un byte, todo a -> Mb
-        memoria_dataset = 4 * cantidad_ejemplos * cantidad_valores / 1024. / 1024.
-        memoria_por_ejemplo = 4 * cantidad_valores / 1024. / 1024.
-        memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
-        print(data.shape)
+        memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch = calcular_memoria_requerida(cantidad_ejemplos=data.shape[0], cantidad_valores=data.shape[1], tamMiniBatch=tamMiniBatch)
         print("Mem. Disp.:", memoria_disponible, "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
         if tamMacroBatch is None:
-            from cupydle.dnn.utils_theano import calcular_chunk
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=cantidad_ejemplos)
 
         tamMacroBatch = int(tamMacroBatch)
         tamMiniBatch = int(tamMiniBatch)
-        print("tamanio del Macrobatch: ", tamMacroBatch)
 
+        # comprobaciones por si las dudas
         assert data.shape[0] % tamMacroBatch == 0
         assert tamMacroBatch % tamMiniBatch == 0
 
@@ -1274,11 +1266,9 @@ class RBM(object):
         costo = numpy.Inf; mse = numpy.Inf; fEnergy = numpy.Inf
         finLinea = '\r' if printCompacto else '\n'
 
-        print("MEMORIA antes de iterar: ", gpu_info('Mb'))
-
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
-        print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
+        print("Tamanio del MiniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
 
         for epoch in range(0, self.params['epocas']):
             # imprimo algo de informacion sobre la terminal
