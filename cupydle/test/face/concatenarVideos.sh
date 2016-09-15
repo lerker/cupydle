@@ -96,3 +96,7 @@ do
     # guarda a disco el buffer (concatena al archivo)
 	echo ${ACUM} >> ${ARCHIVO}
 done
+
+## shuffling el archivo?
+#shuf all_videos_features_clases.csv -o all_videos_features_clases_shuffled.csv
+shuf ${ARCHIVO} -o "${ARCHIVO}_shuffled.csv"
