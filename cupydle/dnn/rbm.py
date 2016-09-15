@@ -1223,7 +1223,7 @@ class RBM(object):
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
         memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch = calcular_memoria_requerida(cantidad_ejemplos=data.shape[0], cantidad_valores=data.shape[1], tamMiniBatch=tamMiniBatch)
-        print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
+
 
         if tamMacroBatch is None:
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
@@ -1275,6 +1275,7 @@ class RBM(object):
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
         print("Cantidad de ejemplos para el entrenamiento no supervisado: ", len(data))
         print("Tamanio del MiniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
+        print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
         for epoch in range(1, self.params['epocas']):
 
