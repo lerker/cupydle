@@ -2,9 +2,32 @@
 AUDIO
 =====
 
+Orden de ejecucion
+==================
+
+./extractorWav.py
+./extractorAudioRaw.sh
 
 
+Descripcion de los scripts:
+===========================
 
+./extractorWav.py
+    A partir de la pista de audio .wav se corta la misma en referencia a los frames de inicio y fin del video de procedencia de dicha pista.
+    El frame rate de los videos es de 30 f/s. El retorno es un archivo .csv en el cual se encuentra todos los valores del archivo.wav cortado en una sola linea.
+    Argumentos:
+        [0] nombreArchivo.wav
+        [1] frameInicial
+        [2] frameFinal
+    Retorno:
+        nombreArchivo-audio_cropRaw.csv en el cual se encuentra los valores de la pista de audio recortada en una sola columna
+
+./extractorAudioRaw.sh
+    Dicho script busca en el directorio las pistas de audio (../an1.wav) y los archivos correspondientes a cada una donde estan los frames de inicio y fin (an1-voiced_frames.txt) para cada pista. Aplica el script 'extratorWav.py' con el nombre del archivo y sus frames de inicio y final respectivamente a cada uno.
+    Argumentos:
+        NULL
+    Restorno:
+        archivos individuales .csv correspodientes a cada pista de audio
 
 
 
