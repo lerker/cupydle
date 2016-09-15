@@ -1215,7 +1215,7 @@ class RBM(object):
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
         """
         # memoria que hago utilizable, le calculo un porcentaje debido a que se pierde un poco en la allocacion por fragmentacion
-        memoria_disponible = gpu_info('Mb')[0] * 0.9
+        memoria_disponible = gpu_info('Mb')[0] #* 0.9
 
         cantidad_ejemplos, cantidad_valores = data.shape
 
@@ -1228,7 +1228,7 @@ class RBM(object):
 
         if tamMacroBatch is None:
             from cupydle.dnn.utils_theano import calcular_chunk
-            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
+            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=cantidad_ejemplos)
 
         tamMacroBatch = int(tamMacroBatch)
         tamMiniBatch = int(tamMiniBatch)
