@@ -79,6 +79,7 @@ def gpu_info(conversion='Gb'):
     # (cantidad de momoria libre, cantidad de momeria total)
 
     # memoria fisica total
+    print(sbcuda.cuda_ndarray.cuda_ndarray.mem_info())
     memoriaTotalMb = sbcuda.cuda_ndarray.cuda_ndarray.mem_info()[1]
     memoriaTotal = memoriaTotalMb/1024./1024
     memoriaTotal = memoriaTotalMb/1024.
