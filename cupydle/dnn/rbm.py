@@ -1217,25 +1217,25 @@ class RBM(object):
         # memoria que hago utilizable, le calculo un porcentaje debido a que se pierde un poco en la allocacion por fragmentacion
         memoria_disponible = gpu_info('Mb')[0] * 0.9
 
-        memoria_dataset = 4 * data.shape[0]/1024./1024.
-        memoria_por_ejemplo = 4 * data.shape[1]/1024./1024.
+        cantidad_ejemplos, cantidad_valores = data.shape
+
+        # el 4 es por lo que ocupa un byte, todo a -> Mb
+        memoria_dataset = 4 * cantidad_ejemplos * cantidad_valores / 1024. / 1024.
+        memoria_por_ejemplo = 4 * cantidad_valores / 1024. / 1024.
         memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
         print(data.shape)
-        print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
+        print("Mem. Disp.:", memoria_disponible, "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
-        assert False
         if tamMacroBatch is None:
             from cupydle.dnn.utils_theano import calcular_chunk
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
-            #tamMacroBatch = data.shape[0]
 
         tamMacroBatch = int(tamMacroBatch)
         tamMiniBatch = int(tamMiniBatch)
+        print("tamanio del Macrobatch: ", tamMacroBatch)
 
         assert data.shape[0] % tamMacroBatch == 0
         assert tamMacroBatch % tamMiniBatch == 0
-
-
 
         macro_batch_count = int(data.shape[0] / tamMacroBatch)
         micro_batch_count = int(tamMacroBatch / tamMiniBatch)
@@ -1246,7 +1246,6 @@ class RBM(object):
         # para la validacion
         if validationData is not None:
             tamMacroBatchVal = validationData.shape[0] if tamMacroBatchVal is None else tamMacroBatchVal
-            #sharedValidationData = theano.shared(numpy.asarray(a=validationData, dtype=theanoFloat), name='ValidationData')
             macro_batch_val_count = int(validationData.shape[0] / tamMacroBatchVal)
             sharedDataValidation = theano.shared(numpy.empty((tamMacroBatchVal,) + validationData.shape[1:], dtype=theanoFloat), borrow=True)
 
