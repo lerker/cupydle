@@ -1224,7 +1224,7 @@ class RBM(object):
 
         print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
 
-
+        assert False
         if tamMacroBatch is None:
             from cupydle.dnn.utils_theano import calcular_chunk
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=data.shape[0])
