@@ -109,7 +109,12 @@ if __name__ == "__main__":
         # la primera es la que indica la entrada
         # las intermedias son de regresion
         # la ultima es de clasificaicon sirve solo para 3 o mas capas, sino agregarlas a mano
-        capas = [103, 85, 6]
+        #capas = [85, 103, 6]
+        print(type(capas))
+        print(capas)
+        print(capas.shape)
+        print(capas[0], capas[1], capas[2])
+        assert False
         for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
             clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
 
