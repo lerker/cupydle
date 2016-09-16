@@ -1552,7 +1552,7 @@ class RBM(object):
         return
     # END SAVE
 
-    def guardarPrametros(self, nombreArchivo):
+    def guardarParametros(self, nombreArchivo):
         """
         guarda los parametros de la red en formato comprimido
         """

@@ -69,6 +69,8 @@ if __name__ == "__main__":
     seccionRBM            = argumentos.rbm
     seccionDBN            = argumentos.dbn
 
+    capas = numpy.asarray(capas)
+
     # configuraciones con respecto a los directorios
     directorioActual= os.getcwd()                                  # directorio actual de ejecucion
     rutaTest        = directorioActual + '/cupydle/test/face/'     # sobre el de ejecucion la ruta a los tests
@@ -88,6 +90,13 @@ if __name__ == "__main__":
     # las clases estan desde 1..6, deben ser desde 0..5
     clases -= 1
     del b #libera memoria
+
+    # modo hardcore activatedddd
+    datos = []
+    datosTRN = (videos[0:550,:], clases[0:550])
+    datosVAL = (videos[550:670,:],clases[550:670])
+    datosTST = (videos[670:,:],clases[670:])
+    datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
 
     if seccionMLP :
         print("S E C C I O N        M L P")
@@ -110,11 +119,6 @@ if __name__ == "__main__":
         # las intermedias son de regresion
         # la ultima es de clasificaicon sirve solo para 3 o mas capas, sino agregarlas a mano
         #capas = [85, 103, 6]
-        print(type(capas))
-        print(capas)
-        print(capas.shape)
-        print(capas[0], capas[1], capas[2])
-        assert False
         for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
             clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
 
@@ -123,9 +127,9 @@ if __name__ == "__main__":
         T = temporizador()
         inicio = T.tic()
 
-        # se almacenan los pesos para propositos de comparacion con la dbn
-        for idx, _ in enumerate(capas):
-            numpy.save(rutaCompleta + "pesos_" + str(idx), clasificador.capas[idx].getW())
+        # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
+        for idx, _ in enumerate(capas[:-1]):
+            numpy.save(rutaCompleta + "pesos_W" + str(idx), clasificador.capas[idx].getW())
 
         # se entrena la red
         errorTRN, errorVAL, errorTST = clasificador.entrenar(trainSet=datos[0],
@@ -139,48 +143,29 @@ if __name__ == "__main__":
     if seccionRBM :
         print("S E C C I O N        R B M")
         pasosGibbs=1
-        numEpocas=5
-        batchSize=10
 
         miDBN = DBN(name=None, ruta=rutaCompleta)
 
 
         # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
-        pesos1 = numpy.load(rutaCompleta + "pesos1.npy")
-        pesos2 = numpy.load(rutaCompleta + "pesos2.npy")
-        pesos3 = numpy.load(rutaCompleta + "pesos3.npy")
+        # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
+        listaPesos = []
+        for idx, _ in enumerate(capas[:-1]):
+            pesos = numpy.load(rutaCompleta + "pesos_W" + str(idx) + ".npy")
+            listaPesos.append(pesos)
 
         # agrego una capa..
-        miDBN.addLayer(n_visible=unidadesCapas[0],
-                       n_hidden=unidadesCapas[1],
-                       numEpoch=numEpocas,
-                       tamMiniBatch=batchSize,
-                       epsilonw=0.1,
-                       pasosGibbs=pasosGibbs,
-                       w=pesos1,
-                       unidadesVisibles=UnidadBinaria(),
-                       unidadesOcultas=UnidadBinaria())
-        # otra capa mas
-        miDBN.addLayer(#n_visible=500, # coincide con las ocultas de las anteriores
-                       n_hidden=unidadesCapas[2],
-                       numEpoch=numEpocas,
-                       tamMiniBatch=batchSize,
-                       epsilonw=0.1,
-                       pasosGibbs=pasosGibbs,
-                       w=pesos2,
-                       unidadesVisibles=UnidadBinaria(),
-                       unidadesOcultas=UnidadBinaria())
+        for idx, _ in enumerate(capas[:-1]): # es -2 porque no debo tener en cuenta la primera ni la ultima
+            miDBN.addLayer(n_visible=capas[idx],
+                           n_hidden=capas[idx+1],
+                           numEpoch=epocasDBN,
+                           tamMiniBatch=tambatch,
+                           epsilonw=0.1,
+                           pasosGibbs=pasosGibbs,
+                           w=listaPesos[idx],
+                           unidadesVisibles=UnidadBinaria(),
+                           unidadesOcultas=UnidadBinaria())
 
-        # clasificacion
-        miDBN.addLayer(#n_visible=100, # coincide con las ocultas de las anteriores
-                       n_hidden=unidadesCapas[3],
-                       numEpoch=numEpocas,
-                       tamMiniBatch=batchSize,
-                       epsilonw=0.1,
-                       pasosGibbs=pasosGibbs,
-                       w=pesos3,
-                       unidadesVisibles=UnidadBinaria(),
-                       unidadesOcultas=UnidadBinaria())
 
         T = temporizador()
         inicio = T.tic()
@@ -203,14 +188,14 @@ if __name__ == "__main__":
         miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(miDBN)
 
-        parametros={'tasaAprendizaje':0.01,
+        parametros={'tasaAprendizaje':tasaAprenMLP,
                     'regularizadorL1':0.00,
                     'regularizadorL2':0.0001,
                     'momento':0.0,
                     'activationfuntion':sigmoideaTheano()}
         miDBN.setParametrosAjuste(parametros)
 
-        miDBN.setParametrosAjuste({'epocas':10})
+        miDBN.setParametrosAjuste({'epocas':epocasMLP})
         #miDBN.setParametrosAjuste({'toleranciaError':0.08})
 
         miDBN.ajuste(datos=datos,

@@ -303,7 +303,7 @@ class DBN(object):
             print("Entrenando la capa:", i+1)
             if guardarPesosIniciales:
                 nombre = self.name + "_pesosInicialesCapa" + str(i+1)
-                capaRBM.guardarPesos(nombreArchivo=nombre)
+                capaRBM.guardarParametros(nombreArchivo=nombre)
 
             capaRBM.entrenamiento(data=layer_input,   # los datos los binarizo y convierto a float
                             tamMiniBatch=self.params[i].tamMiniBatch,
@@ -399,7 +399,7 @@ class DBN(object):
         T = temporizador()
         inicio = T.tic()
 
-        clasificador.train(
+        clasificador.entrenar(
                         trainSet=datos[0],
                         validSet=datos[1],
                         testSet=datos[2],
