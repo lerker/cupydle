@@ -138,10 +138,10 @@ if __name__ == "__main__":
                                                              batch_size=tambatch)
 
         final = T.toc()
-        print("Error entrenameinto: {}".format(errorTRN))
-        print("Error validacion: {}".format(errorVAL))
-        print("Error test: {}".format(errorTST))
-        print("Error test FINAL: {}".format(errorTSTfinal))
+        print("Error entrenameinto: \t{}".format(errorTRN))
+        print("Error validacion: \t{}".format(errorVAL))
+        print("Error test: \t\t{}".format(errorTST))
+        print("Error test FINAL: \t{}".format(errorTSTfinal))
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
 
     if seccionRBM :
