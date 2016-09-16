@@ -89,7 +89,7 @@ if __name__ == "__main__":
     clases -= 1
     del b #libera memoria
 
-    if mlp :
+    if seccionMLP :
         print("S E C C I O N        M L P")
         print("\nSe entrena un multilayer perceptron para chequear la mejora")
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         final = T.toc()
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
 
-    if rbm :
+    if seccionRBM :
         print("S E C C I O N        R B M")
         pasosGibbs=1
         numEpocas=5
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
         miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
-    if dbnf:
+    if seccionDBN:
         print("S E C C I O N        D B N")
 
         miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
