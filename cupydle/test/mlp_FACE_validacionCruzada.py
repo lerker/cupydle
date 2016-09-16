@@ -160,9 +160,9 @@ if __name__ == "__main__":
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))
 
     print("PROMEDIO de ERRORES para los {} conjuntos".format(contador))
-    print("Error Entrenamiento: ", numpy.mean(errorTRN_conjunto) * 100.)
-    print("Error Validacion: ", numpy.mean(errorVAL_conjunto) * 100.)
-    print("Error Testeo: ", numpy.mean(errorTST_conjunto) * 100.)
+    print("Error Entrenamiento: \t", numpy.mean(errorTRN_conjunto) * 100.)
+    print("Error Validacion: \t", numpy.mean(errorVAL_conjunto) * 100.)
+    print("Error Testeo: \t", numpy.mean(errorTST_conjunto) * 100.)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

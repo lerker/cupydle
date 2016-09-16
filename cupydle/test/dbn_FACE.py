@@ -89,58 +89,42 @@ if __name__ == "__main__":
     clases -= 1
     del b #libera memoria
 
-    assert False
-
     if mlp :
         print("S E C C I O N        M L P")
-
-        batch_size=10
+        print("\nSe entrena un multilayer perceptron para chequear la mejora")
 
         clasificador = MLP( clasificacion=True,
                             rng=None,
                             ruta=rutaCompleta)
 
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
+        clasificador.setParametroEntrenamiento({'tasaAprendizaje':tasaAprenMLP})
         clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
         clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
         clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':10})
+        clasificador.setParametroEntrenamiento({'epocas':epocasMLP})
         clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
         clasificador.setParametroEntrenamiento({'toleranciaError':0.00})
 
-        clasificador.agregarCapa(unidadesEntrada=unidadesCapas[0],
-                                 unidadesSalida=unidadesCapas[1],
-                                 clasificacion=False,
-                                 activacion=sigmoideaTheano(),
-                                 pesos=None,
-                                 biases=None)
-
-        clasificador.agregarCapa(#unidadesEntrada=500,
-                                 unidadesSalida=unidadesCapas[2],
-                                 clasificacion=False,
-                                 activacion=sigmoideaTheano(),
-                                 pesos=None,
-                                 biases=None)
-
-        clasificador.agregarCapa(#unidadesEntrada=100,
-                                 unidadesSalida=unidadesCapas[3],
-                                 clasificacion=True,
-                                 activacion=sigmoideaTheano(),
-                                 pesos=None,
-                                 biases=None)
+        # agrego tantas capas desee de regresion
+        # la primera es la que indica la entrada
+        # las intermedias son de regresion
+        # la ultima es de clasificaicon
+        for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
+            clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
+        clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
         T = temporizador()
         inicio = T.tic()
 
         # se almacenan los pesos para propositos de comparacion con la dbn
-        numpy.save(rutaCompleta + "pesos1",clasificador.capas[0].W.get_value())
-        numpy.save(rutaCompleta + "pesos2",clasificador.capas[1].W.get_value())
-        numpy.save(rutaCompleta + "pesos3",clasificador.capas[2].W.get_value())
+        for idx, _ in enumerate(capas):
+            numpy.save(rutaCompleta + "pesos_" + str(idx), clasificador.capas[idx].getW())
 
-        clasificador.train( trainSet=datos[0],
-                            validSet=datos[1],
-                            testSet=datos[2],
-                            batch_size=batch_size)
+        # se entrena la red
+        errorTRN, errorVAL, errorTST = clasificador.entrenar(trainSet=datos[0],
+                                                             validSet=datos[1],
+                                                             testSet=datos[2],
+                                                             batch_size=tambatch)
 
         final = T.toc()
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
