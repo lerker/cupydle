@@ -132,12 +132,16 @@ if __name__ == "__main__":
             numpy.save(rutaCompleta + "pesos_W" + str(idx), clasificador.capas[idx].getW())
 
         # se entrena la red
-        errorTRN, errorVAL, errorTST = clasificador.entrenar(trainSet=datos[0],
+        errorTRN, errorVAL, errorTST, errorTSTfinal = clasificador.entrenar(trainSet=datos[0],
                                                              validSet=datos[1],
                                                              testSet=datos[2],
                                                              batch_size=tambatch)
 
         final = T.toc()
+        print("Error entrenameinto: {}".format(errorTRN))
+        print("Error validacion: {}".format(errorVAL))
+        print("Error test: {}".format(errorTST))
+        print("Error test FINAL: {}".format(errorTSTfinal))
         print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
 
     if seccionRBM :

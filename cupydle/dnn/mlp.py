@@ -342,7 +342,10 @@ class MLP(object):
         print("reales", predictor()[1][0:25])
         print("predic", predictor()[0][0:25])
 
-        return costoEntrenamiento, errorValidacionHistorico, errorTest
+        errorTestFinal = [test_model(i) for i in range(n_test_batches)]
+        errorTestFinal = numpy.mean(errorTestFinal)
+
+        return costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal
 
     def guardarParametros(self):
 
