@@ -120,6 +120,15 @@ MLP
 
     >>> python3 cupydle/test/mlp_FACE.py -d test_MLP -l 230300 1000 500 6 -e 500
 
+unir simplemente dos archivos en uno y delimitados por ,
 
+>>> paste -d, coso1.csv coso2.csv
+
+# concatenar dos archivos .csv donde los dos tienen la primer columna como label (que se corresponden uno a uno si o si!!!) en uno solo, donde la primer columna es el label y a continuacion el archivo 1 y luego el dos todo seguido de comas
+
+
+>>> cut -d',' -f2-  coso2.csv | paste -d, coso1.csv -
+
+# la salida de coso2 se une con coso1 a la cual coso2 se le fue extraido su primer columna
 
 
