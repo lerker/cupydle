@@ -109,6 +109,7 @@ if __name__ == "__main__":
         # la primera es la que indica la entrada
         # las intermedias son de regresion
         # la ultima es de clasificaicon
+        print(capas)
         for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
             clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
         clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
