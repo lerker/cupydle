@@ -95,6 +95,9 @@ if __name__ == "__main__":
     datos = []
     datos = [(videos[:cantidad], clases[:cantidad]), (videos[cantidad:],clases[cantidad:])]
 
+    print("Cantidad de clases en el conjunto Entrenamiento: ",numpy.bincount(datos[0][1]))
+    print("Cantidad de clases en el conjunto Validacion: ",   numpy.bincount(datos[0][1]))
+
     # creo la red
     red = RBM(n_visible=visibles, n_hidden=ocultas, ruta=rutaCompleta)
 
