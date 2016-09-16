@@ -73,10 +73,6 @@ if __name__ == "__main__":
         print('Creando la carpeta para el test en: ',rutaCompleta)
         os.makedirs(rutaCompleta)
 
-    if not os.path.exists(rutaDatos):
-        print("Creando la base de datos en:", rutaDatos)
-        os.makedirs(rutaDatos)
-
     # se cargan  los datos, debe ser un archivo comprimido, en el cual los
     # arreglos estan en dos archivos, 'videos' y 'clases'
     b = numpy.load(rutaDatos + dataset)
