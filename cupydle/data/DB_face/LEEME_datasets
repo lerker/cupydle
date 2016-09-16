@@ -1,0 +1,56 @@
+NOTAS SOBRE LOS CONJUNTOS DE DATOS:
+===================================
+
+# clases para cada tipo de emocion
+# an = Anger      = 1
+# di = disgust    = 2
+# fe = Fear       = 3
+# ha = Happiness  = 4
+# sa = Sadness    = 5
+# su = Surprise   = 6
+
+all_videos_features_clases.csv
+    Por cada fila, un ejemplo (i.e: ./s1/f1/an1-video_features.csv) donde el primer valor es la clase tipada (1 = anger). La fila es la concatenacion de todas la 'features' de dicho video (47 frames, 4900 valores por cada uno, 230300 en total). En total se tiene 720 filas y 230301 columnas de los valores PUROS. (sin random)
+    >>> ./concatenarVideos.sh all_videos_features_clases.csv
+
+all_audios_features_clases.csv
+    Por cada fila, un ejemplo (i.e: ./s1/f1/an1-audio_features.csv) donde el primer valor es la clase tipada (1 = anger). La fila es la concatenacion de todas la 'features' de dicho audio (X cantidad de frames/video relacionados a la ventana, la cual se aplica una funcion que deja un total de 46 valores por archivo). En total se tiene 720 filas y 47 columnas de los valores PROCESADOS (semi puros). (sinrandom)
+    >>> ./concatenarAudios_features.sh all_audio_features.csv
+
+all_av_features_clases.csv
+    Contiene la concatenacion de las dos anteriores, solo la primer columna es la clase. Un total de 720 filas y 230347 columnas (1+2300300+46) de los valores anteriores (sin realizar random)
+    >>> cut -d' ' -f2-  all_audios_features_clases.csv | paste -d" " all_videos_features_clases.csv - > all_av_features_clases.csv
+
+all_videos_features_clases_shuffled.csv
+    Idem que el hononimo pero en este caso se permutaron, random las filas del archivo.
+    >>> shuf all_videos_features_clases.csv -o all_videos_features_clases_shuffled.csv
+
+all_audios_features_clases_shuffled.csv
+    Idem que el hononimo pero en este caso se permutaron, random las filas del archivo.
+    >>> shuf all_audios_features_clases.csv -o all_audios_features_clases_shuffled.csv
+
+all_av_features_clases_shuffled.csv
+    Idem que el hononimo pero en este caso se permutaron, random las filas del archivo.
+    >>> shuf all_av_features_clases.csv -o all_av_features_clases_shuffled.csv
+
+all_videos_features_clases_shuffled_PCA85_minmax.npz
+    Al conjunto original (all_videos_features_clases_shuffled.csv) se le aplico PCA y se redujeron las 2300300 dimensiones originales a solo 85. Luego se aplico una normalizacion de rango [0,1]. El archivo de salida es del tipo .npz, se carga con numpy.load() y retorna un diccionario, 'clases' y 'videos'
+    >>> python3 ./pca.py all_videos_features_clases_shuffled.csv 85 all_videos_features_clases_shuffled_PCA85
+    >>> python3 ./preprocesamiento.py all_videos_features_clases_shuffled_PCA85.npz "all_videos_features_clases_shuffled_PCA85_minmax" 'min_max'
+
+all_videos_features_clases_shuffled_PCA70_minmax.npz
+    Al conjunto original (all_videos_features_clases_shuffled.csv) se le aplico PCA y se redujeron las 2300300 dimensiones originales a solo 70. Luego se aplico una normalizacion de rango [0,1]. El archivo de salida es del tipo .npz, se carga con numpy.load() y retorna un diccionario, 'clases' y 'videos'
+    >>> python3 ./pca.py all_videos_features_clases_shuffled.csv 70 all_videos_features_clases_shuffled_PCA70
+    >>> python3 ./preprocesamiento.py all_videos_features_clases_shuffled_PCA70.npz "all_videos_features_clases_shuffled_PCA70_minmax" 'min_max'
+
+all_videos_features_clases_shuffled_minmax.npz
+    Simplemente es la version de csv en numpy npz de all_videos_features_clases_shuffled a la cual se le aplico una normalizacion de rango [0,1]
+    >>> python3 ./preprocesamiento.py all_videos_features_clases_shuffled.csv "all_videos_features_clases_shuffled_minmax" 'min_max'
+
+all_audios_features_clases_shuffled_minmax.npz
+    Simplemente es la version de csv en numpy npz de all_audios_features_clases_shuffled a la cual se le aplico una normalizacion de rango [0,1]
+    >>> python3 ./preprocesamiento.py all_audios_features_clases_shuffled.csv "all_audios_features_clases_shuffled_minmax" 'min_max'
+
+all_av_features_clases_shuffled_minmax.npz
+    Simplemente es la version de csv en numpy npz de all_av_features_clases_shuffled a la cual se le aplico una normalizacion de rango [0,1]
+    >>> python3 ./preprocesamiento.py all_av_features_clases_shuffled.csv "all_av_features_clases_shuffled_minmax" 'min_max'
