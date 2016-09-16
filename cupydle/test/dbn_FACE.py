@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-m', '--mlp',        dest="mlp", action="store_true",   default=False,      required=False, help="Ejecuta un MLP inicial para observar las mejoras")
     parser.add_argument('-r', '--rbm',        dest="rbm", action="store_true",   default=False,      required=False, help="Ejecuta un RBM para buscar la mejora de los pesos anteriores")
-    parser.add_argument('-d', '--dbn',        dest="mlp", action="store_true",   default=False,      required=False, help="Ejecuta un DBN para chequear si se mejoraron los pesos gracias al preentrenamiento")
+    parser.add_argument('-d', '--dbn',        dest="dbn", action="store_true",   default=False,      required=False, help="Ejecuta un DBN para chequear si se mejoraron los pesos gracias al preentrenamiento")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
