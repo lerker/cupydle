@@ -23,7 +23,6 @@ python:
 # instalar las dependencias
 before_install:
 # Instalar miniconda para evitar compilar scipy y agilizar el tramite
-  - ls -lR
   - mkdir -p download #carpeta donde guardar las cosas
   - cd download
   - wget -c http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
@@ -61,6 +60,7 @@ matrix:
 
 script:
   - export THEANO_FLAGS=$THEANO_FLAGS,warn.ignore_bug_before=all,on_opt_error=raise,on_shape_error=raise,gcc.cxxflags=-pipe
+  - pip install Theano
   - python --version
   - uname -a
   - free -m
