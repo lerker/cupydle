@@ -25,14 +25,15 @@ before_install:
 # Instalar miniconda para evitar compilar scipy y agilizar el tramite
   - ls -lR
   - ls -lR /
-  - mkdir -p download
+  - mkdir -p download #carpeta donde guardar las cosas
   - cd download
   - wget -c http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - cd ..
   - export PATH=/home/travis/miniconda2/bin:$PATH
-  - conda update --yes conda
+  - conda update --yes conda # fin de la instalacion de conda
+  - pip install Theano # instalando theano
 
 addons:
   apt_packages:
@@ -70,7 +71,7 @@ script:
   # Move out of Theano so the import will use the installed version
   - cd ..
   - ls -lh
-  - pip install Theano
+  #- pip install Theano
   # Move to the path of the installed version
   #- cd $(python -c 'import theano; import os; print(os.path.split(theano.__file__)[0])')
   - echo "$PART"
