@@ -1,75 +1,75 @@
+# After changing this file, check it on:
+# http://lint.travis-ci.org/
 notifications:
   email:
     on_success: always
     on_failure: never
-
-sudo: true
-dist: trusty
+sudo: false
 cache:
   directories:
     - $HOME/download
     - $HOME/.cache/pip
-compiler:
-    - gcc
+
 language: python
 python:
   - "3.3"
 
+# command to install dependencies
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install wget
-  - sudo apt-get install build-essential
-  - sudo apt-get install python3-numpy
-  - sudo apt-get install python3-scipy
-  - sudo apt-get install python3-dev
-  #- sudo apt-get install python3-pip
-  - sudo apt-get install python3-nose
-  #- sudo apt-get install python3-matplotlib
-  - sudo apt-get install libopenblas-dev
-  - sudo apt-get install linux-headers-`uname -r`
-  - sudo apt-get install git
-  - sudo apt-get install g++-4.6
-  - sudo apt-get install gcc-4.6
-  - sudo pip install Theano
-  # Install miniconda to avoid compiling scipy
+# Install miniconda to avoid compiling scipy
   - mkdir -p download
   - cd download
-  - wget -c https://repo.continuum.io/miniconda/Miniconda2-3.19.0-Linux-x86_64.sh -O miniconda.sh
-  - git clone http://github.com/lerker/cupydle.git
+  - wget -c http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - cd ..
   - export PATH=/home/travis/miniconda2/bin:$PATH
-  - cd download/cupydle/
-  - pip install -r requirements.txt
-  - python setup.py install
+  - conda update --yes conda
 
-#install:
-#  - sudo pip install -r requirements.txt
-#  - pip install coveralls
-#  - python setup.py install
+addons:
+  apt_packages:
+   - texlive-latex-recommended
+   - texlive-latex-extra
+   - texlive-fonts-recommended
+   - dvipng
 
-before_script:
-  - wget http://developer.download.nvidia.com/compute/cuda/6_0/rel/installers/cuda_6.0.37_linux_64.run
-  - chmod a+x cuda_6.0.37_linux_64.run
-  - ./cuda_6.0.37_linux_64.run --silent --driver --override
-  - ./cuda_6.0.37_linux_64.run --silent --toolkit --override
-  - ./cuda_6.0.37_linux_64.run --silent --samples --samplespath=/home/ --override
-  #- rm cuda_6.0.37_linux_64.run && \
-  #- ln -s cuda-6.0 /usr/local/cuda && \
-  #- rm -rf /var/lib/apt/lists/*
-  - export PATH=/usr/local/cuda/bin:${PATH}
-  - export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-  - export PYTHONPATH=/root/cupydle/:${PYTHONPATH}
+install:
+  - conda create --yes -q -n pyenv mkl python=3.3 numpy=1.9.1 scipy=0.14.0 nose=1.3.4 pyparsing=1.5 pip flake8=2.3 six=1.9.0 pep8=1.6.2 pyflakes=0.8.1 sphinx
+  - source activate pyenv
+  - pip install . --no-deps
+
+# command to run tests
+env:
+  - PART="theano/tests/test_flake8.py" DOC=1
+  - PART="-e test_flake8.py theano/compat theano/compile theano/d3viz theano/gof theano/misc theano/sandbox theano/scalar theano/scan_module theano/sparse theano/tests theano/typed_list"
+  - PART="theano/tensor"
+
+matrix:
+  fast_finish: true
+  include:
+    - python: "3.3"
+      env: PART="." THEANO_FLAGS="mode=FAST_COMPILE"
 
 script:
-  #- chmod a+x run.sh
-  #- "./run.sh"
-  - nosetests -v cupydle/dnn/dbn_gpu2.py -mrd
+  - export THEANO_FLAGS=$THEANO_FLAGS,warn.ignore_bug_before=all,on_opt_error=raise,on_shape_error=raise,gcc.cxxflags=-pipe
+  - python --version
+  - uname -a
+  - free -m
+  - df -h
+  - ulimit -a
+  # Move out of Theano so the import will use the installed version
+  - cd ..
+  # Move to the path of the installed version
+  - cd $(python -c 'import theano; import os; print(os.path.split(theano.__file__)[0])')
+  - echo "$PART"
+  - cd -; cd Theano
+  - python -c 'import theano; print(theano.config)'
+  - theano-nose -v $PART
+  - if [[ $DOC == "1" ]]; then python doc/scripts/docgen.py --nopdf --check; fi
+  - if [[ $DOC == "1" ]]; then python doc/scripts/docgen.py --test --check; fi
 
-#after_success:
-#  - coveralls
-
+after_failure:
+  - cat /home/travis/.pip/pip.log
 
 
 
