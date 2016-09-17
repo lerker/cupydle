@@ -4,19 +4,27 @@ notifications:
   email:
     on_success: always
     on_failure: never
+
+# requiere sudo?
 sudo: false
+
+# donde se almacena las cosas
 cache:
   directories:
     - $HOME/download
     - $HOME/.cache/pip
 
 language: python
+
+# version de python
 python:
   - "3.3"
 
-# command to install dependencies
+# instalar las dependencias
 before_install:
-# Install miniconda to avoid compiling scipy
+# Instalar miniconda para evitar compilar scipy y agilizar el tramite
+  - ls -lR
+  - ls -lR /
   - mkdir -p download
   - cd download
   - wget -c http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
