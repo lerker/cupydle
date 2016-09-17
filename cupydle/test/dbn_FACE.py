@@ -50,9 +50,6 @@ if __name__ == "__main__":
     parser.add_argument('-lrDBN',             type=float, dest="tasaAprenDBN",   default=0.01,       required=False, help="Tasa de aprendizaje (General) para todos las capas de la RBM")
     parser.add_argument('-lrMLP',             type=float, dest="tasaAprenMLP",   default=0.01,       required=False, help="Tasa de aprendizaje para el ajuste de los pesos en el gradiente estocastico del MLP ajuste fino")
 
-    parser.add_argument('-m', '--mlp',        dest="mlp", action="store_true",   default=False,      required=False, help="Ejecuta un MLP inicial para observar las mejoras")
-    parser.add_argument('-r', '--rbm',        dest="rbm", action="store_true",   default=False,      required=False, help="Ejecuta un RBM para buscar la mejora de los pesos anteriores")
-    parser.add_argument('-d', '--dbn',        dest="dbn", action="store_true",   default=False,      required=False, help="Ejecuta un DBN para chequear si se mejoraron los pesos gracias al preentrenamiento")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
@@ -65,10 +62,6 @@ if __name__ == "__main__":
     capas                 = argumentos.capas
     tasaAprenDBN          = argumentos.tasaAprenDBN
     tasaAprenMLP          = argumentos.tasaAprenMLP
-    seccionMLP            = argumentos.mlp
-    seccionRBM            = argumentos.rbm
-    seccionDBN            = argumentos.dbn
-
     capas = numpy.asarray(capas)
 
     # configuraciones con respecto a los directorios
@@ -98,114 +91,76 @@ if __name__ == "__main__":
     datosTST = (videos[670:,:],clases[670:])
     datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
 
-    if seccionMLP :
-        print("S E C C I O N        M L P")
-        print("\nSe entrena un multilayer perceptron para chequear la mejora")
 
-        clasificador = MLP( clasificacion=True,
-                            rng=None,
-                            ruta=rutaCompleta)
+    ###########################################################################
+    ##
+    ##          P R E - E N T R E N A M I E N T O        R B M s
+    ##
+    ###########################################################################
 
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':tasaAprenMLP})
-        clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
-        clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
-        clasificador.setParametroEntrenamiento({'momento':0.0})
-        clasificador.setParametroEntrenamiento({'epocas':epocasMLP})
-        clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
-        clasificador.setParametroEntrenamiento({'toleranciaError':0.00})
+    pasosGibbs=1
 
-        # agrego tantas capas desee de regresion
-        # la primera es la que indica la entrada
-        # las intermedias son de regresion
-        # la ultima es de clasificaicon sirve solo para 3 o mas capas, sino agregarlas a mano
-        #capas = [85, 103, 6]
-        for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
-            clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
-
-        clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
-
-        T = temporizador()
-        inicio = T.tic()
-
-        # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
-        for idx, _ in enumerate(capas[:-1]):
-            numpy.save(rutaCompleta + "pesos_W" + str(idx), clasificador.capas[idx].getW())
-
-        # se entrena la red
-        errorTRN, errorVAL, errorTST, errorTSTfinal = clasificador.entrenar(trainSet=datos[0],
-                                                             validSet=datos[1],
-                                                             testSet=datos[2],
-                                                             batch_size=tambatch)
-
-        final = T.toc()
-        print("Error entrenameinto: \t{}".format(errorTRN))
-        print("Error validacion: \t{}".format(errorVAL))
-        print("Error test: \t\t{}".format(errorTST))
-        print("Error test FINAL: \t{}".format(errorTSTfinal))
-        print("Tiempo total para entrenamiento MLP: {}".format(T.transcurrido(inicio, final)))
-
-    if seccionRBM :
-        print("S E C C I O N        R B M")
-        pasosGibbs=1
-
-        miDBN = DBN(name=None, ruta=rutaCompleta)
+    miDBN = DBN(name=None, ruta=rutaCompleta)
 
 
-        # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
-        # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
-        listaPesos = []
-        for idx, _ in enumerate(capas[:-1]):
-            pesos = numpy.load(rutaCompleta + "pesos_W" + str(idx) + ".npy")
-            listaPesos.append(pesos)
+    # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
+    # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
+    listaPesos = []
+    for idx, _ in enumerate(capas[:-1]):
+        pesos = numpy.load(rutaCompleta + "pesos_W" + str(idx) + ".npy")
+        listaPesos.append(pesos)
 
-        # agrego una capa..
-        for idx, _ in enumerate(capas[:-1]): # es -2 porque no debo tener en cuenta la primera ni la ultima
-            miDBN.addLayer(n_visible=capas[idx],
-                           n_hidden=capas[idx+1],
-                           numEpoch=epocasDBN,
-                           tamMiniBatch=tambatch,
-                           epsilonw=0.1,
-                           pasosGibbs=pasosGibbs,
-                           w=listaPesos[idx],
-                           unidadesVisibles=UnidadBinaria(),
-                           unidadesOcultas=UnidadBinaria())
+    # agrego una capa..
+    for idx, _ in enumerate(capas[:-1]): # es -2 porque no debo tener en cuenta la primera ni la ultima
+        miDBN.addLayer(n_visible=capas[idx],
+                       n_hidden=capas[idx+1],
+                       numEpoch=epocasDBN,
+                       tamMiniBatch=tambatch,
+                       epsilonw=0.1,
+                       pasosGibbs=pasosGibbs,
+                       w=listaPesos[idx],
+                       unidadesVisibles=UnidadBinaria(),
+                       unidadesOcultas=UnidadBinaria())
 
 
-        T = temporizador()
-        inicio = T.tic()
+    T = temporizador()
+    inicio = T.tic()
 
-        #entrena la red
-        miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
-                               dataVal=datos[1][0], # imagenes de validacion
-                               pcd=False,
-                               guardarPesosIniciales=True,
-                               filtros=True)
+    #entrena la red
+    miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
+                           dataVal=datos[1][0], # imagenes de validacion
+                           pcd=False,
+                           guardarPesosIniciales=True,
+                           filtros=True)
 
-        final = T.toc()
-        print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
+    final = T.toc()
+    print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
 
-        miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
+    #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
-    if seccionDBN:
-        print("S E C C I O N        D B N")
+    ###########################################################################
+    ##
+    ##                 A J U S T E     F I N O    ( M L P )
+    ##
+    ###########################################################################
 
-        miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
-        print(miDBN)
+    #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
+    print(miDBN)
 
-        parametros={'tasaAprendizaje':tasaAprenMLP,
-                    'regularizadorL1':0.00,
-                    'regularizadorL2':0.0001,
-                    'momento':0.0,
-                    'activationfuntion':sigmoideaTheano()}
-        miDBN.setParametrosAjuste(parametros)
+    parametros={'tasaAprendizaje':tasaAprenMLP,
+                'regularizadorL1':0.00,
+                'regularizadorL2':0.0001,
+                'momento':0.0,
+                'activationfuntion':sigmoideaTheano()}
+    miDBN.setParametrosAjuste(parametros)
 
-        miDBN.setParametrosAjuste({'epocas':epocasMLP})
-        #miDBN.setParametrosAjuste({'toleranciaError':0.08})
+    miDBN.setParametrosAjuste({'epocas':epocasMLP})
+    #miDBN.setParametrosAjuste({'toleranciaError':0.08})
 
-        miDBN.ajuste(datos=datos,
-                     listaPesos=None,
-                     fnActivacion=sigmoideaTheano(),
-                     semillaRandom=None)
+    miDBN.ajuste(datos=datos,
+                 listaPesos=None,
+                 fnActivacion=sigmoideaTheano(),
+                 semillaRandom=None)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
