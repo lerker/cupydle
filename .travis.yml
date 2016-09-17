@@ -24,7 +24,6 @@ python:
 before_install:
 # Instalar miniconda para evitar compilar scipy y agilizar el tramite
   - ls -lR
-  - ls -lR /
   - mkdir -p download #carpeta donde guardar las cosas
   - cd download
   - wget -c http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
