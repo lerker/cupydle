@@ -1,0 +1,241 @@
+-------------------------------------------------------------------------
+Fecha: vie sep 16 23:12:29 ART 2016 Host:nelo-linux
+-------------------------------------------------------------------------
+
+Entrenando la capa: 1
+Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
+Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
+Entrenando una RBM, con [85] unidades visibles y [100] unidades ocultas
+Cantidad de ejemplos para el entrenamiento no supervisado:  550
+Tamanio del MiniBatch:  10 Tamanio MacroBatch:  550
+Mem. Disp.: 936.75 Mem. Dataset: 0.17833709716796875 Mem. x ej.: 0.000324249267578125 Mem. x Minibatch: 0.00324249267578125
+Epoca   1 de  15, error<TrnSet>:-68.95520, MSE<ejemplo>: 36.06474, EnergiaLibre<ejemplo>: 8.79243
+Epoca   2 de  15, error<TrnSet>:-61.07170, MSE<ejemplo>: 12.21339, EnergiaLibre<ejemplo>: 1.76878
+Epoca   3 de  15, error<TrnSet>:-60.06235, MSE<ejemplo>: 7.87320, EnergiaLibre<ejemplo>: 0.89461
+Epoca   4 de  15, error<TrnSet>:-59.60270, MSE<ejemplo>: 5.77377, EnergiaLibre<ejemplo>: 0.54036
+Epoca   5 de  15, error<TrnSet>:-59.37609, MSE<ejemplo>: 4.72718, EnergiaLibre<ejemplo>: 0.35877
+Epoca   6 de  15, error<TrnSet>:-59.12749, MSE<ejemplo>: 3.54803, EnergiaLibre<ejemplo>: 0.24384
+Epoca   7 de  15, error<TrnSet>:-59.11047, MSE<ejemplo>: 3.47698, EnergiaLibre<ejemplo>: 0.19885
+Epoca   8 de  15, error<TrnSet>:-59.04316, MSE<ejemplo>: 3.15662, EnergiaLibre<ejemplo>: 0.16800
+Epoca   9 de  15, error<TrnSet>:-59.00618, MSE<ejemplo>: 2.97504, EnergiaLibre<ejemplo>: 0.14339
+Epoca  10 de  15, error<TrnSet>:-58.95198, MSE<ejemplo>: 2.71947, EnergiaLibre<ejemplo>: 0.11456
+Epoca  11 de  15, error<TrnSet>:-58.94091, MSE<ejemplo>: 2.66397, EnergiaLibre<ejemplo>: 0.10037
+Epoca  12 de  15, error<TrnSet>:-58.89895, MSE<ejemplo>: 2.45845, EnergiaLibre<ejemplo>: 0.08982
+Epoca  13 de  15, error<TrnSet>:-58.91821, MSE<ejemplo>: 2.55622, EnergiaLibre<ejemplo>: 0.08427
+Epoca  14 de  15, error<TrnSet>:-58.89406, MSE<ejemplo>: 2.43696, EnergiaLibre<ejemplo>: 0.07494
+
+Guardando la capa..
+Guardando las muestras para la siguiente capa..
+Entrenando la capa: 2
+Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
+Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
+Entrenando una RBM, con [100] unidades visibles y [50] unidades ocultas
+Cantidad de ejemplos para el entrenamiento no supervisado:  550
+Tamanio del MiniBatch:  10 Tamanio MacroBatch:  550
+Mem. Disp.: 936.75 Mem. Dataset: 0.209808349609375 Mem. x ej.: 0.0003814697265625 Mem. x Minibatch: 0.003814697265625
+Epoca   1 de  15, error<TrnSet>:-5.63318, MSE<ejemplo>: 12.74385, EnergiaLibre<ejemplo>:-4.27821
+Epoca   2 de  15, error<TrnSet>:-0.76736, MSE<ejemplo>: 0.02129, EnergiaLibre<ejemplo>:-1.54094
+Epoca   3 de  15, error<TrnSet>:-0.64695, MSE<ejemplo>: 0.00787, EnergiaLibre<ejemplo>:-0.91252
+Epoca   4 de  15, error<TrnSet>:-0.59227, MSE<ejemplo>: 0.00436, EnergiaLibre<ejemplo>:-0.61726
+Epoca   5 de  15, error<TrnSet>:-0.56407, MSE<ejemplo>: 0.00326, EnergiaLibre<ejemplo>:-0.49200
+Epoca   6 de  15, error<TrnSet>:-0.54312, MSE<ejemplo>: 0.00251, EnergiaLibre<ejemplo>:-0.40572
+Epoca   7 de  15, error<TrnSet>:-0.53283, MSE<ejemplo>: 0.00235, EnergiaLibre<ejemplo>:-0.38575
+Epoca   8 de  15, error<TrnSet>:-0.52158, MSE<ejemplo>: 0.00201, EnergiaLibre<ejemplo>:-0.32065
+Epoca   9 de  15, error<TrnSet>:-0.51302, MSE<ejemplo>: 0.00173, EnergiaLibre<ejemplo>:-0.27792
+Epoca  10 de  15, error<TrnSet>:-0.50801, MSE<ejemplo>: 0.00174, EnergiaLibre<ejemplo>:-0.26574
+Epoca  11 de  15, error<TrnSet>:-0.50464, MSE<ejemplo>: 0.00209, EnergiaLibre<ejemplo>:-0.25033
+Epoca  12 de  15, error<TrnSet>:-0.49890, MSE<ejemplo>: 0.00177, EnergiaLibre<ejemplo>:-0.21114
+Epoca  13 de  15, error<TrnSet>:-0.49655, MSE<ejemplo>: 0.00179, EnergiaLibre<ejemplo>:-0.20107
+Epoca  14 de  15, error<TrnSet>:-0.49422, MSE<ejemplo>: 0.00185, EnergiaLibre<ejemplo>:-0.18879
+
+Guardando la capa..
+Guardando las muestras para la siguiente capa..
+Entrenando la capa: 3
+Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
+Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
+Entrenando una RBM, con [50] unidades visibles y [25] unidades ocultas
+Cantidad de ejemplos para el entrenamiento no supervisado:  550
+Tamanio del MiniBatch:  10 Tamanio MacroBatch:  550
+Mem. Disp.: 935.75 Mem. Dataset: 0.1049041748046875 Mem. x ej.: 0.00019073486328125 Mem. x Minibatch: 0.0019073486328125
+Epoca   1 de  15, error<TrnSet>:-9.82559, MSE<ejemplo>: 7.94561, EnergiaLibre<ejemplo>:-0.63212
+Epoca   2 de  15, error<TrnSet>:-7.19933, MSE<ejemplo>: 0.04593, EnergiaLibre<ejemplo>:-0.09292
+Epoca   3 de  15, error<TrnSet>:-7.17677, MSE<ejemplo>: 0.03180, EnergiaLibre<ejemplo>: 0.01811
+Epoca   4 de  15, error<TrnSet>:-7.17459, MSE<ejemplo>: 0.02645, EnergiaLibre<ejemplo>: 0.03759
+Epoca   5 de  15, error<TrnSet>:-7.17202, MSE<ejemplo>: 0.02535, EnergiaLibre<ejemplo>: 0.06839
+Epoca   6 de  15, error<TrnSet>:-7.16650, MSE<ejemplo>: 0.01677, EnergiaLibre<ejemplo>: 0.05346
+Epoca   7 de  15, error<TrnSet>:-7.16346, MSE<ejemplo>: 0.01166, EnergiaLibre<ejemplo>: 0.07026
+Epoca   8 de  15, error<TrnSet>:-7.16590, MSE<ejemplo>: 0.01710, EnergiaLibre<ejemplo>: 0.04933
+Epoca   9 de  15, error<TrnSet>:-7.16325, MSE<ejemplo>: 0.01349, EnergiaLibre<ejemplo>: 0.05850
+Epoca  10 de  15, error<TrnSet>:-7.16758, MSE<ejemplo>: 0.01917, EnergiaLibre<ejemplo>: 0.04211
+Epoca  11 de  15, error<TrnSet>:-7.16769, MSE<ejemplo>: 0.02062, EnergiaLibre<ejemplo>: 0.05493
+Epoca  12 de  15, error<TrnSet>:-7.16837, MSE<ejemplo>: 0.02204, EnergiaLibre<ejemplo>: 0.04787
+Epoca  13 de  15, error<TrnSet>:-7.16554, MSE<ejemplo>: 0.01526, EnergiaLibre<ejemplo>: 0.04907
+Epoca  14 de  15, error<TrnSet>:-7.16735, MSE<ejemplo>: 0.01943, EnergiaLibre<ejemplo>: 0.03967
+
+Guardando la capa..
+Guardando las muestras para la siguiente capa..
+Entrenando la capa: 4
+Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
+Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
+Entrenando una RBM, con [25] unidades visibles y [6] unidades ocultas
+Cantidad de ejemplos para el entrenamiento no supervisado:  550
+Tamanio del MiniBatch:  10 Tamanio MacroBatch:  550
+Mem. Disp.: 936.75 Mem. Dataset: 0.05245208740234375 Mem. x ej.: 9.5367431640625e-05 Mem. x Minibatch: 0.00095367431640625
+Epoca   1 de  15, error<TrnSet>:-5.05576, MSE<ejemplo>: 11.46628, EnergiaLibre<ejemplo>:-4.25453
+Epoca   2 de  15, error<TrnSet>:-1.12212, MSE<ejemplo>: 0.45662, EnergiaLibre<ejemplo>:-3.19187
+Epoca   3 de  15, error<TrnSet>:-0.68976, MSE<ejemplo>: 0.14968, EnergiaLibre<ejemplo>:-2.20855
+Epoca   4 de  15, error<TrnSet>:-0.52199, MSE<ejemplo>: 0.07904, EnergiaLibre<ejemplo>:-1.73488
+Epoca   5 de  15, error<TrnSet>:-0.42577, MSE<ejemplo>: 0.04757, EnergiaLibre<ejemplo>:-1.42564
+Epoca   6 de  15, error<TrnSet>:-0.36305, MSE<ejemplo>: 0.02967, EnergiaLibre<ejemplo>:-1.20424
+Epoca   7 de  15, error<TrnSet>:-0.32379, MSE<ejemplo>: 0.02139, EnergiaLibre<ejemplo>:-1.05622
+Epoca   8 de  15, error<TrnSet>:-0.29555, MSE<ejemplo>: 0.01635, EnergiaLibre<ejemplo>:-0.94417
+Epoca   9 de  15, error<TrnSet>:-0.27122, MSE<ejemplo>: 0.01213, EnergiaLibre<ejemplo>:-0.84186
+Epoca  10 de  15, error<TrnSet>:-0.25389, MSE<ejemplo>: 0.00972, EnergiaLibre<ejemplo>:-0.76594
+Epoca  11 de  15, error<TrnSet>:-0.23926, MSE<ejemplo>: 0.00760, EnergiaLibre<ejemplo>:-0.69861
+Epoca  12 de  15, error<TrnSet>:-0.22897, MSE<ejemplo>: 0.00657, EnergiaLibre<ejemplo>:-0.65054
+Epoca  13 de  15, error<TrnSet>:-0.21813, MSE<ejemplo>: 0.00526, EnergiaLibre<ejemplo>:-0.59733
+Epoca  14 de  15, error<TrnSet>:-0.21046, MSE<ejemplo>: 0.00458, EnergiaLibre<ejemplo>:-0.55875
+
+Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
+/run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/dnn/rbm.py:1534: UserWarning: esta funcion sera <<deprecated>>, ver por guardarPrametros etc
+  warn("esta funcion sera <<deprecated>>, ver por guardarPrametros etc")
+/run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/dnn/rbm.py:1534: UserWarning: esta funcion sera <<deprecated>>, ver por guardarPrametros etc
+  warn("esta funcion sera <<deprecated>>, ver por guardarPrametros etc")
+Guardando la capa..
+Guardando las muestras para la siguiente capa..
+Cargando capa:  /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/face/test_all_videos_features_clases_shuffled_PCA85_minmax.npz/rbm_capa1/dbnTest_capa1.pgz
+Cargando capa:  /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/face/test_all_videos_features_clases_shuffled_PCA85_minmax.npz/rbm_capa2/dbnTest_capa2.pgz
+Cargando capa:  /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/face/test_all_videos_features_clases_shuffled_PCA85_minmax.npz/rbm_capa3/dbnTest_capa3.pgz
+Cargando capa:  /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/face/test_all_videos_features_clases_shuffled_PCA85_minmax.npz/rbm_capa4/dbnTest_capa4.pgz
+Tiempo total para pre-entrenamiento DBN-(RBM): 00:00:45.32
+Name: dbnTest
+Cantidad de capas: 4
+-[1] :
+Numero de neuronas visibles: 85
+Numero de neuronas ocultas: 100
+Numero de epocas: 15
+Tasa de aprendizaje para los pesos: 0.1
+Tasa de aprendizaje para las unidades visibles None
+Tasa de aprendizaje para las unidades ocultas: None
+Tasa de momento: 0.0
+Castigo pesos: None
+Pasos de Gibss: 1
+Tamanio del minibatch: 10
+Tolerancia del error permitido: 0.0
+Tipo de Unidades Visibles: Unidad Binaria
+Tipo de Unidades Ocultas: Unidad Binaria
+
+-[2] :
+Numero de neuronas visibles: 100
+Numero de neuronas ocultas: 50
+Numero de epocas: 15
+Tasa de aprendizaje para los pesos: 0.1
+Tasa de aprendizaje para las unidades visibles None
+Tasa de aprendizaje para las unidades ocultas: None
+Tasa de momento: 0.0
+Castigo pesos: None
+Pasos de Gibss: 1
+Tamanio del minibatch: 10
+Tolerancia del error permitido: 0.0
+Tipo de Unidades Visibles: Unidad Binaria
+Tipo de Unidades Ocultas: Unidad Binaria
+
+-[3] :
+Numero de neuronas visibles: 50
+Numero de neuronas ocultas: 25
+Numero de epocas: 15
+Tasa de aprendizaje para los pesos: 0.1
+Tasa de aprendizaje para las unidades visibles None
+Tasa de aprendizaje para las unidades ocultas: None
+Tasa de momento: 0.0
+Castigo pesos: None
+Pasos de Gibss: 1
+Tamanio del minibatch: 10
+Tolerancia del error permitido: 0.0
+Tipo de Unidades Visibles: Unidad Binaria
+Tipo de Unidades Ocultas: Unidad Binaria
+
+-[4] :
+Numero de neuronas visibles: 25
+Numero de neuronas ocultas: 6
+Numero de epocas: 15
+Tasa de aprendizaje para los pesos: 0.1
+Tasa de aprendizaje para las unidades visibles None
+Tasa de aprendizaje para las unidades ocultas: None
+Tasa de momento: 0.0
+Castigo pesos: None
+Pasos de Gibss: 1
+Tamanio del minibatch: 10
+Tolerancia del error permitido: 0.0
+Tipo de Unidades Visibles: Unidad Binaria
+Tipo de Unidades Ocultas: Unidad Binaria
+
+
+MEMORIA:  (920.75, 43.125, 963.875, 4.474127869277655)
+memoria disponible: 736.6 memoria dataset: 0.00209808349609375 memoria por ejemplo: 0.000324249267578125 memoria por Minibatch: 0.00324249267578125
+Entrenando un MLP, con [85] unidades de entrada y [100, 50, 25, 6] unidades por capa
+Cantidad de ejemplos para el entrenamiento supervisado:  550
+Tamanio del miniBatch:  10 Tamanio MacroBatch:  550
+MEMORIA antes de iterar:  (937.75, 26.125, 963.875, 2.710413694721826)
+Entrenando
+Epoca   1 de  50, Costo entrenamiento  2199.61777, Error validacion  85.83333
+|---->>Epoca   1, error test del modelo  78.00000
+Epoca   2 de  50, Costo entrenamiento  1910.36606, Error validacion  85.83333
+Epoca   3 de  50, Costo entrenamiento  1639.14700, Error validacion  85.83333
+Epoca   4 de  50, Costo entrenamiento  1368.02826, Error validacion  85.83333
+Epoca   5 de  50, Costo entrenamiento  1096.97943, Error validacion  85.83333
+Epoca   6 de  50, Costo entrenamiento  826.01404, Error validacion  85.83333
+Epoca   7 de  50, Costo entrenamiento  556.12516, Error validacion  85.83333
+Epoca   8 de  50, Costo entrenamiento  320.28263, Error validacion  85.83333
+Epoca   9 de  50, Costo entrenamiento  229.61714, Error validacion  85.83333
+Epoca  10 de  50, Costo entrenamiento  217.28938, Error validacion  85.83333
+Epoca  11 de  50, Costo entrenamiento  215.89925, Error validacion  85.00000
+|---->>Epoca  11, error test del modelo  86.00000
+Epoca  12 de  50, Costo entrenamiento  215.72347, Error validacion  85.00000
+Epoca  13 de  50, Costo entrenamiento  215.68692, Error validacion  85.00000
+Epoca  14 de  50, Costo entrenamiento  215.67266, Error validacion  85.00000
+Epoca  15 de  50, Costo entrenamiento  215.66312, Error validacion  85.00000
+Epoca  16 de  50, Costo entrenamiento  215.65475, Error validacion  85.00000
+Epoca  17 de  50, Costo entrenamiento  215.64662, Error validacion  85.00000
+Epoca  18 de  50, Costo entrenamiento  215.63861, Error validacion  85.00000
+Epoca  19 de  50, Costo entrenamiento  215.63058, Error validacion  85.00000
+Epoca  20 de  50, Costo entrenamiento  215.62257, Error validacion  85.00000
+Epoca  21 de  50, Costo entrenamiento  215.61453, Error validacion  85.00000
+Epoca  22 de  50, Costo entrenamiento  215.60655, Error validacion  85.00000
+Epoca  23 de  50, Costo entrenamiento  215.59851, Error validacion  85.00000
+Epoca  24 de  50, Costo entrenamiento  215.59052, Error validacion  85.00000
+Epoca  25 de  50, Costo entrenamiento  215.58251, Error validacion  85.00000
+Epoca  26 de  50, Costo entrenamiento  215.57450, Error validacion  85.00000
+Epoca  27 de  50, Costo entrenamiento  215.56649, Error validacion  85.00000
+Epoca  28 de  50, Costo entrenamiento  215.55851, Error validacion  85.00000
+Epoca  29 de  50, Costo entrenamiento  215.55049, Error validacion  85.00000
+Epoca  30 de  50, Costo entrenamiento  215.54251, Error validacion  85.00000
+Epoca  31 de  50, Costo entrenamiento  215.53450, Error validacion  85.00000
+Epoca  32 de  50, Costo entrenamiento  215.52651, Error validacion  85.00000
+Epoca  33 de  50, Costo entrenamiento  215.51852, Error validacion  85.00000
+Epoca  34 de  50, Costo entrenamiento  215.51051, Error validacion  85.00000
+Epoca  35 de  50, Costo entrenamiento  215.50252, Error validacion  85.00000
+Epoca  36 de  50, Costo entrenamiento  215.49456, Error validacion  85.00000
+Epoca  37 de  50, Costo entrenamiento  215.48660, Error validacion  85.00000
+Epoca  38 de  50, Costo entrenamiento  215.47859, Error validacion  85.00000
+Epoca  39 de  50, Costo entrenamiento  215.47060, Error validacion  85.00000
+Epoca  40 de  50, Costo entrenamiento  215.46261, Error validacion  85.00000
+Epoca  41 de  50, Costo entrenamiento  215.45465, Error validacion  85.00000
+Epoca  42 de  50, Costo entrenamiento  215.44666, Error validacion  85.00000
+Epoca  43 de  50, Costo entrenamiento  215.43870, Error validacion  85.00000
+Epoca  44 de  50, Costo entrenamiento  215.43071, Error validacion  85.00000
+Epoca  45 de  50, Costo entrenamiento  215.42275, Error validacion  85.00000
+Epoca  46 de  50, Costo entrenamiento  215.41476, Error validacion  85.00000
+Epoca  47 de  50, Costo entrenamiento  215.40682, Error validacion  85.00000
+Epoca  48 de  50, Costo entrenamiento  215.39886, Error validacion  85.00000
+Epoca  49 de  50, Costo entrenamiento  215.39090, Error validacion  85.00000
+Epoca  50 de  50, Costo entrenamiento  215.38293, Error validacion  85.00000
+Entrenamiento Finalizado. Mejor puntaje de validacion:  85.00000 con un performance en el test de  86.00000
+reales [2 0 1 4 1 2 5 0 3 3 2 4 0 2 4 1 0 1 2 1 5 3 3 4 2]
+predic [5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5]
+Tiempo total para entrenamiento DBN: 00:00:07.12
+
+-------------------------------------------------------------------------
+FINALIZADO Fecha: vie sep 16 23:13:25 ART 2016 
+-------------------------------------------------------------------------
+

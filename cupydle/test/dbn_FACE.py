@@ -14,26 +14,24 @@ __status__      = "Production"
 
 """
 Implementacion de una Red de Creencia Profunda en GP-GPU/CPU (Theano) FACE
+
+Esta es una prueba simple de una DBN completa sobre la base de datos RML
+Ejecuta el entrenamiento no supervisado y luego ajuste fino de los parametros
+por medio de un entrenamiento supervisado.
+
 """
 import numpy
-import time
 import os
-import sys
-import subprocess
 import argparse
 
 # Dependencias Externas
 ## Core
 from cupydle.dnn.dbn import DBN
-from cupydle.dnn.dbn import rbmParams
+# TODO implementar dentro de mlp y elegir a traves de un string
 from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.mlp import MLP
-## Data
-from cupydle.test.mnist.mnist import MNIST
-from cupydle.test.mnist.mnist import open4disk
-from cupydle.test.mnist.mnist import save2disk
-## Utils
-from cupydle.dnn.utils import temporizador
+
+# TODO implementar dentro de dbn
 from cupydle.dnn.unidades import UnidadBinaria
 
 
@@ -75,6 +73,12 @@ if __name__ == "__main__":
         print('Creando la carpeta para el test en: ',rutaCompleta)
         os.makedirs(rutaCompleta)
 
+    ###########################################################################
+    ##
+    ##        M A N I P U L A C I O N    DE   L O S    D A T O S
+    ##
+    ###########################################################################
+
     # se cargan  los datos, debe ser un archivo comprimido, en el cual los
     # arreglos estan en dos archivos, 'videos' y 'clases'
     b = numpy.load(rutaDatos + dataset)
@@ -110,23 +114,18 @@ if __name__ == "__main__":
                        tamMiniBatch=tambatch,
                        epsilonw=0.1,
                        pasosGibbs=pasosGibbs,
-                       w=listaPesos[idx],
+                       w=None,
                        unidadesVisibles=UnidadBinaria(),
                        unidadesOcultas=UnidadBinaria())
 
-
-    T = temporizador()
-    inicio = T.tic()
-
     #entrena la red
-    miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
-                           dataVal=datos[1][0], # imagenes de validacion
-                           pcd=False,
-                           guardarPesosIniciales=True,
-                           filtros=True)
+    miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
+                   dataVal=datos[1][0], # imagenes de validacion
+                   pcd=False,
+                   guardarPesosIniciales=True,
+                   filtros=True)
 
-    final = T.toc()
-    print("Tiempo total para pre-entrenamiento DBN-(RBM): {}".format(T.transcurrido(inicio, final)))
+
 
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 

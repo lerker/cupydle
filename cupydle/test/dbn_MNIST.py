@@ -196,7 +196,7 @@ if __name__ == "__main__":
         inicio = T.tic()
 
         #entrena la red
-        miDBN.preEntrenamiento(dataTrn=datos[0][0], # imagenes de entrenamiento
+        miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
                                dataVal=datos[1][0], # imagenes de validacion
                                pcd=False,
                                guardarPesosIniciales=True,

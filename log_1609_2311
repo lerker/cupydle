@@ -1,0 +1,15 @@
+-------------------------------------------------------------------------
+Fecha: vie sep 16 23:11:48 ART 2016 Host:nelo-linux
+-------------------------------------------------------------------------
+
+Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
+Creando la carpeta para el test en:  /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/face/test_all_videos_features_clases_shuffled_PCA85_minmax.npz/
+Traceback (most recent call last):
+  File "cupydle/test/dbn_FACE.py", line 113, in <module>
+    w=listaPesos[idx],
+NameError: name 'listaPesos' is not defined
+
+-------------------------------------------------------------------------
+FINALIZADO Fecha: vie sep 16 23:11:52 ART 2016 
+-------------------------------------------------------------------------
+

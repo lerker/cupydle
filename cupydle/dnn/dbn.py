@@ -19,6 +19,7 @@ __status__      = "Production"
 # There are 2 other implementations based on MRG31k3p and CURAND.
 # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
 
+from cupydle.dnn.utils import temporizador
 
 import numpy
 import os
@@ -252,7 +253,7 @@ class DBN(object):
 
         return
 
-    def preEntrenamiento(self, dataTrn, dataVal, pcd=True,
+    def entrenar(self, dataTrn, dataVal, pcd=True,
                          guardarPesosIniciales=False, filtros=True):
         """
         :type dataTrn: narray
@@ -266,6 +267,9 @@ class DBN(object):
         """
         assert self.n_layers > 0, "No hay nada que computar"
         self.x = dataTrn
+
+        T = temporizador()
+        inicio = T.tic()
 
         for i in range(self.n_layers):
             # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
@@ -337,6 +341,10 @@ class DBN(object):
 
         # una vez terminado el entrenamiento guardo los pesos para su futura utilizacion
         self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
+
+        final = T.toc()
+        print("Tiempo total para pre-entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
+
         return
     # FIN TRAIN
 
@@ -406,8 +414,9 @@ class DBN(object):
                         batch_size=10)
 
         final = T.toc()
-        print("Tiempo total para entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
-        return
+        print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
+
+        return 1
 
 
 
