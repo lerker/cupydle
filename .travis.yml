@@ -64,9 +64,6 @@ script:
   - echo "$PART"
   - cd -; cd Theano
   - python -c 'import theano; print(theano.config)'
-  - theano-nose -v $PART
-  - if [[ $DOC == "1" ]]; then python doc/scripts/docgen.py --nopdf --check; fi
-  - if [[ $DOC == "1" ]]; then python doc/scripts/docgen.py --test --check; fi
 
 after_failure:
   - cat /home/travis/.pip/pip.log
