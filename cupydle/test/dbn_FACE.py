@@ -102,14 +102,6 @@ if __name__ == "__main__":
 
     miDBN = DBN(name=None, ruta=rutaCompleta)
 
-
-    # se cargan los pesos del mlp para comenzar desde ahi, y luego comparar con la dbn
-    # se almacenan los pesos para propositos de comparacion con la dbn, la primera es la de entrada por lo que no recorro todo
-    listaPesos = []
-    for idx, _ in enumerate(capas[:-1]):
-        pesos = numpy.load(rutaCompleta + "pesos_W" + str(idx) + ".npy")
-        listaPesos.append(pesos)
-
     # agrego una capa..
     for idx, _ in enumerate(capas[:-1]): # es -2 porque no debo tener en cuenta la primera ni la ultima
         miDBN.addLayer(n_visible=capas[idx],
