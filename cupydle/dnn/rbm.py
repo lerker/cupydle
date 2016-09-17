@@ -1106,20 +1106,20 @@ class RBM(object):
         # tasa de aprendizaje para los bias igual al de los pesos
         if self.params['epsilonvb'] is None:
             self.params['epsilonvb'] = self.params['epsilonw']
-        if self.params['epsilonvb'] == 0.0:
+
+        if numpy.any(self.params['epsilonvb'] == 0.0):
             self.params['epsilonvb'] = self.params['epsilonw']
 
         if self.params['epsilonhb'] is None:
             self.params['epsilonhb'] = self.params['epsilonw']
-        if self.params['epsilonhb'] == 0.0:
+        if numpy.any(self.params['epsilonhb'] == 0.0):
             self.params['epsilonhb'] = self.params['epsilonw']
-        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
+        assert numpy.any(self.params['epsilonw'] != 0.0), "La tasa de aprendizaje para los pesos no puede ser nula"
 
         momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
         lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
         lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
         lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
-
         # el escalado del dropout es realizado en el ajuste fino... no aca
         """
         dropout = self.params['dropoutVisibles']

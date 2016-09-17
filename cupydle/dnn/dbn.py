@@ -349,18 +349,20 @@ class DBN(object):
     # FIN TRAIN
 
     def ajuste(self, datos, listaPesos=None, fnActivacion=sigmoideaTheano(),
-               semillaRandom=None):
+                tambatch=10, semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.
         """
         if listaPesos is None:
             if self.pesos == []:
+                print("Cargando los pesos almacenados...")
                 self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
+                if self.pesos==[]:
+                    print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!")
+                    self.pesos = [None] * self.n_layers
         else:
             self.pesos = listaPesos
-
-        assert self.pesos!=[], "Error al obtener los pesos"
 
         activaciones = []
         if fnActivacion is not None:
@@ -376,29 +378,22 @@ class DBN(object):
         clasificador = MLP(clasificacion=True,
                            rng=semillaRandom,
                            ruta=self.ruta)
-        """
-        clasificador.setParametroEntrenamiento({'tasaAprendizaje':self.parametrosAjuste['tasaAprendizaje']})
-        clasificador.setParametroEntrenamiento({'regularizadorL1':self.parametrosAjuste['regularizadorL1']})
-        clasificador.setParametroEntrenamiento({'regularizadorL2':self.parametrosAjuste['regularizadorL2']})
-        clasificador.setParametroEntrenamiento({'momento':self.parametrosAjuste['momento']})
-        clasificador.setParametroEntrenamiento({'epocas':self.parametrosAjuste['epocas']})
-        clasificador.setParametroEntrenamiento({'activationfuntion':self.parametrosAjuste['activationfuntion']})
-        """
+
         clasificador.setParametroEntrenamiento(self.parametrosAjuste)
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
         for i in range(0,len(self.pesos)-1):
-            clasificador.agregarCapa(unidadesEntrada=self.pesos[i].shape[0],
-                                     unidadesSalida=self.pesos[i].shape[1],
+            clasificador.agregarCapa(unidadesEntrada=self.params[i].n_visible,
+                                     unidadesSalida=self.params[i].n_hidden,
                                      clasificacion=False,
                                      activacion=activaciones[i],
                                      pesos=self.pesos[i],
                                      biases=None)
 
-        clasificador.agregarCapa(unidadesEntrada=self.pesos[-1].shape[0],
-                                 unidadesSalida=self.pesos[-1].shape[1],
+        clasificador.agregarCapa(unidadesEntrada=self.params[-1].n_visible,
+                                 unidadesSalida=self.params[-1].n_hidden,
                                  clasificacion=True,
                                  activacion=activaciones[-1],
                                  pesos=self.pesos[-1],
@@ -411,7 +406,7 @@ class DBN(object):
                         trainSet=datos[0],
                         validSet=datos[1],
                         testSet=datos[2],
-                        batch_size=10)
+                        batch_size=tambatch)
 
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
@@ -425,11 +420,11 @@ class DBN(object):
         guarda la dbn, algunos datos para poder levantarla
         """
         datos = {"name":self.name,
-                    "layers":self.layers,
-                    "n_layers":self.n_layers,
-                    "params":self.params,
-                    "numpy_rng":self.numpy_rng,
-                    "theano_rng":self.theano_rng}
+                 "layers":self.layers,
+                 "n_layers":self.n_layers,
+                 "params":self.params,
+                 "numpy_rng":self.numpy_rng,
+                 "theano_rng":self.theano_rng}
         save(objeto=datos, filename=filename, compression=compression)
         return
 
@@ -439,6 +434,20 @@ class DBN(object):
         """
 
         save(objeto=self, filename=filename, compression=compression)
+        return
+
+    def guardar(self, nombreArchivo='test_dbn'):
+        """
+        Almacena todos los datos en un archivo pickle que contiene un diccionario
+        lo cual lo hace mas sencillo procesar luego
+        """
+        import pickle
+        archivo = self.ruta + nombreArchivo + '.pkl'
+        datos = {'tipo': 'dbn',
+                 'nombre':self.name}
+
+        with open(archivo, 'wb') as f:
+            pickle.dump(datos, f, pickle.HIGHEST_PROTOCOL)
         return
 
     @staticmethod
