@@ -1,3 +1,4 @@
+#sudo docker run --name cupydle -v /home/DockerVolumeHomeCupydle/:/root -it --privileged=true --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia0:/dev/nvidia ubuntu:14.04 /bin/bash
 # para que cuda funcione se debe correr en el host deviceQuery una vez (carga las dev)
 # crear la imagen (evidentemente no funciona con docker solo desde el dockerfile debido a que los devices no son conectados en el build), crear un contenedor de ubuntu 14.04 y correr linea por linea del dockerfile
 # docker build -t "ubuntu/cuda/theano/python3" .
