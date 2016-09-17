@@ -67,7 +67,7 @@ script:
   - df -h
   - ulimit -a
   # Move out of Theano so the import will use the installed version
-  #- cd ..
+  - cd ..
   - pip list
   - pip show Theano
   - ls -lh
