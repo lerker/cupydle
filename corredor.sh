@@ -10,7 +10,7 @@ ARCHIVO_LOG="log$(date '+_%d%m_%H%M')"
 echo -e $var > ${ARCHIVO_LOG}
 
 ### ejecutar
-python3 cupydle/test/dbn_FACE.py --directorio test_DBN_PCA_85 --dataset videos_pca_85_features_procesado_minmax.npz -b 10 --epocasDBN 15 --epocasMLP 50 --capas 85 100 50 25 6 -m 2>&1 | tee -a ${ARCHIVO_LOG}
+python3 cupydle/test/dbn_FACE.py --directorio test_DBN_PCA_85 --dataset $1 -b 10 --epocasDBN 15 --epocasMLP 50 --capas 85 100 50 25 6 -m 2>&1 | tee -a ${ARCHIVO_LOG}
 
 
 FECHA_ARCHIVO_FIN=$(date)
