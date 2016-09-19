@@ -23,6 +23,7 @@ from cupydle.dnn.utils import temporizador
 
 import numpy
 import os
+import shelve
 
 ### THEANO
 # TODO mejorar los imports, ver de agregar theano.shared... etc
@@ -140,7 +141,7 @@ class rbmParams(object):
 
 class DBN(object):
 
-    verbose = True
+    DEBUG = False
 
     def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None, ruta=''):
         """This class is made to support a variable number of layers.
@@ -172,17 +173,12 @@ class DBN(object):
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
-        # si es de clasificacion, n_outs es distinto a none, es un numero de clases
-        self.n_outs = n_outs
-
         # allocate symbolic variables for the data
-        self.x = theano.tensor.matrix('samples')  # the data is presented as rasterized images
-        self.y = theano.tensor.ivector('labels')  # the labels are presented as 1D vector
-                                                  # of [int] labels
+        self.x = theano.tensor.matrix('samples')  # los datos de entrada son del tipo tensor de orden dos
+        self.y = theano.tensor.ivector('labels')  # las etiquetas son tensores de orden uno (ints)
 
         self.params = []
         self.n_layers = 0
-        self.layersHidAct = [] # activaciones de las capas ocultas intermedias
         self.pesos = [] #pesos almacenados en una lista, una vez entrenados se guardan aca
                         # para utilizarse en el fit o prediccion...
 
@@ -199,6 +195,8 @@ class DBN(object):
         self.parametrosAjuste = {}
         self._initParametrosAjuste()
 
+        self.datosAlmacenar=self._initGuardar()
+
     def _initParametrosAjuste(self):
         """ inicializa los parametros de la red, un diccionario"""
         self.parametrosAjuste['tasaAprendizaje'] = 0.0
@@ -209,6 +207,45 @@ class DBN(object):
         self.parametrosAjuste['activationfuntion'] = sigmoideaTheano()
         self.parametrosAjuste['toleranciaError'] = 0.0
         return 1
+
+    def _initGuardar(self):
+        """
+        inicializa los campos para el almacenamiento
+        """
+        from cupydle.dnn.utils import RestrictedDict
+
+        archivo = self.ruta + self.name + '.cupydle'
+
+        # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
+        # debe setearse aca
+        datos = {'tipo':                'dbn',
+                 'nombre':              self.name,
+                 'numpy_rng':           self.numpy_rng,
+                 'pesos':               [],
+                 'pesos_iniciales':     [],
+                 'theano_rng':          self.theano_rng.rstate, # con set_value se actualiza
+                 'activacionesOcultas': []
+                 }
+
+        # diccionario restringido en sus keys
+        almacenar = RestrictedDict(datos)
+        for k,v in datos.items():
+            almacenar[k]=v
+
+        # se guarda a archivo
+        # ojo con el writeback,
+        # remuevo el archivo para comenzar desde cero
+        #os.remove(archivo)
+        # 'r'   Open existing database for reading only (default)
+        # 'w' Open existing database for reading and writing
+        # 'c' Open database for reading and writing, creating it if it doesn’t exist
+        # 'n' Always create a new, empty database, open for reading and writing
+        with shelve.open(archivo, flag='n', writeback=False) as shelf:
+            for key in almacenar.keys():
+                shelf[key] = almacenar[key]
+            shelf.close()
+
+        return almacenar
 
     def setParametrosAjuste(self, parametros):
         if not isinstance(parametros, dict):
@@ -276,71 +313,52 @@ class DBN(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.layersHidAct[-1]
+                layer_input = self.cargar(key='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
 
-            # una carpeta para alojar los datos
+            # una carpeta para alojar los datos de la capa intermedia
             directorioRbm = self.ruta + 'rbm_capa{}/'.format(i+1)
-            if not os.path.exists(directorioRbm):
-                os.makedirs(directorioRbm)
-
+            os.makedirs(directorioRbm) if not os.path.exists(directorioRbm) else None
 
             # Construct an RBM that shared weights with this layer
             capaRBM = RBM(n_visible=self.params[i].n_visible,
-                            n_hidden=self.params[i].n_hidden,
-                            w=self.params[i].w,
-                            ruta=directorioRbm)
+                          n_hidden=self.params[i].n_hidden,
+                          w=self.params[i].w,
+                          ruta=directorioRbm)
 
             # configuro la capa, la rbm
-            # TODO
-            #capaRBM.setParams(self.params[i].getParametrosEntrenamiento)
-            #assert False
-            #"""
-            capaRBM.setParams({'epsilonw':self.params[i].epsilonw})
-            capaRBM.setParams({'epsilonvb':self.params[i].epsilonvb})
-            capaRBM.setParams({'epsilonhb':self.params[i].epsilonhb})
-            capaRBM.setParams({'momentum':self.params[i].momentum})
-            capaRBM.setParams({'weightcost':self.params[i].weightcost})
-            capaRBM.setParams({'epocas':self.params[i].epocas})
-            #"""
+            capaRBM.setParams(self.params[i].getParametrosEntrenamiento)
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            if guardarPesosIniciales:
-                nombre = self.name + "_pesosInicialesCapa" + str(i+1)
-                capaRBM.guardarParametros(nombreArchivo=nombre)
+            self.guardar(diccionario={'pesos_iniciales':capaRBM.get_w}) if guardarPesosIniciales else None
 
-            capaRBM.entrenamiento(data=layer_input,   # los datos los binarizo y convierto a float
-                            tamMiniBatch=self.params[i].tamMiniBatch,
-                            pcd=pcd,
-                            gibbsSteps=self.params[i].pasosGibbs,
-                            validationData=dataVal,
-                            filtros=filtros)
+            capaRBM.entrenamiento(data=layer_input,
+                                  tamMiniBatch=self.params[i].tamMiniBatch,
+                                  pcd=pcd,
+                                  gibbsSteps=self.params[i].pasosGibbs,
+                                  validationData=dataVal,
+                                  filtros=filtros)
 
-            print("Guardando la capa..") if DBN.verbose else None
+            # TODO aca debe ser la misma analogia de guardado, en un solo archivo en la carpeta como las dbn
+            print("Guardando la capa..") if DBN.DEBUG else None
             filename = self.name + "_capa" + str(i+1) + ".pgz"
             capaRBM.guardar(nombreArchivo=filename)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
-            # TODO aca debo tener las activaciones de las ocultas
-            #[_, _, hiddenActPos] = capaRBM.reconstruccion(muestraV=layer_input)
-            #[_, _, dataVal] = capaRBM.reconstruccion(muestraV=dataVal)
-            [hiddenProbAct, _, _] = capaRBM.muestra(muestraV=layer_input)
-            [dataVal,_,_] = capaRBM.muestra(muestraV=dataVal)
-            #hiddenActPos = capaRBM.activacionesOcultas(layer_input)
-            #dataVal = capaRBM.activacionesOcultas(dataVal)
+            # [probabilidad_H1, muestra_V1, muestra_H1]
+            [_, _, hiddenProbAct] = capaRBM.muestra(muestraV=layer_input)
+            [_,_,dataVal] = capaRBM.muestra(muestraV=dataVal)
 
-            print("Guardando las muestras para la siguiente capa..") if DBN.verbose else None
-            filename_samples = self.ruta + self.name + "_ActivacionesOcultas" + str(i+1)
-            save(objeto=hiddenProbAct, filename=filename_samples, compression='gzip')
-
-            # guardo la salida de la capa para la proxima iteracion
-            self.layersHidAct.append(hiddenProbAct)
+            # se guardan las activaciones ocultas para la siguiente iteracion
+            # de la siguiente capa oculta
+            print("Guardando las muestras para la siguiente capa..") if DBN.DEBUG else None
+            self.guardar(diccionario={'activacionesOcultas':hiddenProbAct})
 
             del capaRBM
         # FIN FOR
 
         # una vez terminado el entrenamiento guardo los pesos para su futura utilizacion
-        self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
+        [self.guardar(diccionario={'pesos':x}) for x in self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)]
 
         final = T.toc()
         print("Tiempo total para pre-entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
@@ -356,10 +374,10 @@ class DBN(object):
         """
         if listaPesos is None:
             if self.pesos == []:
-                print("Cargando los pesos almacenados...")
-                self.pesos = self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)
+                print("Cargando los pesos almacenados...") if DBN.DEBUG else None
+                self.pesos = self.cargar(key='pesos')
                 if self.pesos==[]:
-                    print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!")
+                    print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
                     self.pesos = [None] * self.n_layers
         else:
             self.pesos = listaPesos
@@ -375,6 +393,7 @@ class DBN(object):
             assert False, "Debe proveer una funcion de activacion"
 
 
+        # se construye un mlp para el ajuste fino de los pesos con entrenamiento supervisado
         clasificador = MLP(clasificacion=True,
                            rng=semillaRandom,
                            ruta=self.ruta)
@@ -402,33 +421,17 @@ class DBN(object):
         T = temporizador()
         inicio = T.tic()
 
-        clasificador.entrenar(
-                        trainSet=datos[0],
-                        validSet=datos[1],
-                        testSet=datos[2],
-                        batch_size=tambatch)
+        clasificador.entrenar(trainSet=datos[0],
+                              validSet=datos[1],
+                              testSet=datos[2],
+                              batch_size=tambatch)
 
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
 
-        return 1
+        return 0
 
-
-
-    def save2(self, filename, compression='zip'):
-        """
-        guarda la dbn, algunos datos para poder levantarla
-        """
-        datos = {"name":self.name,
-                 "layers":self.layers,
-                 "n_layers":self.n_layers,
-                 "params":self.params,
-                 "numpy_rng":self.numpy_rng,
-                 "theano_rng":self.theano_rng}
-        save(objeto=datos, filename=filename, compression=compression)
-        return
-
-    def save(self, filename, compression='zip'):
+    def guardarObjeto(self, filename, compression='zip'):
         """
         guarda la dbn, algunos datos para poder levantarla
         """
@@ -436,19 +439,58 @@ class DBN(object):
         save(objeto=self, filename=filename, compression=compression)
         return
 
-    def guardar(self, nombreArchivo='test_dbn'):
+    def guardar(self, nombreArchivo=None, diccionario=None):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
         lo cual lo hace mas sencillo procesar luego
         """
-        import pickle
-        archivo = self.ruta + nombreArchivo + '.pkl'
-        datos = {'tipo': 'dbn',
-                 'nombre':self.name}
+        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        with open(archivo, 'wb') as f:
-            pickle.dump(datos, f, pickle.HIGHEST_PROTOCOL)
-        return
+        # datos a guardar
+        datos = self.datosAlmacenar
+
+        if diccionario is not None:
+            for key in diccionario.keys():
+                if isinstance(datos[key],list) and diccionario[key] !=[]:
+                    datos[key].append(diccionario[key])
+                else:
+                    datos[key] = diccionario[key]
+        else:
+            print("nada que guardar")
+            return 0
+
+        self.datosAlmacenar = datos
+
+        # ojo con el writeback
+        with shelve.open(archivo, flag='w', writeback=False) as shelf:
+            for key in datos.keys():
+                """
+                tmp = shelf[key]
+                if isinstance(tmp,list):
+                    print(key)
+                    tmp.extend(datos[key])
+                    shelf[key]=tmp
+                else:
+                    shelf[key]=datos[key]
+                """
+                shelf[key]=datos[key]
+            shelf.close()
+        return 0
+
+    def cargar(self, nombreArchivo=None, key=None):
+        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
+
+        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+            if key is not None:
+                retorno = shelf[key]
+            else:
+                retorno = shelf.copy
+            shelf.close()
+
+        return retorno
+
 
     @staticmethod
     def load(filename, compression='zip'):
@@ -484,7 +526,7 @@ class DBN(object):
         capas = []
         for directorio in sorted(glob.glob(ruta+'rbm_capa[0-9]/')):
             for file in sorted(glob.glob(directorio + dbnNombre + "_capa[0-9].*")):
-                print("Cargando capa: ",file) if DBN.verbose else None
+                print("Cargando capa: ",file) if DBN.DEBUG else None
                 capas.append(RBM.load(str(file)).w.get_value())
         return capas
 

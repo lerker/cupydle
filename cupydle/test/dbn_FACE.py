@@ -190,6 +190,6 @@ if __name__ == "__main__":
                  semillaRandom=None,
                  tambatch=tambatch)
 
-    miDBN.guardar(nombre)
+    #miDBN.guardarObjeto(filename=str(nombre)+'.zip')
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

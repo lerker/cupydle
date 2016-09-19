@@ -79,3 +79,6 @@ cupydle/data/DB_mnist/*
 *.npy
 *.npz
 *.csv
+
+# de mi app
+*.cupydle
