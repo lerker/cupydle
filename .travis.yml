@@ -79,7 +79,7 @@ script:
   #- cd -; cd lerker
   - python -c 'import theano; print(theano.config)'
   - ls -l cupydle
-  - python cupydle/cupydle/test/mlp_MNIST.py
+  #- python cupydle/cupydle/test/mlp_MNIST.py
 
 after_failure:
   - cat /home/travis/.pip/pip.log
