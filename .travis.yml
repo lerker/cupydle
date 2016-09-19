@@ -78,8 +78,8 @@ script:
   #- cd $(python -c 'import theano; import os; print(os.path.split(theano.__file__)[0])')
   #- cd -; cd lerker
   - python -c 'import theano; print(theano.config)'
-  - ls -l
-  - python cupydle/cupydle/tests/mlp_MNIST.py
+  - ls -l cupydle
+  - python cupydle/cupydle/test/mlp_MNIST.py
 
 after_failure:
   - cat /home/travis/.pip/pip.log
