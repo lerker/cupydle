@@ -45,6 +45,7 @@ install:
   - conda create --yes -q -n pyenv mkl python=3.3 numpy=1.9.1 scipy=0.14.0 nose=1.3.4 pyparsing=1.5 pip flake8=2.3 six=1.9.0 pep8=1.6.2 pyflakes=0.8.1 sphinx
   - source activate pyenv
   - pip install . --no-deps # instala cupydle
+  - chmod +x cupydle/test/mnist/get_data.sh
 
 # command to run tests
 env:
@@ -77,6 +78,8 @@ script:
   #- cd $(python -c 'import theano; import os; print(os.path.split(theano.__file__)[0])')
   #- cd -; cd lerker
   - python -c 'import theano; print(theano.config)'
+  - ls -l
+  - python cupydle/cupydle/tests/mlp_MNIST.py
 
 after_failure:
   - cat /home/travis/.pip/pip.log

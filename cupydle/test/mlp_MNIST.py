@@ -108,10 +108,10 @@ if __name__ == "__main__":
 
 
 
-    clasificador.train( trainSet=datos[0],
-                        validSet=datos[1],
-                        testSet=datos[2],
-                        batch_size=batchSize)
+    clasificador.entrenar(trainSet=datos[0],
+                          validSet=datos[1],
+                          testSet=datos[2],
+                          batch_size=batchSize)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
