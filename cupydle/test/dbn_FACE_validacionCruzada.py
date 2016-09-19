@@ -17,7 +17,7 @@ Implementacion de una Red de Creencia Profunda en GP-GPU/CPU (Theano) FACE
 
 Esta es una prueba simple de una DBN completa sobre la base de datos RML
 Ejecuta el entrenamiento no supervisado y luego ajuste fino de los parametros
-por medio de un entrenamiento supervisado.
+por medio de un entrenamiento supervisado. VALIDACION CRUZADA
 
 """
 import numpy as np
@@ -33,6 +33,8 @@ from cupydle.dnn.mlp import MLP
 
 # TODO implementar dentro de dbn
 from cupydle.dnn.unidades import UnidadBinaria
+from cupydle.dnn.utils import temporizador
+from cupydle.dnn.validacion_cruzada import StratifiedKFold
 
 
 if __name__ == "__main__":
@@ -54,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, nargs='+', help="Tasa de momento para la etapa de entrenamiento, si es unico se aplica igual a cada capa")
     parser.add_argument('--momentoFIT',       type=float, dest="momentoFIT",     default=0.0,        required=False, help="Tasa de momento para la etapa de ajuste")
+    parser.add_argument('--folds',            type=int,   dest="folds",          default=2,          required=True,  help="Cantidad de conjuntos a barajar, como minimo 2, cada conjuntos deben poderse colocar igual cantidad de etiquetas")
 
     argumentos = parser.parse_args()
 
@@ -74,6 +77,7 @@ if __name__ == "__main__":
     regularizadorL2 = argumentos.regularizadorL2
     momentoTRN      = argumentos.momentoTRN
     momentoFIT      = argumentos.momentoFIT
+    folds           = argumentos.folds
 
     capas        = np.asarray(capas)
     tasaAprenTRN = np.asarray([tasaAprenTRN]) if isinstance(tasaAprenTRN, float) else np.asarray(tasaAprenTRN)
@@ -101,6 +105,7 @@ if __name__ == "__main__":
     rutaDatos        = directorioActual + '/cupydle/data/DB_face/'  # donde se almacenan la base de datos
     carpetaTest      = directorio + '/'                   # carpeta a crear para los tests
     rutaCompleta     = rutaTest + carpetaTest
+    carpetaConjunto  = 'k_fold'
     os.makedirs(rutaCompleta) if not os.path.exists(rutaCompleta) else None # crea la carpeta en tal caso que no exista
 
     ###########################################################################
@@ -119,76 +124,111 @@ if __name__ == "__main__":
     videos = datos['videos']
     clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
     del datos # libera memoria
+    skf = StratifiedKFold(clases, n_folds=folds)
 
-    # modo hardcore activatedddd
-    # aplico el mismo porcentaje para dividir el conjunto de los datos en train y test
-    # y el mismo porcentaje para train propio y validacion
-    cantidad_train  = int(len(clases) * porcentaje)
-    cantidad_train2 = int(cantidad_train * porcentaje)
 
-    datos = []
-    datosTRN = (videos[:cantidad_train2,:], clases[:cantidad_train2])
-    datosVAL = (videos[cantidad_train2:cantidad_train,:],clases[cantidad_train2:cantidad_train])
-    datosTST = (videos[cantidad_train:,:],clases[cantidad_train:])
-    datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
-    del datosTRN, datosVAL, datosTST
+    contador = 0
+
+    print("Prueba con tecnicas de validacion cruzada...")
+    print("Numero de particiones: ", folds)
+    print("Porcentaje entrenamiento/validacion: ",porcentaje)
+
+    errorTRN_conjunto = []; errorVAL_conjunto = []; errorTST_conjunto = []; errorTST_conjunto_h = []
 
     ###########################################################################
     ##
     ##          P R E - E N T R E N A M I E N T O        R B M s
     ##
     ###########################################################################
+    T = temporizador()
+    inicio_todo = T.tic()
 
-    # se crea el modelo
-    miDBN = DBN(name=nombre, ruta=rutaCompleta)
+    for train_index, test_index in skf:
 
-    # se agregan las capas
-    for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
-        miDBN.addLayer(n_visible=capas[idx],
-                       n_hidden=capas[idx+1],
-                       numEpoch=epocasTRN[idx],
-                       tamMiniBatch=tambatch,
-                       epsilonw=tasaAprenTRN[idx],
-                       pasosGibbs=pasosGibbs[idx],
-                       w=None,
-                       momentum=momentoTRN[idx],
-                       unidadesVisibles=UnidadBinaria(),
-                       unidadesOcultas=UnidadBinaria())
+        contador +=1
+        print("Particion < " + str(contador) + " >")
 
-    #entrena la red
 
-    miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
-                   dataVal=datos[1][0], # imagenes de validacion
-                   pcd=pcd,
-                   guardarPesosIniciales=True,
-                   filtros=True)
+        datos = []
+        cantidad = int(len(train_index)*porcentaje)
+        datosTRN = (videos[train_index[:cantidad]], clases[train_index[:cantidad]])
+        datosVAL = (videos[train_index[cantidad:]],clases[train_index[cantidad:]])
+        datosTST = (videos[test_index],clases[test_index])
 
-    #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
+        print("Cantidad de clases en el conjunto Entrenamiento: ", np.bincount(datosTRN[1]))
+        print("Cantidad de clases en el conjunto Validacion: ", np.bincount(datosVAL[1]))
+        print("Cantidad de clases en el conjunto Test: ", np.bincount(datosTST[1]))
+        datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
+        del datosTRN ; del datosVAL; del datosTST
 
-    ###########################################################################
-    ##
-    ##                 A J U S T E     F I N O    ( M L P )
-    ##
-    ###########################################################################
+        # se crea la carpeta contenedora
+        ruta_kfold = rutaCompleta + carpetaConjunto + str(contador) + '/'
+        os.makedirs(ruta_kfold) if not os.path.exists(ruta_kfold) else None
 
-    #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
-    print(miDBN)
+        # se crea el modelo
+        miDBN = DBN(name=nombre, ruta=ruta_kfold)
 
-    parametros={'tasaAprendizaje':  tasaAprenFIT,
-                'regularizadorL1':  regularizadorL1,
-                'regularizadorL2':  regularizadorL2,
-                'momento':          momentoFIT,
-                'activationfuntion':sigmoideaTheano()}
-    miDBN.setParametrosAjuste(parametros)
-    miDBN.setParametrosAjuste({'epocas':epocasFIT})
-    #miDBN.setParametrosAjuste({'toleranciaError':0.08})
+        # se agregan las capas
+        for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
+            miDBN.addLayer(n_visible=capas[idx],
+                           n_hidden=capas[idx+1],
+                           numEpoch=epocasTRN[idx],
+                           tamMiniBatch=tambatch,
+                           epsilonw=tasaAprenTRN[idx],
+                           pasosGibbs=pasosGibbs[idx],
+                           w=None,
+                           momentum=momentoTRN[idx],
+                           unidadesVisibles=UnidadBinaria(),
+                           unidadesOcultas=UnidadBinaria())
 
-    miDBN.ajuste(datos=datos,
-                 listaPesos=None,
-                 fnActivacion=sigmoideaTheano(),
-                 semillaRandom=None,
-                 tambatch=tambatch)
+        #entrena la red
 
-    #miDBN.guardarObjeto(filename=str(nombre)+'.zip')
+        miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
+                       dataVal=datos[1][0], # imagenes de validacion
+                       pcd=pcd,
+                       guardarPesosIniciales=True,
+                       filtros=True)
+
+        #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
+
+        ###########################################################################
+        ##
+        ##                 A J U S T E     F I N O    ( M L P )
+        ##
+        ###########################################################################
+
+        #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
+        print(miDBN)
+
+        parametros={'tasaAprendizaje':  tasaAprenFIT,
+                    'regularizadorL1':  regularizadorL1,
+                    'regularizadorL2':  regularizadorL2,
+                    'momento':          momentoFIT,
+                    'activationfuntion':sigmoideaTheano()}
+        miDBN.setParametrosAjuste(parametros)
+        miDBN.setParametrosAjuste({'epocas':epocasFIT})
+        #miDBN.setParametrosAjuste({'toleranciaError':0.08})
+
+        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = miDBN.ajuste(datos=datos,
+                                                    listaPesos=None,
+                                                    fnActivacion=sigmoideaTheano(),
+                                                    semillaRandom=None,
+                                                    tambatch=tambatch)
+
+        errorTRN_conjunto.append(costoEntrenamiento)
+        errorVAL_conjunto.append(errorValidacionHistorico)
+        errorTST_conjunto.append(errorTest)
+        errorTST_conjunto_h.append(errorTestFinal)
+
+        #miDBN.guardarObjeto(filename=str(nombre)+'.zip')
+
+    final_todo = T.toc()
+    print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))
+
+    print("PROMEDIO de ERRORES para los {} conjuntos".format(contador))
+    print("Error Entrenamiento: \t", np.mean(errorTRN_conjunto) * 100.)
+    print("Error Validacion: \t", np.mean(errorVAL_conjunto) * 100.)
+    print("Error Testeo: \t", np.mean(errorTST_conjunto) * 100.)
+    print("Error Testeo FINAL: \t", np.mean(errorTST_conjunto_h) * 100.)
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

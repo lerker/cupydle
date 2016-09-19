@@ -421,15 +421,16 @@ class DBN(object):
         T = temporizador()
         inicio = T.tic()
 
-        clasificador.entrenar(trainSet=datos[0],
-                              validSet=datos[1],
-                              testSet=datos[2],
-                              batch_size=tambatch)
+        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = 0.0,0.0,0.0,0.0
+        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = clasificador.entrenar(trainSet=datos[0],
+                                                             validSet=datos[1],
+                                                             testSet=datos[2],
+                                                             batch_size=tambatch)
 
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
 
-        return 0
+        return costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal
 
     def guardarObjeto(self, filename, compression='zip'):
         """
