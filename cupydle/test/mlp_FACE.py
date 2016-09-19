@@ -15,24 +15,12 @@ __status__      = "Production"
 """
 
 """
+# dependencias python
+import os, argparse, numpy as np
 
-import numpy as np
-import time
-import os
-import sys
-import subprocess
-import argparse
-
-# Dependencias Externas
-## Core
+# dependecias externas
 from cupydle.dnn.funciones import sigmoideaTheano
-## Data
-from cupydle.test.mnist.mnist import MNIST
-from cupydle.test.mnist.mnist import open4disk
-from cupydle.test.mnist.mnist import save2disk
-## Utils
 from cupydle.dnn.utils import temporizador
-
 from cupydle.dnn.mlp import MLP
 
 if __name__ == "__main__":
@@ -49,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument('--reguL1',           type=float, dest="regularizadorL1",default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
+    parser.add_argument('--tolError',         type=float, dest="tolError",       default=0.0,        required=False, help="Toleracia al error como criterio de parada temprana")
 
     argumentos = parser.parse_args()
 
@@ -64,10 +53,12 @@ if __name__ == "__main__":
     regularizadorL1 = argumentos.regularizadorL1
     regularizadorL2 = argumentos.regularizadorL2
     momentoTRN      = argumentos.momentoTRN
+    tolError        = argumentos.tolError
 
     capas        = np.asarray(capas)
     tasaAprenTRN = np.float32(tasaAprenTRN)
     momentoTRN   = np.float(momentoTRN)
+    tolError     = np.float(tolError)
 
     # chequeos
     assert dataset.find('.npz') != -1, "El conjunto de datos debe ser del tipo '.npz'"
@@ -85,20 +76,19 @@ if __name__ == "__main__":
     # se cargan  los datos, debe ser un archivo comprimido, en el cual los
     # arreglos estan en dos archivos, 'videos' y 'clases'
     b = np.load(rutaDatos + dataset)
-    videos = b['videos']
-    clases = b['clases']
+    videos = b['videos'];               clases = b['clases']
     # las clases estan desde 1..6, deben ser desde 0..5
     clases -= 1
     del b #libera memoria
 
 
+    # hardcodedd... puede utilizarce otro criterio
     # lista de tupas, [(x_trn, y_trn), ...]
     # los datos estan normalizados...
     datos = []
     datosTRN = (videos[0:550,:], clases[0:550])
     datosVAL = (videos[550:670,:],clases[550:670])
     datosTST = (videos[670:,:],clases[670:])
-
     datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
 
     # creo la red
@@ -107,13 +97,14 @@ if __name__ == "__main__":
                        ruta=rutaCompleta)
 
     # se agregan los parametros
-    clasificador.setParametroEntrenamiento({'tasaAprendizaje':tasaAprenTRN})
-    clasificador.setParametroEntrenamiento({'regularizadorL1':regularizadorL1})
-    clasificador.setParametroEntrenamiento({'regularizadorL2':regularizadorL2})
-    clasificador.setParametroEntrenamiento({'momento':momentoTRN})
-    clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
-    clasificador.setParametroEntrenamiento({'epocas':epocasTRN})
-    clasificador.setParametroEntrenamiento({'toleranciaError':0.08})
+    parametros = {'tasaAprendizaje':  tasaAprenTRN,
+                  'regularizadorL1':  regularizadorL1,
+                  'regularizadorL2':  regularizadorL2,
+                  'momento':          momentoTRN,
+                  'activationfuntion':sigmoideaTheano(),
+                  'epocas':           epocasTRN,
+                  'toleranciaError':  tolError}
+    clasificador.setParametroEntrenamiento(parametros)
 
     # agrego tantas capas desee de regresion
     # la primera es la que indica la entrada
@@ -126,7 +117,6 @@ if __name__ == "__main__":
 
     T = temporizador()
     inicio = T.tic()
-
     # se entrena la red
     clasificador.entrenar(trainSet=datos[0],
                           validSet=datos[1],

@@ -9,6 +9,8 @@ var="${var}---------------------------------------------------------------------
 ARCHIVO_LOG="log$(date '+_%d%m_%H%M')"
 echo -e $var > ${ARCHIVO_LOG}
 
+chmod +x cupydle/test/mnist/get_data.sh
+
 ### ejecutar
 # mlp comun
 #python3 optirun python3 cupydle/test/mlp_FACE.py --directorio "test_MLP" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 2>&1 | tee -a ${ARCHIVO_LOG}
