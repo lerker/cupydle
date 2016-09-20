@@ -69,6 +69,7 @@ from cupydle.dnn.graficos import imagenTiles
 import matplotlib.pyplot
 import math
 
+# TODO agregar el nombre
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
