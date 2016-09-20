@@ -24,40 +24,26 @@ References:
                  Christopher M. Bishop, section 5
 
 """
-
-import os
-import sys
-import pickle
-import gzip
-import time
-import shelve
-
-import numpy
+# dependencias internas
+import os, sys, time, shelve, numpy
 from numpy.random import RandomState as npRandom
+from warnings import warn
 
+# dependecinas de terceros
 import theano
 
-from cupydle.dnn.funciones import sigmoideaTheano
-from cupydle.dnn.funciones import linealRectificadaTheano
-from cupydle.dnn.capas import Capa
-from cupydle.dnn.capas import CapaClasificacion
-from cupydle.dnn.utils import save
-from cupydle.dnn.utils import load as load_utils
-from cupydle.dnn.utils_theano import shared_dataset
-from cupydle.dnn.utils import RestrictedDict
-
+# dependencias propias
+from cupydle.dnn.capas import Capa, CapaClasificacion
 from cupydle.dnn.stops import criterios
-from warnings import warn
-from cupydle.dnn.utils import save
-
-from cupydle.dnn.utils_theano import gpu_info
-from cupydle.dnn.utils_theano import calcular_chunk
+from cupydle.dnn.utils import RestrictedDict, save, load as load_utils
+from cupydle.dnn.utils_theano import shared_dataset, gpu_info, calcular_chunk
+from cupydle.dnn.graficos import dibujarErrores
 
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
     # para acceder a el -> MLP.verbose
     # y no una instancia de el... mi_mlp.verbose
-    DEBUG=True
+    DEBUG=False
 
     def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
@@ -110,7 +96,6 @@ class MLP(object):
                  'regularizadorL2':     0.0,
                  'momento':             0.0,
                  'epocas':              0,
-                 'activationfuntion':   sigmoideaTheano(),
                  'toleranciaError':     0.0,
                  'tiempoMaximo':        0,
                  'costoTRN':            0,
@@ -135,7 +120,7 @@ class MLP(object):
         return 1
 
     def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
-                    activacion=sigmoideaTheano(), pesos=None, biases=None):
+                    activacion='sigmoidea', pesos=None, biases=None):
         """
         :type unidadesEntrada: int
         :param unidadesEntrada: cantidad de nueronas en la entrada, por defecto
@@ -365,6 +350,18 @@ class MLP(object):
         print("predic", predictor()[0][0:25])
 
         return costoTRN, costoVAL, costoTST, costoTST_final
+
+    def dibujarEstadisticos(self, **kwargs):
+
+        costoTRN = self._cargar(key='costoTRN')
+        costoVAL = self._cargar(key='costoVAL')
+        costoTST = self._cargar(key='costoTST')
+        dibujarErrores(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST, **kwargs)
+        #dibujarErrores(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST)
+        #dibujarErrores(costoVAL=costoVAL, costoTST=costoTST)
+        #dibujarErrores(costoTRN=costoTRN, costoTST=costoTST)
+        #dibujarErrores(costoTST=costoTST)
+        return 0
 
     def construirActualizaciones(self, costo, actualizaciones):
 

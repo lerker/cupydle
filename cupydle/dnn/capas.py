@@ -20,13 +20,23 @@ import numpy
 import theano
 
 from cupydle.dnn.funciones import sigmoideaTheano
+from cupydle.dnn.funciones import linealRectificadaTheano
 from warnings import warn
 
 
 class Capa(object):
     def __init__(self, unidadesEntrada, unidadesSalida, entrada, rng,
                  funcionActivacion, W=None, b=None):
-        self.funcionActivacion = funcionActivacion
+        # segun la funcion de activacion (str) seleccionada
+        if funcionActivacion == 'sigmoidea':
+            funcionActivacion_tmp = sigmoideaTheano()
+        elif funcionActivacion == 'linealRectificada':
+            funcionActivacion_tmp = linealRectificadaTheano()
+        else:
+            funcionActivacion_tmp = None
+
+        self.funcionActivacion = funcionActivacion_tmp
+
         if W is None:
             W_values = numpy.asarray(
                 rng.uniform(
@@ -58,8 +68,6 @@ class Capa(object):
 
         self.W = W
         self.b = b
-
-        self.funcionActivacion=funcionActivacion
 
         # parameters of the model
         self.params = [self.W, self.b]

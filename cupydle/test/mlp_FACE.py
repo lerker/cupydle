@@ -15,11 +15,10 @@ __status__      = "Production"
 """
 
 """
-# dependencias python
+# dependencias internas
 import os, argparse, numpy as np
 
-# dependecias externas
-from cupydle.dnn.funciones import sigmoideaTheano
+# dependecias propias
 from cupydle.dnn.utils import temporizador
 from cupydle.dnn.mlp import MLP
 
@@ -104,8 +103,6 @@ if __name__ == "__main__":
                   'regularizadorL1':  regularizadorL1,
                   'regularizadorL2':  regularizadorL2,
                   'momento':          momentoTRN,
-                  #'activationfuntion':sigmoideaTheano(),
-                  'activationfuntion':'sigmoidea',
                   'epocas':           epocasTRN,
                   'toleranciaError':  tolError}
     clasificador.setParametroEntrenamiento(parametros)
@@ -115,7 +112,7 @@ if __name__ == "__main__":
     # las intermedias son de regresion
     # la ultima es de clasificaicon
     for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
-        clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
+        clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion='sigmoidea', pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
     T = temporizador()
@@ -129,6 +126,9 @@ if __name__ == "__main__":
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
+
+    # dibujar estadisticos
+    clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta)
 
     # guardando los parametros aprendidos
     clasificador.guardarObjeto(filename=nombre)

@@ -351,3 +351,49 @@ def dibujarGrafoTheano(graph, nombreArchivo=None):
                                 var_with_name_simple=True, #si la variable tiene nombre, solo imprime eso
                                 colorCodes=default_colorCodes) # codigo de colores
     return 1
+
+def dibujarErrores(**kwargs):
+    # configuraciones
+    if 'axe' in kwargs:
+        axe = kwargs['axe']
+    else:
+        axe = plt.gca()
+
+    if 'mostrar' in kwargs.keys():
+        mostrar = kwargs['mostrar']
+    else:
+        mostrar = True
+
+    if 'costoTRN' in kwargs.keys():
+        costoTRN = kwargs['costoTRN']
+    else:
+        costoTRN = None
+
+    if 'costoVAL' in kwargs.keys():
+        costoVAL = kwargs['costoVAL']
+    else:
+        costoVAL = None
+
+    if 'costoTST' in kwargs.keys():
+        costoTST = kwargs['costoTST']
+    else:
+        costoTST = None
+
+    if costoTRN is not None:
+        axe.plot(costoTRN, color='black', linewidth=2.0, label='Costo Entrenamiento', marker='^')
+    if costoVAL is not None:
+        axe.plot(costoVAL, color='blue', linewidth=2.0, label='Costo Validacion', linestyle='-.')
+    if costoTST is not None:
+        linea = '' if numpy.isinf(costoTST).any() else '-'
+        axe.plot(costoTST, color='red', linewidth=2.0, label='Costo Testeo', marker='*', linestyle=linea)
+
+    plt.title("COSTOS vs. EPOCAS")
+    plt.legend()
+    plt.show() if mostrar else None
+
+    if 'guardar' in kwargs:
+        plt.savefig(kwargs['guardar']+'estadisticosMLP.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+        plt.savefig(kwargs['guardar']+'estadisticosMLP.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+
+    return axe
+
