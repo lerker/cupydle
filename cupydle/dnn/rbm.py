@@ -16,58 +16,39 @@ __license__     = "GPL"
 __version__     = "1.0.0"
 __status__      = "Production"
 
-## TODO
-### las versiones de binomial... para la GPU
-# http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
-# There are 2 other implementations based on MRG31k3p and CURAND.
-# The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
+# dependencias internas
+import sys, numpy, math, shelve
+from warnings import warn
 
-# sistema basico
-import sys  # llamadas al sistema en errores
-from subprocess import call # para ejecutar programas
-import numpy
-
-### THEANO
-# TODO mejorar los imports, ver de agregar theano.shared... etc
+# dependencias de terceros
 import theano
 #from theano.tensor.shared_randomstreams import RandomStreams  #random seed CPU
 #from theano.sandbox.cuda.rng_curand import CURAND_RandomStreams as RandomStreams # GPU
-
 ## ultra rapido
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - GPU
                                                                         #(parece que binomial no esta implementado, lo reemplaza por uniform)
                                                                         # cambiar a: multinomial(size=None, n=1, pvals=None, ndim=None, dtype='int64', nstreams=None)[source]
                                                                         # en activationFunction
 
-theanoFloat  = theano.config.floatX
 
+
+# dependecias propias
 from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
+from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
+from cupydle.dnn.utils import temporizador, RestrictedDict
+from cupydle.dnn.graficos import imagenTiles
 
-from cupydle.dnn.utils_theano import gpu_info
-from cupydle.dnn.utils_theano import calcular_chunk
-from cupydle.dnn.utils_theano import calcular_memoria_requerida
+# eliminar esto
+import matplotlib.pyplot
 
-from warnings import warn
-
-
-"""
-
-
-
-
-"""
-from cupydle.dnn.utils import temporizador
 try:
     import PIL.Image as Image
 except ImportError:
     import Image
 
 
-from cupydle.dnn.graficos import imagenTiles
-
-import matplotlib.pyplot
-import math
+theanoFloat  = theano.config.floatX
 
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
@@ -145,9 +126,6 @@ class RBM(object):
         self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
         self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
 
-        # para las derivadas, parametro que componene a la red
-        self.internalParams = [self.w, self.hidbiases, self.visbiases]
-
         # seguimiento del grafo theano, root
         self.x = theano.tensor.matrix(name="x")
 
@@ -159,9 +137,11 @@ class RBM(object):
         self.estadisticos = {}
         self._initStatistics()
 
-        self.nombre = 'rbm' if nombre is None else nombre
+        self.nombre = 'rbmTest' if nombre is None else nombre
 
         self.ruta = ruta
+        self.datosAlmacenar = self._initGuardar()
+
     # END INIT
 
     def _initW(self, numpy_rng, metodo='mejorado'):
@@ -190,24 +170,20 @@ class RBM(object):
 
         # se pasa el buffer al namespace de la GPU
         w = theano.shared(value=_w, name='w', borrow=True)
-
         # se libera memoria de la CPU
         del _w
-
         return w
 
     def _initBiasVisible(self):
         _visbiases = numpy.zeros(shape=(self.n_visible), dtype=theanoFloat)
         visbiases = theano.shared(value=_visbiases, name='visbiases', borrow=True)
         del _visbiases
-
         return visbiases
 
     def _initBiasOculto(self):
         _hidbiases = numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat)
         hidbiases = theano.shared(value=_hidbiases, name='hidbiases', borrow=True)
         del _hidbiases
-
         return hidbiases
 
     def _initParams(self):
@@ -225,6 +201,87 @@ class RBM(object):
 
         return 1
 
+    def _initGuardar(self):
+        """
+        inicializa los campos para el almacenamiento
+        """
+        archivo = self.ruta + self.nombre + '.cupydle'
+
+        # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
+        # debe setearse aca
+        datos = {'tipo':                'rbm',
+                 'nombre':              self.nombre,
+                 'numpy_rng':           self.numpy_rng,
+                 'theano_rng':          self.theano_rng.rstate, # con set_value se actualiza
+                 'w':                   None,
+                 'biasVisible':         None,
+                 'biasOculto':          None,
+                 'w_inicial':           None,
+                 'biasVisible_inicial': None,
+                 'biasOculto_inicial':  None,
+                 }
+
+        # diccionario restringido en sus keys
+        almacenar = RestrictedDict(datos)
+        for k,v in datos.items():
+            almacenar[k]=v
+
+        # se guarda a archivo
+        # ojo con el writeback,
+        # remuevo el archivo para comenzar desde cero
+        #os.remove(archivo)
+        # 'r'   Open existing database for reading only (default)
+        # 'w' Open existing database for reading and writing
+        # 'c' Open database for reading and writing, creating it if it doesn’t exist
+        # 'n' Always create a new, empty database, open for reading and writing
+        with shelve.open(archivo, flag='n', writeback=False) as shelf:
+            for key in almacenar.keys():
+                shelf[key] = almacenar[key]
+            shelf.close()
+
+        return almacenar
+
+    def _guardar(self, nombreArchivo=None, diccionario=None):
+        """
+        Almacena todos los datos en un archivo pickle que contiene un diccionario
+        lo cual lo hace mas sencillo procesar luego
+        """
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
+
+        # datos a guardar
+        datos = self.datosAlmacenar
+
+        if diccionario is not None:
+            for key in diccionario.keys():
+                if isinstance(datos[key],list) and diccionario[key] !=[]:
+                    datos[key].append(diccionario[key])
+                else:
+                    datos[key] = diccionario[key]
+        else:
+            print("nada que guardar")
+            return 0
+
+        # ojo con el writeback
+        with shelve.open(archivo, flag='w', writeback=False) as shelf:
+            for key in datos.keys():
+                shelf[key]=datos[key]
+            shelf.close()
+        return 0
+
+    def _cargar(self, nombreArchivo=None, key=None):
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
+
+        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+            if key is not None:
+                retorno = shelf[key]
+            else:
+                retorno = shelf.copy
+            shelf.close()
+
+        return retorno
+
     def set_w(self, w):
         #if isinstance(w, numpy.ndarray):
         #    self.w.set_value(w)
@@ -240,15 +297,15 @@ class RBM(object):
         return 1
 
     @property
-    def get_w(self):
+    def getW(self):
         return self.w.get_value(borrow=True)
 
     @property
-    def get_biasVisible(self):
+    def getVisible(self):
         return self.visbiases.get_value(borrow=True)
 
     @property
-    def get_biasOculto(self):
+    def getOculto(self):
         return self.hidbiases.get_value(borrow=True)
 
     @property
@@ -319,9 +376,9 @@ class RBM(object):
         """
         from cupydle.dnn.graficos import pesosConstructor
         assert False, "el plot son los histogramas"
-        pesos = numpy.asarray(a=self.get_w())
+        pesos = numpy.asarray(a=self.getW)
         pesos = numpy.tile(A=pesos, reps=(20,1))
-        print(self.get_w().shape, pesos.shape)
+        print(self.getW.shape, pesos.shape)
         pesosConstructor(pesos=pesos)
         return 1
 
@@ -624,10 +681,8 @@ class RBM(object):
         steps = theano.tensor.iscalar(name='steps')         # CD steps
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
-                # dropout
-        from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-        from numpy.random import randint as npRandint
-        theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+        # dropout
+        theanoGenerator = RandomStreams(seed=self.numpy_rng.randint(1, 1000))
 
         # tamanio de la mascara
 
@@ -697,111 +752,6 @@ class RBM(object):
                             self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
                         },
             name='train_rbm_pcd'
-        )
-
-        return train_rbm
-
-    def DivergenciaContrastivaPersistente_backup(self, miniBatchSize, sharedData):
-        # sin dropout
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-
-        # primer termino del grafiente de la funcion de verosimilitud
-        # la esperanza sobre el conjunto del dato
-        salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV(self.x)
-
-        # initialize storage for the persistent chain (state = hidden
-        # layer of chain)
-        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
-                                                     dtype=theanoFloat),
-                                         borrow=True)
-
-        # aproximo el segundo termino del gradiente de la funcion de verosimilitud
-        # por medio de una cadena de Gibbs
-        ([salidaLineal_Vk, probabilidad_Vk, muestra_Vk, salidaLineal_Hk, probabilidad_Hk, muestra_Hk],
-         updates) = self.pasoGibbs2(persistent_chain, steps)
-
-
-        energia_dato = theano.tensor.mean(self.energiaLibre(self.x))
-        # TODO ver si le meto la salida lineal o bien la probabilidad
-        energia_modelo = theano.tensor.mean(self.energiaLibre(muestra_Vk))
-        #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
-
-        costo1 = energia_dato - energia_modelo
-
-        # construyo las actualizaciones en los updates (variables shared)
-        updates=self.construirActualizaciones(
-                    updatesOriginal=updates,
-                    probabilidad_H0=probabilidad_H0,
-                    probabilidad_Vk=probabilidad_Vk,
-                    probabilidad_Hk=probabilidad_Hk,
-                    muestra_Vk=muestra_Vk,
-                    miniBatchSize=miniBatchSize)
-
-        costo2 = self.reconstructionCost(salidaLineal_Vk)
-
-        costo3 = self.reconstructionCost_MSE(probabilidad_Vk)
-
-        #updates[persistent_chain] = muestra_H1[-1]
-        updates.append((persistent_chain, muestra_Hk))
-
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[costo2, costo3, costo1],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-            name='train_rbm_pcd'
-        )
-
-        return train_rbm
-
-
-    def DivergenciaContrastivaPersistente_bengio(self, miniBatchSize, sharedData):
-
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-        # initialize storage for the persistent chain (state = hidden
-        # layer of chain)
-        persistent_chain = theano.shared(numpy.zeros((miniBatchSize, self.n_hidden),
-                                                     dtype=theanoFloat),
-                                         borrow=True)
-
-
-        ([ _, _, muestra_V1, _, _, muestra_H1],
-          updates ) = self.gibbsHVH(persistent_chain, steps)
-
-        chain_end = muestra_V1[-1]
-
-        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
-            self.energiaLibre(chain_end))
-
-        deltaEnergia = cost
-
-        # construyo las actualizaciones en los updates (variables shared)
-        # segun el costo, constant es para proposito del gradiente
-        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
-
-        # como es una cadena persistente, la salida se debe actualizar, debido que es la entrada a la proxima
-
-        updates[persistent_chain] = muestra_H1[-1]
-
-        monitoring_cost = self.pseudoLikelihoodCost(updates)
-
-        errorCuadratico = self.reconstructionCost_MSE(chain_end)
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-                        name='train_rbm_pcd'
         )
 
         return train_rbm
@@ -932,9 +882,7 @@ class RBM(object):
         miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
 
         # dropout
-        from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-        from numpy.random import randint as npRandint
-        theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+        theanoGenerator = RandomStreams(seed=self.numpy_rng.randint(1, 1000))
 
         # tamanio de la mascara
 
@@ -1004,92 +952,6 @@ class RBM(object):
         train_rbm = theano.function(
                         inputs=[miniBatchIndex, steps],
                         outputs=[costo2, costo3, costo1],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-            name='train_rbm_cd'
-        )
-
-        return train_rbm
-
-
-    def DivergenciaContrastiva_Backup(self, miniBatchSize, sharedData):
-        # sin dropout
-
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-
-        # primer termino del grafiente de la funcion de verosimilitud
-        # la esperanza sobre el conjunto del dato
-        salidaLineal_H0, probabilidad_H0, muestra_H0 = self.muestrearHdadoV(self.x)
-
-        # aproximo el segundo termino del gradiente de la funcion de verosimilitud
-        # por medio de una cadena de Gibbs
-        ([salidaLineal_Vk, probabilidad_Vk, muestra_Vk, salidaLineal_Hk, probabilidad_Hk, muestra_Hk],
-         updates) = self.pasoGibbs2(muestra_H0, steps)
-
-
-        energia_dato = theano.tensor.mean(self.energiaLibre(self.x))
-        # TODO ver si le meto la salida lineal o bien la probabilidad
-        energia_modelo = theano.tensor.mean(self.energiaLibre(probabilidad_Vk))
-        #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
-
-        costo1 = energia_dato - energia_modelo
-
-        # construyo las actualizaciones en los updates (variables shared)
-        updates=self.construirActualizaciones(
-                    updatesOriginal=updates,
-                    probabilidad_H0=probabilidad_H0,
-                    probabilidad_Vk=probabilidad_Vk,
-                    probabilidad_Hk=probabilidad_Hk,
-                    muestra_Vk=muestra_Vk,
-                    miniBatchSize=miniBatchSize)
-
-        costo2 = self.reconstructionCost(salidaLineal_Vk)
-
-        costo3 = self.reconstructionCost_MSE(probabilidad_Vk)
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[costo2, costo3, costo1],
-                        updates=updates,
-                        givens={
-                            self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
-                        },
-            name='train_rbm_cd'
-        )
-
-        return train_rbm
-
-    def DivergenciaContrastiva_begio(self, miniBatchSize, sharedData):
-        steps = theano.tensor.iscalar(name='steps')         # CD steps
-        miniBatchIndex = theano.tensor.lscalar('miniBatchIndex')
-
-        # Visible -> Hidden -> Visible
-        ([ _, _, _, salidaLineal_V1, _, muestra_V1],
-          updates) = self.gibbsVHV(self.x, steps)
-
-        chain_end = muestra_V1[-1]
-
-        cost = theano.tensor.mean(self.energiaLibre(self.x)) - theano.tensor.mean(
-            self.energiaLibre(chain_end))
-
-        deltaEnergia = cost
-
-        # construyo las actualizaciones en los updates (variables shared)
-        # segun el costo, constant es para proposito del gradiente
-        updates=self.buildUpdates(updates=updates, cost=deltaEnergia, constant=chain_end)
-
-
-        monitoring_cost = self.reconstructionCost(salidaLineal_V1[-1])
-
-        errorCuadratico = self.reconstructionCost_MSE(chain_end)
-
-        train_rbm = theano.function(
-                        inputs=[miniBatchIndex, steps],
-                        outputs=[monitoring_cost, errorCuadratico, deltaEnergia],
                         updates=updates,
                         givens={
                             self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
@@ -1170,6 +1032,10 @@ class RBM(object):
         """
         # arreglo los parametros en caso de que no se hayan establecidos, considero las
         # tasa de aprendizaje para los bias igual al de los pesos
+
+        # para las derivadas, parametro que componene a la red
+        self.internalParams = [self.w, self.hidbiases, self.visbiases]
+
         if self.params['epsilonvb'] is None:
             self.params['epsilonvb'] = self.params['epsilonw']
         if self.params['epsilonvb'] == 0.0:
@@ -1559,7 +1425,7 @@ class RBM(object):
         """
         guarda los parametros de la red en formato comprimido
         """
-        numpy.savez_compressed(self.ruta + nombreArchivo + '.npz', w=self.get_w, visBias=self.get_biasVisible, hidBias=self.get_biasOculto)
+        numpy.savez_compressed(self.ruta + nombreArchivo + '.npz', w=self.getW, visBias=self.getVisible, hidBias=self.getOculto)
         return 1
 
     @staticmethod
