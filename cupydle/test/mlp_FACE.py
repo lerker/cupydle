@@ -13,7 +13,7 @@ __status__      = "Production"
 
 
 """
-
+optirun python3 cupydle/test/mlp_FACE.py --directorio "test_MLP_CV" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --tolError 0.08 --MLPrapido
 """
 # dependencias internas
 import os, argparse, numpy as np

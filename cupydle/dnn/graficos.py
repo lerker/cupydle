@@ -353,10 +353,20 @@ def dibujarGrafoTheano(graph, nombreArchivo=None):
     return 1
 
 def dibujarErrores(**kwargs):
+    """
+    kwargs['axe']=axe de matplotlib
+    kwargs['mostrar']= plot el dibujo
+    kwargs['costoTRN']= arra con el costo del entrenamiento
+    kwargs['costoVAL']= array con el costo de validacion
+    kwargs['costoTST']= array con el costo de testing
+    kwargs['']=
+    kwargs['']=
+    """
     # configuraciones
     if 'axe' in kwargs:
         axe = kwargs['axe']
     else:
+        plt.cla()
         axe = plt.gca()
 
     if 'mostrar' in kwargs.keys():
