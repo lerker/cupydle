@@ -30,6 +30,7 @@ import sys
 import pickle
 import gzip
 import time
+import shelve
 
 import numpy
 from numpy.random import RandomState as npRandom
@@ -43,8 +44,11 @@ from cupydle.dnn.capas import CapaClasificacion
 from cupydle.dnn.utils import save
 from cupydle.dnn.utils import load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset
+from cupydle.dnn.utils import RestrictedDict
 
 from cupydle.dnn.stops import criterios
+from warnings import warn
+from cupydle.dnn.utils import save
 
 from cupydle.dnn.utils_theano import gpu_info
 from cupydle.dnn.utils_theano import calcular_chunk
@@ -53,7 +57,7 @@ class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
     # para acceder a el -> MLP.verbose
     # y no una instancia de el... mi_mlp.verbose
-    verbose=True
+    DEBUG=True
 
     def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
@@ -81,37 +85,53 @@ class MLP(object):
         # carpeta
         self.nombre = ('mlp' if nombre is None else nombre)
 
-        self.parametrosEntrenamiento = {}
-        self._initParametrosEntrenamiento()
-
 
         self.estadisticos = {'errorEntrenamiento':[], 'errorValidacion':[], 'errorTest':[]}
 
         # donde se alojan los datos
         self.ruta = ruta
 
-    def _initParametrosEntrenamiento(self):
+        self.datosAlmacenar = self._initParametros
+
+
+    @property
+    def _initParametros(self):
         """ inicializa los parametros de la red, un diccionario"""
-        self.parametrosEntrenamiento['tasaAprendizaje'] = 0.0
-        self.parametrosEntrenamiento['regularizadorL1'] = 0.0
-        self.parametrosEntrenamiento['regularizadorL2'] = 0.0
-        self.parametrosEntrenamiento['momento'] = 0.0
-        self.parametrosEntrenamiento['epocas'] = 0.0
-        self.parametrosEntrenamiento['activationfuntion'] = sigmoideaTheano()
-        self.parametrosEntrenamiento['toleranciaError'] = 0.0
-        self.parametrosEntrenamiento['tiempoMaximo'] = 0
-        return 1
+        archivo = self.ruta + self.nombre + '.cupydle'
+
+        # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
+        # debe setearse aca
+        datos = {'tipo':                'mlp',
+                 'nombre':              self.nombre,
+                 'numpy_rng':           self.rng,
+                 'pesos':               [],
+                 'pesos_iniciales':     [],
+                 'bias':                [],
+                 'bias_iniciales':      [],
+                 'tasaAprendizaje':     0.0,
+                 'regularizadorL1':     0.0,
+                 'regularizadorL2':     0.0,
+                 'momento':             0.0,
+                 'epocas':              0,
+                 'activationfuntion':   sigmoideaTheano(),
+                 'toleranciaError':     0.0,
+                 'tiempoMaximo':        0
+                 }
+
+        # diccionario restringido en sus keys
+        almacenar = RestrictedDict(datos)
+        for k,v in datos.items():
+            almacenar[k]=v
+
+        with shelve.open(archivo, flag='n', writeback=False) as shelf:
+            for key in almacenar.keys():
+                shelf[key] = almacenar[key]
+            shelf.close()
+
+        return almacenar
 
     def setParametroEntrenamiento(self, parametros):
-        if not isinstance(parametros, dict):
-            assert False, "Debe ser un diccionario"
-
-        for key, _ in parametros.items():
-            if key in self.parametrosEntrenamiento:
-                self.parametrosEntrenamiento[key] = parametros[key]
-            else:
-                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
-
+        self._guardar(diccionario=parametros)
         return 1
 
     def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
@@ -144,10 +164,10 @@ class MLP(object):
         # las entradas deben ser las salidas de la anterior
         if unidadesEntrada is None:
             assert self.capas != [], "Unidades de entrada para esta capa?."
-            unidadesEntrada =   self.capas[-1].getW().shape[1]
+            unidadesEntrada =   self.capas[-1].getW.shape[1]
         else:
             if self.capas != []:    # solo si ya hay carga una capa
-                assert unidadesEntrada ==   self.capas[-1].getW().shape[1]
+                assert unidadesEntrada ==   self.capas[-1].getW.shape[1]
 
         # si la capa no es de clasificacion, es de regresion logisctica
         if not clasificacion:
@@ -225,15 +245,13 @@ class MLP(object):
         n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
         n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
 
-
-        print("MEMORIA: ", gpu_info('Mb'))
         memoria_disponible = gpu_info('Mb')[0] * 0.8
-
         memoria_dataset = 4 * n_train_batches*batch_size/1024./1024.
         memoria_por_ejemplo = 4 * trainX.get_value(borrow=True).shape[1]/1024./1024.
         memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
 
-        print("memoria disponible:", memoria_disponible, "memoria dataset:", memoria_dataset, "memoria por ejemplo:", memoria_por_ejemplo, "memoria por Minibatch:", memoria_por_minibatch)
+        info = "Mem. disp.: {:> 8.5f} Mem. dataset: {:> 8.5f} Mem. x ej.: {:> 8.5f} Mem. x Minibatch: {:> 8.5f}"
+        print(info.format(memoria_disponible,memoria_dataset,memoria_por_ejemplo, memoria_por_minibatch)) if MLP.DEBUG else None
 
         if tamMacroBatch is None:
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=n_train_batches*batch_size)
@@ -247,8 +265,8 @@ class MLP(object):
         updates = self.construirActualizaciones(costo=self.cost,
                                                 actualizaciones=updates)
         costo = (self.cost +
-                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
-                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
+                self._cargar(key='regularizadorL1') * self.L1 +
+                self._cargar(key='regularizadorL2') * self.L2_sqr)
 
         train_model, validate_model, test_model = self.construirFunciones(
                                         datosEntrenamiento=shared_dataset(trainSet),
@@ -270,13 +288,12 @@ class MLP(object):
                         name='predictor'
         )
 
-        unidades = [self.capas[0].getW().shape[0]]
-        unidades.extend([c.getB().shape[0] for c in self.capas])
+        unidades = [self.capas[0].getW.shape[0]]
+        unidades.extend([c.getB.shape[0] for c in self.capas])
         print("Entrenando un MLP, con [{}] unidades de entrada y {} unidades por capa".format(unidades[0], str(unidades[1:])))
         print("Cantidad de ejemplos para el entrenamiento supervisado: ", n_train_batches*batch_size)
         print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
-        print("MEMORIA antes de iterar: ", gpu_info('Mb'))
-        print('Entrenando') if MLP.verbose else None
+        print("MEMORIA antes de iterar: ", gpu_info('Mb'), '\nEntrenando...') if MLP.DEBUG else None
 
         # early-stopping parameters
         costoEntrenamiento = numpy.inf
@@ -286,9 +303,8 @@ class MLP(object):
         epoca = 0
         looping = True
 
-        iteracionesMax = criterios['iteracionesMaximas'](maxIter=self.parametrosEntrenamiento['epocas'])
-        toleranciaErr = criterios['toleranciaError'](self.parametrosEntrenamiento['toleranciaError'])
-
+        iteracionesMax = criterios['iteracionesMaximas'](maxIter=self._cargar(key='epocas'))
+        toleranciaErr = criterios['toleranciaError'](self._cargar(key='toleranciaError'))
 
         # inicio del entrenamiento por epocas
         try:
@@ -308,7 +324,7 @@ class MLP(object):
                 print(str('Epoca {:>3d} de {:>3d}, '
                         + 'Costo entrenamiento {:> 8.5f}, '
                         + 'Error validacion {:> 8.5f}').format(
-                        epoca, self.parametrosEntrenamiento['epocas'], costoEntrenamiento*100.0, errorValidacion*100.0))
+                        epoca, self._cargar(key='epocas'), costoEntrenamiento*100.0, errorValidacion*100.0))
 
                 # se obtuvo un error bajo en el conjunto validacion, se prueba en
                 # el conjunto de test como funciona
@@ -320,11 +336,6 @@ class MLP(object):
                     errorTest = numpy.mean(errorTest)
                     self.estadisticos['errorTest'].append(errorTest)
                     print('|---->>Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
-
-
-                # para concatenar meter un or
-                #print("1",not iteraciones(resultados=epoca))
-                #print("2",not toleranciaErr(errorValidacion))
 
                 looping = not(iteracionesMax(resultados=epoca) or toleranciaErr(errorValidacion))
             # termino el while
@@ -339,29 +350,23 @@ class MLP(object):
         print('Entrenamiento Finalizado. Mejor puntaje de validacion: {:> 8.5f} con un performance en el test de {:> 8.5f}'.format
               (errorValidacionHistorico * 100., errorTest * 100.))
 
-        print("reales", predictor()[1][0:25])
-        print("predic", predictor()[0][0:25])
-
         errorTestFinal = [test_model(i) for i in range(n_test_batches)]
         errorTestFinal = numpy.mean(errorTestFinal)
 
+        # se guardan los pesos y bias ya entrenados
+        [self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
+        [self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
+
+        print("reales", predictor()[1][0:25])
+        print("predic", predictor()[0][0:25])
+
         return costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal
-
-    def guardarParametros(self):
-
-        # se alamacenan los pesos y bias por cada capa
-        for capa in enumerate(self.capas):
-            numpy.save(self.ruta + 'PesosW' + str(capa[0]+1) + '.npy', capa[1].getW())
-            numpy.save(self.ruta + 'BiasB' + str(capa[0]+1) + '.npy', capa[1].getB())
-
-        return 1
-
 
     def construirActualizaciones(self, costo, actualizaciones):
 
         cost = (costo +
-                self.parametrosEntrenamiento['regularizadorL1'] * self.L1 +
-                self.parametrosEntrenamiento['regularizadorL2'] * self.L2_sqr)
+                self._cargar(key='regularizadorL1') * self.L1 +
+                self._cargar(key='regularizadorL2') * self.L2_sqr)
 
         # compute the gradient of cost with respect to theta (sorted in params)
         # the resulting gradients will be stored in a list gparams
@@ -375,7 +380,7 @@ class MLP(object):
         # element is a pair formed from the two lists :
         #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
         updates = [
-            (param, param - self.parametrosEntrenamiento['tasaAprendizaje'] * gparam)
+            (param, param - self._cargar(key='tasaAprendizaje') * gparam)
                 for param, gparam in zip(self.params, gparams)
             ]
 
@@ -434,6 +439,58 @@ class MLP(object):
                                     name = 'train_model'
         )
         return train_model, validate_model, test_model
+
+    def _guardar(self, nombreArchivo=None, diccionario=None):
+        """
+        Almacena todos los datos en un archivo pickle que contiene un diccionario
+        lo cual lo hace mas sencillo procesar luego
+        """
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
+
+        # datos a guardar
+        datos = self.datosAlmacenar
+
+        if diccionario is not None:
+            for key in diccionario.keys():
+                if isinstance(datos[key],list) and diccionario[key] !=[]:
+                    datos[key].append(diccionario[key])
+                else:
+                    datos[key] = diccionario[key]
+        else:
+            print("nada que guardar")
+            return 0
+
+        # todo ver si borro esto
+        #self.datosAlmacenar = datos
+
+        # ojo con el writeback
+        with shelve.open(archivo, flag='w', writeback=False) as shelf:
+            for key in datos.keys():
+                shelf[key]=datos[key]
+            shelf.close()
+        return 0
+
+    def _cargar(self, nombreArchivo=None, key=None):
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        archivo = self.ruta + nombreArchivo + '.cupydle'
+
+        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+            if key is not None:
+                retorno = shelf[key]
+            else:
+                retorno = shelf.copy
+            shelf.close()
+
+        return retorno
+
+    def guardarObjeto(self, filename, compression='zip'):
+        """
+        guarda la dbn, algunos datos para poder levantarla
+        """
+        nombre = self.ruta + filename
+        save(objeto=self, filename=nombre, compression=compression)
+        return
 
 if __name__ == '__main__':
     assert False, str(__file__ + " No es un modulo")

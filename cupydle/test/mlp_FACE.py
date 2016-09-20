@@ -26,14 +26,14 @@ from cupydle.dnn.mlp import MLP
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Prueba de un MLP sobre KLM')
-    parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_MLP', required=None,  help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_MLP', required=False, help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--nombre',           type=str,   dest="nombre",         default='mlp',      required=False, help="Nombre del modelo")
     parser.add_argument('--dataset',          type=str,   dest="dataset",        default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")
     parser.add_argument('-l', '--capas',      type=int,   dest="capas",          default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
     parser.add_argument('-let', '--lepocaTRN',type=int,   dest="epocasTRN",      default=10,         required=False, help="cantidad de epocas de entrenamiento")
     parser.add_argument('-b', '--batchsize',  type=int,   dest="tambatch",       default=10,         required=False, help="Tamanio del minibatch para el entrenamiento")
     parser.add_argument('-p', '--porcentaje', type=float, dest="porcentaje",     default=0.8,        required=False, help="Porcentaje en que el conjunto de entrenamiento se detina para entrenar y testeo")
     parser.add_argument('-lrTRN',             type=float, dest="tasaAprenTRN",   default=0.01,       required=False, help="Tasa de aprendizaje para la red")
-    parser.add_argument('--nombre',           type=str,   dest="nombre",         default=None,       required=False, help="Nombre del modelo")
     parser.add_argument('--reguL1',           type=float, dest="regularizadorL1",default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
@@ -94,14 +94,16 @@ if __name__ == "__main__":
     # creo la red
     clasificador = MLP(clasificacion=True,
                        rng=None,
-                       ruta=rutaCompleta)
+                       ruta=rutaCompleta,
+                       nombre=nombre)
 
     # se agregan los parametros
     parametros = {'tasaAprendizaje':  tasaAprenTRN,
                   'regularizadorL1':  regularizadorL1,
                   'regularizadorL2':  regularizadorL2,
                   'momento':          momentoTRN,
-                  'activationfuntion':sigmoideaTheano(),
+                  #'activationfuntion':sigmoideaTheano(),
+                  'activationfuntion':'sigmoidea',
                   'epocas':           epocasTRN,
                   'toleranciaError':  tolError}
     clasificador.setParametroEntrenamiento(parametros)
@@ -111,7 +113,6 @@ if __name__ == "__main__":
     # las intermedias son de regresion
     # la ultima es de clasificaicon
     for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
-        print(idx, capas[idx], capas[idx+1])
         clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
     clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
     # guardando los parametros aprendidos
-    clasificador.guardarParametros()
+    clasificador.guardarObjeto(filename=nombre)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

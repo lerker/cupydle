@@ -91,9 +91,11 @@ class Capa(object):
         warn("No se deberia utilizar mas, <<getB>>")
         return self.b
 
+    @property
     def getW(self):
         return self.W.get_value(borrow=True)
 
+    @property
     def getB(self):
         return self.b.get_value(borrow=True)
 

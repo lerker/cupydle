@@ -23,6 +23,9 @@ class iteracionesMaximas(object):
             retorno = (resultados >= self.maxIter)
         return retorno
 
+    def __repr__(self):
+        return "Criterio de parada temprana de maxima iteriones, {} iteraciones".format(self.maxIter)
+
 
 class toleranciaError(object):
 

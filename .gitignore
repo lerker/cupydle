@@ -82,3 +82,4 @@ cupydle/data/DB_mnist/*
 
 # de mi app
 *.cupydle
+*.fuse_hidden*

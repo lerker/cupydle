@@ -40,6 +40,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 theanoFloat  = theano.config.floatX
 
 from cupydle.dnn.funciones import sigmoideaTheano
+from cupydle.dnn.utils import RestrictedDict
 
 
 """
@@ -206,14 +207,12 @@ class DBN(object):
         self.parametrosAjuste['epocas'] = 0.0
         self.parametrosAjuste['activationfuntion'] = sigmoideaTheano()
         self.parametrosAjuste['toleranciaError'] = 0.0
-        return 1
+        return 0
 
     def _initGuardar(self):
         """
         inicializa los campos para el almacenamiento
         """
-        from cupydle.dnn.utils import RestrictedDict
-
         archivo = self.ruta + self.name + '.cupydle'
 
         # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
@@ -247,6 +246,7 @@ class DBN(object):
 
         return almacenar
 
+    # TODO cambiar a shleve
     def setParametrosAjuste(self, parametros):
         if not isinstance(parametros, dict):
             assert False, "necesito un diccionario"
@@ -461,6 +461,7 @@ class DBN(object):
             print("nada que guardar")
             return 0
 
+        # todo ver si borro esto
         self.datosAlmacenar = datos
 
         # ojo con el writeback
