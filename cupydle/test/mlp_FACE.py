@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
     parser.add_argument('--tolError',         type=float, dest="tolError",       default=0.0,        required=False, help="Toleracia al error como criterio de parada temprana")
+    parser.add_argument('--MLPrapido',        action="store_true", dest="mlprapido", default=False,  required=False, help="Activa el entrenamiento rapido para el MLP, no testea todos los conjuntos de test, solo los mejores validaciones")
 
     argumentos = parser.parse_args()
 
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     regularizadorL2 = argumentos.regularizadorL2
     momentoTRN      = argumentos.momentoTRN
     tolError        = argumentos.tolError
+    mlprapido       = argumentos.mlprapido
 
     capas        = np.asarray(capas)
     tasaAprenTRN = np.float32(tasaAprenTRN)
@@ -122,7 +124,8 @@ if __name__ == "__main__":
     clasificador.entrenar(trainSet=datos[0],
                           validSet=datos[1],
                           testSet=datos[2],
-                          batch_size=tambatch)
+                          batch_size=tambatch,
+                          rapido=mlprapido)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))

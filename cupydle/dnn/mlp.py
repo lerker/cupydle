@@ -85,9 +85,6 @@ class MLP(object):
         # carpeta
         self.nombre = ('mlp' if nombre is None else nombre)
 
-
-        self.estadisticos = {'errorEntrenamiento':[], 'errorValidacion':[], 'errorTest':[]}
-
         # donde se alojan los datos
         self.ruta = ruta
 
@@ -115,7 +112,10 @@ class MLP(object):
                  'epocas':              0,
                  'activationfuntion':   sigmoideaTheano(),
                  'toleranciaError':     0.0,
-                 'tiempoMaximo':        0
+                 'tiempoMaximo':        0,
+                 'costoTRN':            0,
+                 'costoVAL':            0,
+                 'costoTST':            0,
                  }
 
         # diccionario restringido en sus keys
@@ -205,6 +205,7 @@ class MLP(object):
 
         # costo, puede ser el MSE o bien el logaritmo negativo de la entropia..
         costo0 = self.capas[-1].negative_log_likelihood(y)
+        #costo0 = self.capas[-1].errors(y)
 
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
@@ -228,7 +229,7 @@ class MLP(object):
         return self.capas[-1].predict()
 
 
-    def entrenar(self, trainSet, validSet, testSet, batch_size, tamMacroBatch=None):
+    def entrenar(self, trainSet, validSet, testSet, batch_size, tamMacroBatch=None, rapido=False):
 
         assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
 
@@ -295,72 +296,75 @@ class MLP(object):
         print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
         print("MEMORIA antes de iterar: ", gpu_info('Mb'), '\nEntrenando...') if MLP.DEBUG else None
 
-        # early-stopping parameters
-        costoEntrenamiento = numpy.inf
-        errorValidacionHistorico = numpy.inf
-        errorTest=numpy.Inf
-
         epoca = 0
-        looping = True
+        mejorEpoca = 0
 
-        iteracionesMax = criterios['iteracionesMaximas'](maxIter=self._cargar(key='epocas'))
+        epocasAiterar = self._cargar(key='epocas')
+        iteracionesMax = criterios['iteracionesMaximas'](maxIter=epocasAiterar)
         toleranciaErr = criterios['toleranciaError'](self._cargar(key='toleranciaError'))
 
-        # inicio del entrenamiento por epocas
-        try:
-            while looping:
+        # se almacenan por epoca los valores de los costo
+        costoVALhist = numpy.inf
+        costoTSThist = numpy.inf
+        costoTRN = numpy.full((epocasAiterar,), numpy.Inf)
+        costoVAL = numpy.full((epocasAiterar,), numpy.Inf)
+        costoTST = numpy.full((epocasAiterar,), numpy.Inf)
 
-                epoca = epoca + 1
+        # inicio del entrenamiento por epocas
+        continuar = True
+        try:
+            while continuar:
+                indice = epoca
+                epoca  = epoca + 1
 
                 # entreno con todo el conjunto de minibatches
-                costoEntrenamiento = [train_model(i) for i in range(n_train_batches)]
-                costoEntrenamiento = numpy.mean(costoEntrenamiento) # su media
-                self.estadisticos['errorEntrenamiento'].append(costoEntrenamiento)
+                costoTRN[indice] = numpy.mean([train_model(i) for i in range(n_train_batches)])
 
-                errorValidacion = [validate_model(i) for i in range(n_valid_batches)]
-                errorValidacion = numpy.mean(errorValidacion)
-                self.estadisticos['errorValidacion'].append(errorValidacion)
+                # TODO solo si proveeo datos de validacion
+                costoVAL[indice] = numpy.mean([validate_model(i) for i in range(n_valid_batches)])
 
                 print(str('Epoca {:>3d} de {:>3d}, '
                         + 'Costo entrenamiento {:> 8.5f}, '
                         + 'Error validacion {:> 8.5f}').format(
-                        epoca, self._cargar(key='epocas'), costoEntrenamiento*100.0, errorValidacion*100.0))
+                        epoca, self._cargar(key='epocas'), costoTRN[indice]*100.0, costoVAL[indice]*100.0))
 
                 # se obtuvo un error bajo en el conjunto validacion, se prueba en
                 # el conjunto de test como funciona
-                if errorValidacion < errorValidacionHistorico:
-                    errorValidacionHistorico = errorValidacion
-                    best_iter = epoca
+                if costoVAL[indice] < costoVALhist and rapido:
+                    costoVALhist = costoVAL[indice]
+                    mejorEpoca = epoca
 
-                    errorTest = [test_model(i) for i in range(n_test_batches)]
-                    errorTest = numpy.mean(errorTest)
-                    self.estadisticos['errorTest'].append(errorTest)
-                    print('|---->>Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, errorTest*100.0))
+                    costoTST[indice] = numpy.mean([test_model(i) for i in range(n_test_batches)])
+                    costoTSThist = costoTST[indice]
+                    print('|---->>Epoca {:>3d}, error test del modelo {:> 8.5f}'.format(epoca, costoTST[indice]*100.0))
+                elif not rapido: # modo normal, prueba todas las veces en el conjutno test
+                    costoTST[indice] = numpy.mean([test_model(i) for i in range(n_test_batches)])
 
-                looping = not(iteracionesMax(resultados=epoca) or toleranciaErr(errorValidacion))
+                continuar = not(iteracionesMax(resultados=epoca) or toleranciaErr(costoVAL[indice]))
             # termino el while
         except (KeyboardInterrupt, SystemExit):
-            print("Se finalizo el proceso de entrenamiento. Guardando los datos")
+            print("Se finalizo el proceso de entrenamiento. Guardando los datos\n")
             try:
                 time.sleep(5)
             except (KeyboardInterrupt, SystemExit):
                 sys.exit(1)
 
-
         print('Entrenamiento Finalizado. Mejor puntaje de validacion: {:> 8.5f} con un performance en el test de {:> 8.5f}'.format
-              (errorValidacionHistorico * 100., errorTest * 100.))
+              (costoVAL[numpy.argmin(costoVAL)] * 100., costoTST[numpy.argmin(costoVAL)] * 100.))
 
-        errorTestFinal = [test_model(i) for i in range(n_test_batches)]
-        errorTestFinal = numpy.mean(errorTestFinal)
+        costoTST[indice] = numpy.mean([test_model(i) for i in range(n_test_batches)])
+        costoTST_final   = costoTST[indice]
 
         # se guardan los pesos y bias ya entrenados
         [self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
         [self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
+        # se guardan los estadisticos
+        self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
         print("reales", predictor()[1][0:25])
         print("predic", predictor()[0][0:25])
 
-        return costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal
+        return costoTRN, costoVAL, costoTST, costoTST_final
 
     def construirActualizaciones(self, costo, actualizaciones):
 
