@@ -22,6 +22,9 @@ _cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecuta
 
 Funcionalidades:
 ----------------
+- Generales
+  - [x] Optimizacion inteligente en la carga de memoria con los datos, chunk_size automatico
+  - [x] Persistencia de los datos optimizada, unico archivo comprimido de dimension variable
 
 - Maquinas de Boltzmann Restringidas (RBM)
   - Entrenamiento
@@ -55,10 +58,22 @@ Funcionalidades:
     - [x] Funciones de activacion varias, Sigmoidea.
     - [x] Algoritmo del Gradiente Descendiente Estocastico (SGD)
       - [x] Calculo de gradientes, retropropagacion del error.
-      - [ ] Tecnicas, 'patience'....
+      - [ ] Tecnicas
+        - [] patience
+        - [x] rapid evaluation
     - [x] momento, batch-learning.
     - [x] Función de costo, entropia cruzada.
     - [x] Función de costo, error cuadratico medio (MSE).
+
+- Validacion y testing
+  - [x] Validacion Cruzada
+    - [x] K_fold
+    - [x] LabelKFold
+    - [x] LeaveOneOut
+    - [x] StratifiedKFold
+  - [] Parameters Searching
+    - [] Grid Search
+    - [] Random Grid Search
 
 - Pruebas
   - MNIST
@@ -66,9 +81,17 @@ Funcionalidades:
     - [x] Visualización de los datos.
     - [x] Visualización de los filtros. :interrobang: (realizar la funcion en rbm que genere los filtro a partir de patches cuadrados...)
     - [x] Muestreo de varios ejemplos a traves de sucesivas cadenas de Markov.
-  - FACE
+  - RML
     - [x] Pre-procesamiento de datos crudos
-    - [x] Obtencion de datos pre-procesados con PCA
+      - [x] videos
+      - [x] audio
+    - [x] Reduccion de dimension de los datos crudos
+      - [x] PCA a los videos
+      - [x] f0_enegy, coeficientes ceptrales, windowing, etc a los audios
+    - [x] Normalizacion de los datos
+      - [x] z_score
+      - [x] whitening
+      - [x] min_max
 
 Notas GP-GPU
 ------------

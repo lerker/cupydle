@@ -69,7 +69,6 @@ from cupydle.dnn.graficos import imagenTiles
 import matplotlib.pyplot
 import math
 
-# TODO agregar el nombre
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
@@ -83,6 +82,7 @@ class RBM(object):
                  hidbiases=None,
                  numpy_rng=None,
                  theano_rng=None,
+                 nombre=None,
                  ruta=''):
         """
         :type n_visible: int
@@ -158,6 +158,8 @@ class RBM(object):
         # estadisticos
         self.estadisticos = {}
         self._initStatistics()
+
+        self.nombre = 'rbm' if nombre is None else nombre
 
         self.ruta = ruta
     # END INIT

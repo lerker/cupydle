@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datos[1][1]))
 
     # creo la red
-    red = RBM(n_visible=visibles, n_hidden=ocultas, ruta=rutaCompleta)
+    red = RBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
 
     parametros = {'epsilonw':       tasaAprenW,
                 'epsilonvb':        tasaAprenV,
