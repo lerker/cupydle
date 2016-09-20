@@ -205,7 +205,7 @@ class DBN(object):
         self.parametrosAjuste['regularizadorL2'] = 0.0
         self.parametrosAjuste['momento'] = 0.0
         self.parametrosAjuste['epocas'] = 0.0
-        self.parametrosAjuste['activationfuntion'] = sigmoideaTheano()
+        self.parametrosAjuste['activacion'] = 'sigmoidea'
         self.parametrosAjuste['toleranciaError'] = 0.0
         return 0
 
@@ -366,7 +366,7 @@ class DBN(object):
         return
     # FIN TRAIN
 
-    def ajuste(self, datos, listaPesos=None, fnActivacion=sigmoideaTheano(),
+    def ajuste(self, datos, listaPesos=None, fnActivacion='sigmoidea',
                 tambatch=10, semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un

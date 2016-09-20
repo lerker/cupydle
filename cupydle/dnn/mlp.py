@@ -101,6 +101,7 @@ class MLP(object):
                  'costoTRN':            0,
                  'costoVAL':            0,
                  'costoTST':            0,
+                 'activacion':          'sigmoidea'
                  }
 
         # diccionario restringido en sus keys

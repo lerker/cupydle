@@ -27,8 +27,6 @@ import argparse
 # Dependencias Externas
 ## Core
 from cupydle.dnn.dbn import DBN
-# TODO implementar dentro de mlp y elegir a traves de un string
-from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.mlp import MLP
 
 # TODO implementar dentro de dbn
@@ -177,15 +175,14 @@ if __name__ == "__main__":
     parametros={'tasaAprendizaje':  tasaAprenFIT,
                 'regularizadorL1':  regularizadorL1,
                 'regularizadorL2':  regularizadorL2,
-                'momento':          momentoFIT,
-                'activationfuntion':sigmoideaTheano()}
+                'momento':          momentoFIT}
     miDBN.setParametrosAjuste(parametros)
     miDBN.setParametrosAjuste({'epocas':epocasFIT})
     #miDBN.setParametrosAjuste({'toleranciaError':0.08})
 
     miDBN.ajuste(datos=datos,
                  listaPesos=None,
-                 fnActivacion=sigmoideaTheano(),
+                 fnActivacion="sigmoidea",
                  semillaRandom=None,
                  tambatch=tambatch)
 
