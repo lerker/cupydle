@@ -136,8 +136,8 @@ class RBM(object):
         self.theano_rng = theano_rng
 
         # funcion de activacion sigmodea para cada neurona (porbabilidad->binomial)
-        self.fnActivacionUnidEntrada = None
-        self.fnActivacionUnidSalida  = None
+        self.unidadesVisibles = None
+        self.unidadesOcultas  = None
 
         # buffers para el almacenamiento temporal de las variables
         # momento-> incrementos, historicos
@@ -507,17 +507,17 @@ class RBM(object):
 
     def muestrearVdadoH(self, muestra_H0):
         salidaLineal_V1 = theano.tensor.dot(muestra_H0, self.w.T) + self.visbiases
-        muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1)
+        muestra_V1, probabilidad_V1 = self.unidadesVisibles.activar(salidaLineal_V1)
 
         return [salidaLineal_V1, probabilidad_V1, muestra_V1]
 
     def muestrearVdadoH_dropout(self, muestra_H0, mask):
         salidaLineal_V1 = theano.tensor.dot(muestra_H0, self.w.T) + self.visbiases
-        #muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1*theano.tensor.cast(mask, theanoFloat))
+        #muestra_V1, probabilidad_V1 = self.unidadesVisibles.activar(salidaLineal_V1*theano.tensor.cast(mask, theanoFloat))
 
         salidaLineal_V1*=theano.tensor.cast(mask, theanoFloat)
 
-        muestra_V1, probabilidad_V1 = self.fnActivacionUnidEntrada.activar(salidaLineal_V1)
+        muestra_V1, probabilidad_V1 = self.unidadesVisibles.activar(salidaLineal_V1)
 
 
         #muestra_V1 *= theano.tensor.cast(mask, theanoFloat)
@@ -535,11 +535,11 @@ class RBM(object):
 
         #theano.tensor.cast(mask, theanoFloat)
         salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
-        #muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1*theano.tensor.cast(mask, theanoFloat))
+        #muestra_H1, probabilidad_H1 = self.unidadesOcultas.activar(salidaLineal_H1*theano.tensor.cast(mask, theanoFloat))
 
         salidaLineal_H1 *= theano.tensor.cast(mask, theanoFloat)
 
-        muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
+        muestra_H1, probabilidad_H1 = self.unidadesOcultas.activar(salidaLineal_H1)
 
 
         #muestra_H1*=theano.tensor.cast(mask, theanoFloat)
@@ -550,7 +550,7 @@ class RBM(object):
 
     def muestrearHdadoV(self, muestra_V0):
         salidaLineal_H1 = theano.tensor.dot(muestra_V0, self.w) + self.hidbiases
-        muestra_H1, probabilidad_H1 = self.fnActivacionUnidSalida.activar(salidaLineal_H1)
+        muestra_H1, probabilidad_H1 = self.unidadesOcultas.activar(salidaLineal_H1)
 
         return [salidaLineal_H1, probabilidad_H1, muestra_H1]
 
@@ -1257,15 +1257,15 @@ class RBM(object):
 
 
         trainer = None
-        self.fnActivacionUnidEntrada = self.params['unidadesVisibles']
-        self.fnActivacionUnidSalida = self.params['unidadesOcultas']
+        self.unidadesVisibles = self.params['unidadesVisibles']
+        self.unidadesOcultas = self.params['unidadesOcultas']
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.DivergenciaContrastivaPersistente(tamMiniBatch, sharedData)
         else:
             print("Entrenando con Divergencia Contrastiva, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.DivergenciaContrastiva(tamMiniBatch, sharedData)
-        print("Unidades de visibles:",self.fnActivacionUnidEntrada, "Unidades Ocultas:", self.fnActivacionUnidSalida)
+        print("Unidades de visibles:",self.unidadesVisibles, "Unidades Ocultas:", self.unidadesOcultas)
 
         if filtros:
             # plot los filtros iniciales (sin entrenamiento)
