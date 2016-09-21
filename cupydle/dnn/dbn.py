@@ -73,48 +73,45 @@ from cupydle.dnn.graficos import imagenTiles
 
 class rbmParams(object):
     # sirve para guardar el estado nomas
-    def __init__(self,
-                n_visible,
+    def __init__(self, n_visible,
                 n_hidden,
                 epocas,
                 tamMiniBatch,
-                epsilonw,
+                lr_pesos,
                 pasosGibbs=1,
                 w=None,
-                epsilonvb=None,
-                epsilonhb=None,
-                weightcost=None,
-                momentum=0.0,
+                lr_bvis=None,
+                lr_bocu=None,
+                costo_w=None,
+                momento=0.0,
                 toleranciaError=0.0,
-                unidadesVisibles=UnidadBinaria(),
-                unidadesOcultas=UnidadBinaria()):
-        self.n_visible=n_visible
-        self.n_hidden=n_hidden
-        self.epocas=epocas
-        self.epsilonw=epsilonw
-        self.pasosGibbs=pasosGibbs
-        self.w=w
-        self.epsilonvb=epsilonvb
-        self.epsilonhb=epsilonhb
-        self.weightcost=weightcost
-        self.momentum=momentum
-        self.toleranciaError=toleranciaError
-        self.tamMiniBatch=tamMiniBatch
-        self.unidadesVisibles=UnidadBinaria()
-        self.unidadesOcultas=UnidadBinaria()
-
-
+                unidadesVisibles='binaria',
+                unidadesOcultas='binaria'):
+        self.n_visible          = n_visible
+        self.n_hidden           = n_hidden
+        self.epocas             = epocas
+        self.lr_pesos           = lr_pesos
+        self.pasosGibbs         = pasosGibbs
+        self.w                  = w
+        self.lr_bvis            = lr_bvis
+        self.lr_bocu            = lr_bocu
+        self.costo_w            = costo_w
+        self.momento            = momento
+        self.toleranciaError    = toleranciaError
+        self.tamMiniBatch       = tamMiniBatch
+        self.unidadesVisibles   = unidadesVisibles
+        self.unidadesOcultas    = unidadesOcultas
         return
 
     def __str__(self):
         print("Numero de neuronas visibles:",self.n_visible)
         print("Numero de neuronas ocultas:",self.n_hidden)
         print("Numero de epocas:",self.epocas)
-        print("Tasa de aprendizaje para los pesos:",self.epsilonw)
-        print("Tasa de aprendizaje para las unidades visibles",self.epsilonvb)
-        print("Tasa de aprendizaje para las unidades ocultas:",self.epsilonhb)
-        print("Tasa de momento:",self.momentum)
-        print("Castigo pesos:",self.weightcost)
+        print("Tasa de aprendizaje para los pesos:",self.lr_pesos)
+        print("Tasa de aprendizaje para las unidades visibles",self.lr_bvis)
+        print("Tasa de aprendizaje para las unidades ocultas:",self.lr_bocu)
+        print("Tasa de momento:",self.momento)
+        print("Castigo pesos:",self.costo_w)
         print("Pasos de Gibss:", self.pasosGibbs)
         print("Tamanio del minibatch:",self.tamMiniBatch)
         print("Tolerancia del error permitido:",self.toleranciaError)
@@ -124,21 +121,18 @@ class rbmParams(object):
 
     @property
     def getParametrosEntrenamiento(self):
-        tmp1 = RBM()
-        tmp = tmp1.params
-        del tmp1
+
+        tmpRBM = RBM().datosAlmacenar._allowed_keys
         retorno = {}
-        #print(tmp.params)
-        #print(self.__dict__.keys())
-
-        #assert False
         for key in self.__dict__.keys():
-            if key in tmp:
+            if key in tmpRBM:
                 retorno[key] = self.__dict__[key]
-
+        """
+        for k in retorno:
+            print(k, retorno[k])
+        """
+        del tmpRBM
         return retorno
-    #def __call__(self):
-    #    return
 
 class DBN(object):
 
@@ -223,7 +217,14 @@ class DBN(object):
                  'pesos':               [],
                  'pesos_iniciales':     [],
                  'theano_rng':          self.theano_rng.rstate, # con set_value se actualiza
-                 'activacionesOcultas': []
+                 'activacionesOcultas': [],
+                 'tasaAprendizaje':     0.0,
+                 'regularizadorL1':     0.0,
+                 'regularizadorL2':     0.0,
+                 'momento':             0.0,
+                 'epocas':              0.0,
+                 'activacion':          'sigmoidea',
+                 'toleranciaError':     0.0
                  }
 
         # diccionario restringido en sus keys
@@ -258,21 +259,21 @@ class DBN(object):
                 assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
         return 1
 
-
+    """
     def addLayer(self,
                 n_hidden,
                 numEpoch,
                 tamMiniBatch,
-                epsilonw,        # Learning rate for weights
+                lr_pesos,        # Learning rate for weights
                 n_visible=None,
                 pasosGibbs=1,
                 w=None,
-                epsilonvb=None,  # Learning rate for biases of visible units
-                epsilonhb=None,  # Learning rate for biases of hidden units
-                weightcost=None, # Weigth punishment
-                momentum=0.0,
-                unidadesVisibles=UnidadBinaria(),
-                unidadesOcultas=UnidadBinaria()):
+                lr_bvis=None,  # Learning rate for biases of visible units
+                lr_bocu=None,  # Learning rate for biases of hidden units
+                costo_w=None, # Weigth punishment
+                momento=0.0,
+                unidadesVisibles='binaria',
+                unidadesOcultas='binaria'):
 
         if n_visible is None:
             assert self.params != [], "Debe prover de unidades de entrada para esta capa."
@@ -281,11 +282,23 @@ class DBN(object):
         # agrego una capa de rbm a la dbn, con los parametros que le paso
         self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
                                     epocas=numEpoch, tamMiniBatch=tamMiniBatch,
-                                    epsilonw=epsilonw, pasosGibbs=pasosGibbs,
+                                    lr_pesos=epsilonw, pasosGibbs=pasosGibbs,
                                     w=w, epsilonvb=epsilonvb, epsilonhb=epsilonhb,
                                     weightcost=weightcost, momentum=momentum,
                                     unidadesVisibles=unidadesVisibles,
                                     unidadesOcultas=unidadesOcultas))
+        self.n_layers += 1
+
+    return
+    """
+    def addLayer(self, n_visible=None, **kwargs):
+
+        if n_visible is None:
+            assert self.params != [], "Debe prover de unidades de entrada para esta capa."
+            n_visible = self.params[-1].n_hidden
+
+        # agrego una capa de rbm a la dbn, con los parametros que le paso
+        self.params.append(rbmParams(n_visible=n_visible, **kwargs))
         self.n_layers += 1
 
         return
@@ -313,7 +326,7 @@ class DBN(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.cargar(key='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
+                layer_input = self._cargar(key='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
 
             # una carpeta para alojar los datos de la capa intermedia
             directorioRbm = self.ruta + 'rbm_capa{}/'.format(i+1)
@@ -326,11 +339,11 @@ class DBN(object):
                           ruta=directorioRbm)
 
             # configuro la capa, la rbm
-            capaRBM.setParams(self.params[i].getParametrosEntrenamiento)
+            capaRBM.setParametros(self.params[i].getParametrosEntrenamiento)
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
-            self.guardar(diccionario={'pesos_iniciales':capaRBM.get_w}) if guardarPesosIniciales else None
+            self._guardar(diccionario={'pesos_iniciales':capaRBM.getW}) if guardarPesosIniciales else None
 
             capaRBM.entrenamiento(data=layer_input,
                                   tamMiniBatch=self.params[i].tamMiniBatch,
@@ -341,8 +354,8 @@ class DBN(object):
 
             # TODO aca debe ser la misma analogia de guardado, en un solo archivo en la carpeta como las dbn
             print("Guardando la capa..") if DBN.DEBUG else None
-            filename = self.name + "_capa" + str(i+1) + ".pgz"
-            capaRBM.guardar(nombreArchivo=filename)
+            filename = self.name + "_capa" + str(i+1)
+            capaRBM.guardarObjeto(nombreArchivo=filename)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # [probabilidad_H1, muestra_V1, muestra_H1]
@@ -352,18 +365,18 @@ class DBN(object):
             # se guardan las activaciones ocultas para la siguiente iteracion
             # de la siguiente capa oculta
             print("Guardando las muestras para la siguiente capa..") if DBN.DEBUG else None
-            self.guardar(diccionario={'activacionesOcultas':hiddenProbAct})
+            self._guardar(diccionario={'activacionesOcultas':hiddenProbAct})
+
+            # se guardan los pesos para el ajuste fino
+            self._guardar(diccionario={'pesos':capaRBM.getW})
 
             del capaRBM
         # FIN FOR
 
-        # una vez terminado el entrenamiento guardo los pesos para su futura utilizacion
-        [self.guardar(diccionario={'pesos':x}) for x in self.cargarPesos(dbnNombre=self.name, ruta=self.ruta)]
-
         final = T.toc()
         print("Tiempo total para pre-entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
 
-        return
+        return 0
     # FIN TRAIN
 
     def ajuste(self, datos, listaPesos=None, fnActivacion='sigmoidea',
@@ -375,7 +388,7 @@ class DBN(object):
         if listaPesos is None:
             if self.pesos == []:
                 print("Cargando los pesos almacenados...") if DBN.DEBUG else None
-                self.pesos = self.cargar(key='pesos')
+                self.pesos = self._cargar(key='pesos')
                 if self.pesos==[]:
                     print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
                     self.pesos = [None] * self.n_layers
@@ -440,7 +453,7 @@ class DBN(object):
         save(objeto=self, filename=filename, compression=compression)
         return
 
-    def guardar(self, nombreArchivo=None, diccionario=None):
+    def _guardar(self, nombreArchivo=None, diccionario=None):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
         lo cual lo hace mas sencillo procesar luego
@@ -462,7 +475,7 @@ class DBN(object):
             return 0
 
         # todo ver si borro esto
-        self.datosAlmacenar = datos
+        #self.datosAlmacenar = datos
 
         # ojo con el writeback
         with shelve.open(archivo, flag='w', writeback=False) as shelf:
@@ -480,7 +493,7 @@ class DBN(object):
             shelf.close()
         return 0
 
-    def cargar(self, nombreArchivo=None, key=None):
+    def _cargar(self, nombreArchivo=None, key=None):
         nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 

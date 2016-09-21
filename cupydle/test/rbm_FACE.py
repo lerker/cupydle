@@ -13,8 +13,7 @@ __status__      = "Production"
 
 
 """
-optirun python3 cupydle/test/rbm_FACE.py --directorio "test_RBM" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -p 0.8 -b 10 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6 --gibbs 1
-
+optirun python3 cupydle/test/rbm_FACE.py --directorio "test_RBM" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -p 0.8 -b 10 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6 --gibbs 1 --unidadVis binaria
 """
 
 # dependencias internas
@@ -24,14 +23,10 @@ import os, argparse, numpy as np
 from cupydle.dnn.utils import temporizador
 from cupydle.dnn.rbm import RBM
 
-# TODO ELIMINAR
-from cupydle.dnn.unidades import UnidadBinaria
-from cupydle.dnn.unidades import UnidadGaussiana
-
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre KLM')
+    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre RML')
 
     parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_RBM', required=False, help="Carpeta donde se almacena la corrida actual")
     parser.add_argument('--nombre',           type=str,   dest="nombre",         default='rbm',      required=False, help="Nombre del modelo")
@@ -50,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--ocultas',    type=int,   dest="ocultas",        default=100,        required=True,  help="Cantidad de Unidades Ocultas")
     parser.add_argument('-pcd',               action="store_true",  dest="pcd",  default=False,      required=False, help="Activa el entrenamiento con Divergencia Contrastiva Persistente")
     parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva (Persistente?)")
+    parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
@@ -70,6 +66,7 @@ if __name__ == "__main__":
     weightcost      = argumentos.weightcost
     dropVis         = argumentos.dropVis
     dropOcu         = argumentos.dropOcu
+    unidadVis       = argumentos.unidadVis
 
     # chequeos
     tasaAprenW      = np.float32(tasaAprenW)
@@ -124,14 +121,11 @@ if __name__ == "__main__":
                 'lr_bocu':          tasaAprenO,
                 'momento':          momentoTRN,
                 'costo_w':          weightcost,
-                'unidadesVisibles': UnidadBinaria(),
-                'unidadesOcultas':  UnidadBinaria(),
+                'unidadesVisibles': unidadVis,
+                'unidadesOcultas':  'binaria',
                 'dropoutVisibles':  dropVis, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
                 'dropoutOcultas':   dropOcu} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
-
-    #red.setParams(parametros)
-    #red.setParams({'epocas':epocasTRN})
     red.setParametros(parametros)
     red.setParametros({'epocas':epocasTRN})
 

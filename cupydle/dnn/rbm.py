@@ -33,7 +33,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 
 
 # dependecias propias
-from cupydle.dnn.unidades import UnidadBinaria
+from cupydle.dnn.unidades import UnidadBinaria, UnidadGaussiana
 from cupydle.dnn.loss import errorCuadraticoMedio
 from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
 from cupydle.dnn.utils import temporizador, RestrictedDict, save
@@ -202,8 +202,8 @@ class RBM(object):
                  'costo_w':             0.0,
                  'momento':             0.0,
                  'epocas':              0.0,
-                 'unidadesVisibles':    UnidadBinaria(),
-                 'unidadesOcultas':     UnidadBinaria(),
+                 'unidadesVisibles':    'binaria',
+                 'unidadesOcultas':     'binaria',
                  'dropoutVisibles':     1.0,
                  'dropoutOcultas':      1.0,
                  'diffEnergiaTRN':      None,
@@ -995,8 +995,25 @@ class RBM(object):
             sharedDataValidation = theano.shared(numpy.empty((tamMacroBatchVal,) + validationData.shape[1:], dtype=theanoFloat), borrow=True)
 
         trainer = None
-        self.unidadesVisibles = self._cargar(key='unidadesVisibles')
-        self.unidadesOcultas = self._cargar(key='unidadesOcultas')
+        # aqui seteo las unidades de activacion segun el str,
+        unidad = self._cargar(key='unidadesVisibles')
+        if unidad == 'binaria':
+            self.unidadesVisibles = UnidadBinaria()
+        elif unidad == 'gaussiana':
+            self.unidadesVisibles = UnidadGaussiana()
+        else:
+            raise NotImplemented("Unidad no implementada")
+
+        # las unidades ocultas son si o si BINARIAS, sino debo cambiar todo el algoritmo de entrenamiento y energia
+        unidad = self._cargar(key='unidadesOcultas')
+        if unidad == 'binaria':
+            self.unidadesOcultas = UnidadBinaria()
+        elif unidad == 'gaussiana':
+            raise NotImplemented("Unidad no implementada")
+            #self.unidadesOcultas = UnidadGaussiana()
+        else:
+            raise NotImplemented("Unidad no implementada")
+
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.DivergenciaContrastivaPersistente(tamMiniBatch, sharedData)
