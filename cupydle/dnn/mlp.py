@@ -482,11 +482,11 @@ class MLP(object):
 
         return retorno
 
-    def guardarObjeto(self, filename, compression='zip'):
+    def guardarObjeto(self, nombreArchivo, compression='zip'):
         """
         guarda la mlp, en formato comprimido, todo el objeto
         """
-        nombre = self.ruta + filename
+        nombre = self.ruta + nombreArchivo
         save(objeto=self, filename=nombre, compression=compression)
         return 0
 

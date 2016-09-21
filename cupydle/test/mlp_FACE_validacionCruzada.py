@@ -166,7 +166,7 @@ if __name__ == "__main__":
         clasificador.dibujarEstadisticos(mostrar=False, guardar=ruta_kfold+'estadisticosMLP')
 
         # guardando los parametros aprendidos
-        clasificador.guardarObjeto(filename=nombre)
+        clasificador.guardarObjeto(nombreArchivo=nombre)
 
         del clasificador
 

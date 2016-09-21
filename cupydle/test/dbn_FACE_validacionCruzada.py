@@ -19,21 +19,14 @@ Esta es una prueba simple de una DBN completa sobre la base de datos RML
 Ejecuta el entrenamiento no supervisado y luego ajuste fino de los parametros
 por medio de un entrenamiento supervisado. VALIDACION CRUZADA
 
+optirun python3 cupydle/test/dbn_FACE_validacionCruzada.py --directorio "test_DBN_CV" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 5 --lepocaFIT 10 -lrTRN 0.01 --folds 6 --unidadVis binaria
+
 """
-import numpy as np
-import os
-import argparse
+import os, argparse, numpy as np
 
-# Dependencias Externas
-## Core
-from cupydle.dnn.dbn import DBN
-# TODO implementar dentro de mlp y elegir a traves de un string
-from cupydle.dnn.funciones import sigmoideaTheano
-from cupydle.dnn.mlp import MLP
-
-# TODO implementar dentro de dbn
-from cupydle.dnn.unidades import UnidadBinaria
+# dependencias propias
 from cupydle.dnn.utils import temporizador
+from cupydle.dnn.dbn import DBN
 from cupydle.dnn.validacion_cruzada import StratifiedKFold
 
 
@@ -50,13 +43,16 @@ if __name__ == "__main__":
     parser.add_argument('-lrTRN',             type=float, dest="tasaAprenTRN",   default=0.01,       required=False, nargs='+', help="Tasas de aprendizaje para cada capa de entrenamiento, si se especifica una sola se aplica por igual a todas")
     parser.add_argument('-lrFIT',             type=float, dest="tasaAprenFIT",   default=0.01,       required=False, help="Tasa de aprendizaje para el ajuste de la red")
     parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, nargs='+', help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva, si es unitario se aplica para todos")
-    parser.add_argument('--nombre',           type=str,   dest="nombre",         default=None,       required=False, help="Nombre del modelo")
+    parser.add_argument('--nombre',           type=str,   dest="nombre",         default='dbncv',    required=False, help="Nombre del modelo")
     parser.add_argument('--pcd',              action="store_true", dest="pcd",   default=False,      required=False, help="Habilita el algoritmo de entrenamiento Divergencia Contrastiva Persistente")
     parser.add_argument('--reguL1',           type=float, dest="regularizadorL1",default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
+    parser.add_argument('--tolErr',           type=float, dest="toleranciaError",default=0.0,        required=False, help="Criterio de parada temprana, tolerancia al error")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, nargs='+', help="Tasa de momento para la etapa de entrenamiento, si es unico se aplica igual a cada capa")
     parser.add_argument('--momentoFIT',       type=float, dest="momentoFIT",     default=0.0,        required=False, help="Tasa de momento para la etapa de ajuste")
     parser.add_argument('--folds',            type=int,   dest="folds",          default=2,          required=True,  help="Cantidad de conjuntos a barajar, como minimo 2, cada conjuntos deben poderse colocar igual cantidad de etiquetas")
+    parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
+
 
     argumentos = parser.parse_args()
 
@@ -78,6 +74,8 @@ if __name__ == "__main__":
     momentoTRN      = argumentos.momentoTRN
     momentoFIT      = argumentos.momentoFIT
     folds           = argumentos.folds
+    unidadVis       = argumentos.unidadVis
+    toleranciaError = argumentos.toleranciaError
 
     capas        = np.asarray(capas)
     tasaAprenTRN = np.asarray([tasaAprenTRN]) if isinstance(tasaAprenTRN, float) else np.asarray(tasaAprenTRN)
@@ -155,11 +153,16 @@ if __name__ == "__main__":
         datosVAL = (videos[train_index[cantidad:]],clases[train_index[cantidad:]])
         datosTST = (videos[test_index],clases[test_index])
 
-        print("Cantidad de clases en el conjunto Entrenamiento: ", np.bincount(datosTRN[1]))
-        print("Cantidad de clases en el conjunto Validacion: ", np.bincount(datosVAL[1]))
-        print("Cantidad de clases en el conjunto Test: ", np.bincount(datosTST[1]))
+        print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+        print("                                               :", "-------------------")
+        #print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosTRN_DBN[1]))
+        print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosTRN[1]))
+        print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosVAL[1]))
+        print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosTST[1]))
+        #print("Entrenado la DBN con {} ejemplos".format(len(datosTRN_DBN[0])))
         datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
-        del datosTRN ; del datosVAL; del datosTST
+        del datosTRN, datosVAL, datosTST
+        #del datosTRN_DBN
 
         # se crea la carpeta contenedora
         ruta_kfold = rutaCompleta + carpetaConjunto + str(contador) + '/'
@@ -172,17 +175,17 @@ if __name__ == "__main__":
         for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
             miDBN.addLayer(n_visible=capas[idx],
                            n_hidden=capas[idx+1],
-                           numEpoch=epocasTRN[idx],
+                           epocas=epocasTRN[idx],
                            tamMiniBatch=tambatch,
-                           epsilonw=tasaAprenTRN[idx],
+                           lr_pesos=tasaAprenTRN[idx],
                            pasosGibbs=pasosGibbs[idx],
                            w=None,
-                           momentum=momentoTRN[idx],
-                           unidadesVisibles=UnidadBinaria(),
-                           unidadesOcultas=UnidadBinaria())
+                           momento=momentoTRN[idx],
+                           unidadesVisibles=unidadVis,
+                           unidadesOcultas='binaria')
 
+        # TODO corregir esto, no deberia entrenar con la validacion aparte, meter todo junto
         #entrena la red
-
         miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
                        dataVal=datos[1][0], # imagenes de validacion
                        pcd=pcd,
@@ -203,24 +206,24 @@ if __name__ == "__main__":
         parametros={'tasaAprendizaje':  tasaAprenFIT,
                     'regularizadorL1':  regularizadorL1,
                     'regularizadorL2':  regularizadorL2,
-                    'momento':          momentoFIT,
-                    'activationfuntion':sigmoideaTheano()}
-        miDBN.setParametrosAjuste(parametros)
-        miDBN.setParametrosAjuste({'epocas':epocasFIT})
-        #miDBN.setParametrosAjuste({'toleranciaError':0.08})
+                    'momento':          momentoFIT}
+        miDBN.setParametros(parametros)
+        miDBN.setParametros({'epocas':epocasFIT})
+        miDBN.setParametros({'toleranciaError':toleranciaError})
 
-        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = miDBN.ajuste(datos=datos,
+        costoTRN, costoVAL, costoTST, costoTST_final = 0.0,0.0,0.0,0.0
+        costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste(datos=datos,
                                                     listaPesos=None,
-                                                    fnActivacion=sigmoideaTheano(),
+                                                    fnActivacion='sigmoidea',
                                                     semillaRandom=None,
                                                     tambatch=tambatch)
 
-        errorTRN_conjunto.append(costoEntrenamiento)
-        errorVAL_conjunto.append(errorValidacionHistorico)
-        errorTST_conjunto.append(errorTest)
-        errorTST_conjunto_h.append(errorTestFinal)
+        errorTRN_conjunto.append(costoTRN)
+        errorVAL_conjunto.append(costoVAL)
+        errorTST_conjunto.append(costoTST)
+        errorTST_conjunto_h.append(costoTST_final)
 
-        #miDBN.guardarObjeto(filename=str(nombre)+'.zip')
+        #miDBN.guardarObjeto(nombreArchivo=nombre)
 
     final_todo = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio_todo, final_todo)))

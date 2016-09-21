@@ -13,7 +13,7 @@ __status__      = "Production"
 
 
 """
-optirun python3 cupydle/test/mlp_FACE.py --directorio "test_MLP_CV" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --tolError 0.08 --MLPrapido
+optirun python3 cupydle/test/mlp_FACE.py --directorio "test_MLP" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --tolError 0.08 --MLPrapido
 """
 # dependencias internas
 import os, argparse, numpy as np
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')
 
     # guardando los parametros aprendidos
-    clasificador.guardarObjeto(filename=nombre)
+    clasificador.guardarObjeto(nombreArchivo=nombre)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

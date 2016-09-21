@@ -19,7 +19,7 @@ Esta es una prueba simple de una DBN completa sobre la base de datos RML
 Ejecuta el entrenamiento no supervisado y luego ajuste fino de los parametros
 por medio de un entrenamiento supervisado.
 
-optirun python3 cupydle/test/dbn_FACE.py --directorio "test_DBN" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 2 --lepocaFIT 100 -lrTRN 0.01
+optirun python3 cupydle/test/dbn_FACE.py --directorio "test_DBN" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 10 --lepocaFIT 100 -lrTRN 0.01 --unidadVis binaria --tolErr 0.08
 
 """
 
@@ -43,10 +43,11 @@ if __name__ == "__main__":
     parser.add_argument('-lrTRN',             type=float, dest="tasaAprenTRN",   default=0.01,       required=False, nargs='+', help="Tasas de aprendizaje para cada capa de entrenamiento, si se especifica una sola se aplica por igual a todas")
     parser.add_argument('-lrFIT',             type=float, dest="tasaAprenFIT",   default=0.01,       required=False, help="Tasa de aprendizaje para el ajuste de la red")
     parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, nargs='+', help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva, si es unitario se aplica para todos")
-    parser.add_argument('--nombre',           type=str,   dest="nombre",         default=None,       required=False, help="Nombre del modelo")
+    parser.add_argument('--nombre',           type=str,   dest="nombre",         default='dbn',      required=False, help="Nombre del modelo")
     parser.add_argument('--pcd',              action="store_true", dest="pcd",   default=False,      required=False, help="Habilita el algoritmo de entrenamiento Divergencia Contrastiva Persistente")
     parser.add_argument('--reguL1',           type=float, dest="regularizadorL1",default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
     parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
+    parser.add_argument('--tolErr',           type=float, dest="toleranciaError",default=0.0,        required=False, help="Criterio de parada temprana, tolerancia al error")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, nargs='+', help="Tasa de momento para la etapa de entrenamiento, si es unico se aplica igual a cada capa")
     parser.add_argument('--momentoFIT',       type=float, dest="momentoFIT",     default=0.0,        required=False, help="Tasa de momento para la etapa de ajuste")
     parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
@@ -71,6 +72,7 @@ if __name__ == "__main__":
     momentoTRN      = argumentos.momentoTRN
     momentoFIT      = argumentos.momentoFIT
     unidadVis       = argumentos.unidadVis
+    toleranciaError = argumentos.toleranciaError
 
     capas        = np.asarray(capas)
     tasaAprenTRN = np.asarray([tasaAprenTRN]) if isinstance(tasaAprenTRN, float) else np.asarray(tasaAprenTRN)
@@ -120,15 +122,45 @@ if __name__ == "__main__":
     # modo hardcore activatedddd
     # aplico el mismo porcentaje para dividir el conjunto de los datos en train y test
     # y el mismo porcentaje para train propio y validacion
-    cantidad_train  = int(len(clases) * porcentaje)
-    cantidad_train2 = int(cantidad_train * porcentaje)
 
-    datos = []
+    cantidad = int(clases.shape[0] * porcentaje)
+    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
+    # es por ello que acomodo la cantidad hasta que quepa
+    while (cantidad % tambatch):
+        cantidad += 1
+        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
+    cantidad_train = cantidad
+    cantidad = int(cantidad_train * porcentaje)
+    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
+    # es por ello que acomodo la cantidad hasta que quepa
+    while (cantidad % tambatch):
+        cantidad += 1
+        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
+    cantidad_train2 = cantidad
+
+
+    datosDBN = []
+    datosMLP = []
+
+    # entrena con todos los datos, test nunca los toca obvio
+    datosTRN_DBN = (videos[:cantidad_train,:], clases[:cantidad_train])
+
+    # entrena el MLP con una parte para train y otra validacion
     datosTRN = (videos[:cantidad_train2,:], clases[:cantidad_train2])
     datosVAL = (videos[cantidad_train2:cantidad_train,:],clases[cantidad_train2:cantidad_train])
     datosTST = (videos[cantidad_train:,:],clases[cantidad_train:])
-    datos.append(datosTRN); datos.append(datosVAL); datos.append(datosTST)
-    del datosTRN, datosVAL, datosTST
+
+    datosDBN.append(datosTRN_DBN);
+    datosMLP.append(datosTRN); datosMLP.append(datosVAL); datosMLP.append(datosTST)
+
+    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+    print("                                               :", "-------------------")
+    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosTRN_DBN[1]))
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosTRN[1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosVAL[1]))
+    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosTST[1]))
+    print("Entrenado la DBN con {} ejemplos".format(len(datosTRN_DBN[0])))
+    del datosTRN_DBN, datosTRN, datosVAL, datosTST
 
     ###########################################################################
     ##
@@ -153,9 +185,8 @@ if __name__ == "__main__":
                        unidadesOcultas='binaria')
 
     #entrena la red
-
-    miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
-                   dataVal=datos[1][0], # imagenes de validacion
+    miDBN.entrenar(dataTrn=datosDBN[0][0], # imagenes de entrenamiento
+                   dataVal=None, # imagenes de validacion
                    pcd=pcd,
                    guardarPesosIniciales=True,
                    filtros=True)
@@ -175,16 +206,16 @@ if __name__ == "__main__":
                 'regularizadorL1':  regularizadorL1,
                 'regularizadorL2':  regularizadorL2,
                 'momento':          momentoFIT}
-    miDBN.setParametrosAjuste(parametros)
-    miDBN.setParametrosAjuste({'epocas':epocasFIT})
-    #miDBN.setParametrosAjuste({'toleranciaError':0.08})
+    miDBN.setParametros(parametros)
+    miDBN.setParametros({'epocas':epocasFIT})
+    miDBN.setParametros({'toleranciaError':toleranciaError})
 
-    miDBN.ajuste(datos=datos,
+    miDBN.ajuste(datos=datosMLP,
                  listaPesos=None,
                  fnActivacion="sigmoidea",
                  semillaRandom=None,
                  tambatch=tambatch)
 
-    #miDBN.guardarObjeto(filename=str(nombre)+'.zip')
+    miDBN.guardarObjeto(nombreArchivo=nombre)
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

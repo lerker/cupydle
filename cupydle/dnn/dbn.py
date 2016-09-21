@@ -186,22 +186,7 @@ class DBN(object):
 
         self.ruta = ruta
 
-        # parametros para el ajuste fino o por medio de un mlp
-        self.parametrosAjuste = {}
-        self._initParametrosAjuste()
-
         self.datosAlmacenar=self._initGuardar()
-
-    def _initParametrosAjuste(self):
-        """ inicializa los parametros de la red, un diccionario"""
-        self.parametrosAjuste['tasaAprendizaje'] = 0.0
-        self.parametrosAjuste['regularizadorL1'] = 0.0
-        self.parametrosAjuste['regularizadorL2'] = 0.0
-        self.parametrosAjuste['momento'] = 0.0
-        self.parametrosAjuste['epocas'] = 0.0
-        self.parametrosAjuste['activacion'] = 'sigmoidea'
-        self.parametrosAjuste['toleranciaError'] = 0.0
-        return 0
 
     def _initGuardar(self):
         """
@@ -247,50 +232,10 @@ class DBN(object):
 
         return almacenar
 
-    # TODO cambiar a shleve
-    def setParametrosAjuste(self, parametros):
-        if not isinstance(parametros, dict):
-            assert False, "necesito un diccionario"
-
-        for key, _ in parametros.items():
-            if key in self.parametrosAjuste:
-                self.parametrosAjuste[key] = parametros[key]
-            else:
-                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
+    def setParametros(self, parametros):
+        self._guardar(diccionario=parametros)
         return 1
 
-    """
-    def addLayer(self,
-                n_hidden,
-                numEpoch,
-                tamMiniBatch,
-                lr_pesos,        # Learning rate for weights
-                n_visible=None,
-                pasosGibbs=1,
-                w=None,
-                lr_bvis=None,  # Learning rate for biases of visible units
-                lr_bocu=None,  # Learning rate for biases of hidden units
-                costo_w=None, # Weigth punishment
-                momento=0.0,
-                unidadesVisibles='binaria',
-                unidadesOcultas='binaria'):
-
-        if n_visible is None:
-            assert self.params != [], "Debe prover de unidades de entrada para esta capa."
-            n_visible = self.params[-1].n_hidden
-
-        # agrego una capa de rbm a la dbn, con los parametros que le paso
-        self.params.append(rbmParams(n_visible=n_visible, n_hidden=n_hidden,
-                                    epocas=numEpoch, tamMiniBatch=tamMiniBatch,
-                                    lr_pesos=epsilonw, pasosGibbs=pasosGibbs,
-                                    w=w, epsilonvb=epsilonvb, epsilonhb=epsilonhb,
-                                    weightcost=weightcost, momentum=momentum,
-                                    unidadesVisibles=unidadesVisibles,
-                                    unidadesOcultas=unidadesOcultas))
-        self.n_layers += 1
-
-    return
-    """
     def addLayer(self, n_visible=None, **kwargs):
 
         if n_visible is None:
@@ -303,7 +248,7 @@ class DBN(object):
 
         return
 
-    def entrenar(self, dataTrn, dataVal, pcd=True,
+    def entrenar(self, dataTrn, dataVal=None, pcd=True,
                          guardarPesosIniciales=False, filtros=True):
         """
         :type dataTrn: narray
@@ -352,15 +297,19 @@ class DBN(object):
                                   validationData=dataVal,
                                   filtros=filtros)
 
-            # TODO aca debe ser la misma analogia de guardado, en un solo archivo en la carpeta como las dbn
-            print("Guardando la capa..") if DBN.DEBUG else None
-            filename = self.name + "_capa" + str(i+1)
-            capaRBM.guardarObjeto(nombreArchivo=filename)
+            # en caso de debug guardo la capa entera
+            if DBN.DEBUG:
+                print("Guardando la capa..")
+                filename = self.name + "_capa" + str(i+1)
+                capaRBM.guardarObjeto(nombreArchivo=filename)
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # [probabilidad_H1, muestra_V1, muestra_H1]
             [_, _, hiddenProbAct] = capaRBM.muestra(muestraV=layer_input)
-            [_,_,dataVal] = capaRBM.muestra(muestraV=dataVal)
+
+            # por ahora no lo utilizo
+            if dataVal is not None:
+                [_,_,dataVal] = capaRBM.muestra(muestraV=dataVal)
 
             # se guardan las activaciones ocultas para la siguiente iteracion
             # de la siguiente capa oculta
@@ -411,7 +360,17 @@ class DBN(object):
                            rng=semillaRandom,
                            ruta=self.ruta)
 
-        clasificador.setParametroEntrenamiento(self.parametrosAjuste)
+        ## solo cargo las keys del ajuste cargadas en las DBN al MLP buscando coincidencias y filtrando lo que no interesa
+        tmp = clasificador.datosAlmacenar._allowed_keys
+        retorno = {}
+        for key in self.datosAlmacenar._allowed_keys:
+            if key in tmp and key not in ['tipo', 'pesos', 'nombre', 'numpy_rng', 'theano_rng', 'pesos_iniciales']:
+                retorno[key] = self.datosAlmacenar[key]
+        #for k in retorno:
+        #    print(k, retorno[k])
+        del tmp
+
+        clasificador.setParametroEntrenamiento(retorno)
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
@@ -434,8 +393,8 @@ class DBN(object):
         T = temporizador()
         inicio = T.tic()
 
-        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = 0.0,0.0,0.0,0.0
-        costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal = clasificador.entrenar(trainSet=datos[0],
+        costoTRN, costoVAL, costoTST, costoTST_final = 0.0,0.0,0.0,0.0
+        costoTRN, costoVAL, costoTST, costoTST_final = clasificador.entrenar(trainSet=datos[0],
                                                              validSet=datos[1],
                                                              testSet=datos[2],
                                                              batch_size=tambatch)
@@ -443,15 +402,15 @@ class DBN(object):
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
 
-        return costoEntrenamiento, errorValidacionHistorico, errorTest, errorTestFinal
+        return costoTRN, costoVAL, costoTST, costoTST_final
 
-    def guardarObjeto(self, filename, compression='zip'):
+    def guardarObjeto(self, nombreArchivo, compression='zip'):
         """
-        guarda la dbn, algunos datos para poder levantarla
+        guarda la mlp, en formato comprimido, todo el objeto
         """
-
-        save(objeto=self, filename=filename, compression=compression)
-        return
+        nombre = self.ruta + nombreArchivo
+        save(objeto=self, filename=nombre, compression=compression)
+        return 0
 
     def _guardar(self, nombreArchivo=None, diccionario=None):
         """
