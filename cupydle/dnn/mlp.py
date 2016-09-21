@@ -37,7 +37,7 @@ from cupydle.dnn.capas import Capa, CapaClasificacion
 from cupydle.dnn.stops import criterios
 from cupydle.dnn.utils import RestrictedDict, save, load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset, gpu_info, calcular_chunk
-from cupydle.dnn.graficos import dibujarErrores
+from cupydle.dnn.graficos import dibujarCostos
 
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
@@ -357,11 +357,7 @@ class MLP(object):
         costoTRN = self._cargar(key='costoTRN')
         costoVAL = self._cargar(key='costoVAL')
         costoTST = self._cargar(key='costoTST')
-        dibujarErrores(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST, **kwargs)
-        #dibujarErrores(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST)
-        #dibujarErrores(costoVAL=costoVAL, costoTST=costoTST)
-        #dibujarErrores(costoTRN=costoTRN, costoTST=costoTST)
-        #dibujarErrores(costoTST=costoTST)
+        dibujarCostos(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST, **kwargs)
         return 0
 
     def construirActualizaciones(self, costo, actualizaciones):

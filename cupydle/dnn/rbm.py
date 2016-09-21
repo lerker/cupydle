@@ -37,8 +37,7 @@ from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
 from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
 from cupydle.dnn.utils import temporizador, RestrictedDict
-from cupydle.dnn.graficos import imagenTiles, dibujarEstadisticosRBM
-
+from cupydle.dnn.graficos import imagenTiles, dibujarCostos
 # eliminar esto
 import matplotlib.pyplot
 
@@ -1200,8 +1199,8 @@ class RBM(object):
         # se guardan los estadisticos
         self._guardar(diccionario={'diffEnergiaTRN':diffEnergiaTRN, 'errorReconsTRN':errorReconsTRN, 'mseTRN':mseTRN})
 
-        # TODO plot estadisticos
-        #self.dibujarEstadisticos()
+        nombreArchivo=self.ruta+'estadisticos_'+self.nombre
+        dibujarCostos(guardar=nombreArchivo, diffEnergiaTRN=diffEnergiaTRN, errorReconsTRN=errorReconsTRN, mseTRN=mseTRN)
         return 1
 
     def reconstruccion(self, muestraV, gibbsSteps=1):

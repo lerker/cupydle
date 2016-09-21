@@ -163,7 +163,7 @@ if __name__ == "__main__":
         costoTST_conjunto_final.append(costoTST_final)
 
         # dibujar estadisticos
-        clasificador.dibujarEstadisticos(mostrar=False, guardar=ruta_kfold)
+        clasificador.dibujarEstadisticos(mostrar=False, guardar=ruta_kfold+'estadisticosMLP')
 
         # guardando los parametros aprendidos
         clasificador.guardarObjeto(filename=nombre)

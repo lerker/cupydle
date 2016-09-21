@@ -128,7 +128,7 @@ if __name__ == "__main__":
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
     # dibujar estadisticos
-    clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta)
+    clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')
 
     # guardando los parametros aprendidos
     clasificador.guardarObjeto(filename=nombre)

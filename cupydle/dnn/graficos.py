@@ -352,7 +352,7 @@ def dibujarGrafoTheano(graph, nombreArchivo=None):
                                 colorCodes=default_colorCodes) # codigo de colores
     return 1
 
-def dibujarErrores(**kwargs):
+def dibujarCostos(**kwargs):
     """
     kwargs['axe']=axe de matplotlib
     kwargs['mostrar']= plot el dibujo
@@ -372,49 +372,17 @@ def dibujarErrores(**kwargs):
     if 'mostrar' in kwargs.keys():
         mostrar = kwargs['mostrar']
     else:
-        mostrar = True
+        mostrar = False
 
     if 'costoTRN' in kwargs.keys():
-        axe.plot(kwargs['costoTRN'], color='black', linewidth=2.0, label='Costo Entrenamiento', marker='^')
+        axe.plot(kwargs['costoTRN'], color='black', linewidth=2.0, label='Costo Entrenamiento')
     if 'costoVAL' in kwargs.keys():
-        axe.plot(kwargs['costoVAL'], color='blue', linewidth=2.0, label='Costo Validacion', linestyle='-.')
+        axe.plot(kwargs['costoVAL'], color='blue', linewidth=2.0, label='Costo Validacion')
     if 'costoTST' in kwargs.keys():
-        linea = '' if numpy.isinf(costoTST).any() else '-'
-        axe.plot(kwargs['costoTST'], color='red', linewidth=2.0, label='Costo Testeo', marker='*', linestyle=linea)
-
-
-    plt.title("COSTOS vs. EPOCAS")
-    plt.legend()
-    plt.show() if mostrar else None
-
-    if 'guardar' in kwargs:
-        plt.savefig(kwargs['guardar']+'estadisticosMLP.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
-        plt.savefig(kwargs['guardar']+'estadisticosMLP.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
-
-    return axe
-
-def dibujarEstadisticosRBM(**kwargs):
-    """
-    kwargs['axe']=axe de matplotlib
-    kwargs['mostrar']= plot el dibujo
-    kwargs['diffEnergiaTRN']= array con la diferencia de energias en el conjunto de entrenamiento
-    kwargs['errorReconsTRN']= array con el costo de recosntruccion del conjunto de entrenamiento
-    kwargs['mseTRN']= error cuadratico medio
-    kwargs['']=
-    kwargs['']=
-    """
-    # configuraciones
-    if 'axe' in kwargs:
-        axe = kwargs['axe']
-    else:
-        plt.cla()
-        axe = plt.gca()
-
-    if 'mostrar' in kwargs.keys():
-        mostrar = kwargs['mostrar']
-    else:
-        mostrar = True
-
+        # para el mlp rapido, no estan todos los valores
+        linea    = '' if numpy.isinf(kwargs['costoTST']).any() else '-'
+        marcador = '*' if numpy.isinf(kwargs['costoTST']).any() else ''
+        axe.plot(kwargs['costoTST'], color='red', linewidth=2.0, label='Costo Testeo', marker=marcador, linestyle=linea)
     if 'diffEnergiaTRN' in kwargs.keys():
         axe.plot(kwargs['diffEnergiaTRN'], color='black', linewidth=2.0, label='Dif. energias libre')
     if 'errorReconsTRN' in kwargs.keys():
@@ -422,15 +390,16 @@ def dibujarEstadisticosRBM(**kwargs):
     if 'mseTRN' in kwargs.keys():
         axe.plot(kwargs['mseTRN'], color='red', linewidth=2.0, label='error cuadratico medio')
 
+    limitesX = axe.get_xlim()
+    plt.xlim(1, limitesX[1])    # se corrige a la epoca 1...max
 
     plt.title("COSTOS vs. EPOCAS")
+    plt.xlabel('epocas')
     plt.legend()
     plt.show() if mostrar else None
 
     if 'guardar' in kwargs:
-        plt.savefig(kwargs['guardar']+'estadisticosRBM.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
-        plt.savefig(kwargs['guardar']+'estadisticosRBM.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+        plt.savefig(kwargs['guardar']+'.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+        plt.savefig(kwargs['guardar']+'.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
 
     return axe
-
-
