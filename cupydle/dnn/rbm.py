@@ -36,7 +36,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
 from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
-from cupydle.dnn.utils import temporizador, RestrictedDict
+from cupydle.dnn.utils import temporizador, RestrictedDict, save
 from cupydle.dnn.graficos import imagenTiles, dibujarCostos
 # eliminar esto
 import matplotlib.pyplot
@@ -52,7 +52,7 @@ theanoFloat  = theano.config.floatX
 class RBM(object):
     """Restricted Boltzmann Machine on GP-GPU (RBM-GPU)  """
 
-    verbose=True
+    DEBUG=False
 
     def __init__(self,
                  n_visible=784,
@@ -128,19 +128,12 @@ class RBM(object):
         # seguimiento del grafo theano, root
         self.x = theano.tensor.matrix(name="x")
 
-        # parametros para el entrenamiento
-        #self.params = {}
-        #self._initParams()
-
-        # estadisticos
-        #self.estadisticos = {}
-        #self._initStatistics()
-
         self.nombre = 'rbmTest' if nombre is None else nombre
 
         self.ruta = ruta
-        self.datosAlmacenar = self._initGuardar()
 
+        # los parametros a guardar del todo el modelo
+        self.datosAlmacenar = self._initGuardar()
     # END INIT
 
     def _initW(self, numpy_rng, metodo='mejorado'):
@@ -185,22 +178,6 @@ class RBM(object):
         del _hidbiases
         return hidbiases
 
-    def _initParams(self):
-        """ inicializa los parametros de la red, un diccionario"""
-        warn("deprecateddddddasdadadasd\nadasdad\asdasdasd")
-        self.params['epsilonw'] = 0.0
-        self.params['epsilonvb'] = 0.0
-        self.params['epsilonhb'] = 0.0
-        self.params['weightcost'] = 0.0
-        self.params['momentum'] = 0.0
-        self.params['epocas'] = 0.0
-        self.params['unidadesVisibles'] = UnidadBinaria()
-        self.params['unidadesOcultas'] = UnidadBinaria()
-        self.params['dropoutVisibles'] = 1.0
-        self.params['dropoutOcultas'] = 1.0
-
-        return 1
-
     def _initGuardar(self):
         """
         inicializa los campos para el almacenamiento
@@ -229,8 +206,8 @@ class RBM(object):
                  'unidadesOcultas':     UnidadBinaria(),
                  'dropoutVisibles':     1.0,
                  'dropoutOcultas':      1.0,
-                 'diffEnergiaTRN':            None,
-                 'errorReconsTRN':            None,
+                 'diffEnergiaTRN':      None,
+                 'errorReconsTRN':      None,
                  'mseTRN':            None,
                  }
         # diccionario restringido en sus keys
@@ -330,76 +307,6 @@ class RBM(object):
             print('{:>20}: {:<10}'.format(str(key), str(value)))
         return 1
 
-    def setParams(self, parametros):
-        warn("deprecateddddddddd\n\nsdasdsad")
-        if not isinstance(parametros, dict):
-            assert False, "necesito un diccionario"
-
-        for key, _ in parametros.items():
-            if key in self.params:
-                self.params[key] = parametros[key]
-            else:
-                assert False, "la clave(" + str(key) + ") en la variable paramtros no existe"
-
-        return 1
-
-    def _initStatistics(self):
-        # incializo el diccionario con los estadisticos
-        dic = {
-                'errorEntrenamiento':[],
-                'errorValidacion':[],
-                'errorValidacion':[],
-                'mseEntrenamiento':[],
-                'errorTesteo':[],
-                'energiaLibreEntrenamiento':[],
-                'energiaLibreValidacion': []
-                }
-
-        self.estadisticos = dic
-        del dic
-        return 1
-
-    def agregarEstadistico(self, estadistico):
-        warn("agregar estadisticos adeadasdas deprecates")
-        # cuando agrega un estadistico (ya sea uno solo) se considera como una epoca nueva
-        # por lo tanto se setea el resto de los estadisitcos con 0.0 los cuales no fueron
-        # provistos
-
-        if not isinstance(estadistico, dict):
-            assert False, str(repr('estadistico') + " debe ser un tipo diccionario")
-
-        # copio para manipular sin cambiar definitivamente
-        viejo = self.estadisticos
-
-        for key, _ in estadistico.items():
-            bandera=True
-            if key in viejo:
-                viejo[key] += [estadistico[key]]
-                bandera = False
-            else:
-                assert False, str("No exite el key " + repr(key))
-            if bandera:
-                viejo[key]+=[0.0]
-
-        self.estadisticos = viejo
-        del viejo
-        return
-
-
-    def dibujarPesos(self, weight=None, save=None, path=None):
-        """
-        Grafica la matriz de pesos de (n_visible x n_ocultas) unidades
-
-        :param weight: matriz de pesos asociada a una RBM, cualquiera
-        """
-        from cupydle.dnn.graficos import pesosConstructor
-        assert False, "el plot son los histogramas"
-        pesos = numpy.asarray(a=self.getW)
-        pesos = numpy.tile(A=pesos, reps=(20,1))
-        print(self.getW.shape, pesos.shape)
-        pesosConstructor(pesos=pesos)
-        return 1
-
     def energiaLibre(self, vsample):
         """
         Calcula la energia libre F(v) = - log sum_h exp(-E(v,h)).
@@ -419,50 +326,6 @@ class RBM(object):
         hidden_term = theano.tensor.sum(theano.tensor.log(1 + theano.tensor.exp(wx_b)), axis=1)
         #return -hidden_term - vbias_term +  0.5* theano.tensor.sum(vbias_term**2, axis=0)
         return -hidden_term - vbias_term
-
-    def crearDibujo(self, datos, axe=None, titulo='', estilo='b-'):
-        #debo asignar la vuelta de axe al axes del dibujo, solo que lo pase por puntero que todavia no se
-
-        # linestyle or ls   [ '-' | '--' | '-.' | ':' | 'steps' | ...]
-        #marker  [ '+' | ',' | '.' | '1' | '2' | '3' | '4' ]
-        if axe is None:
-            axe = matplotlib.pyplot.gca()
-
-        ejeXepocas = range(1,len(datos)+1)
-        axe.plot(ejeXepocas, datos, estilo)
-        axe.set_title(titulo)
-        axe.set_xticks(ejeXepocas) # los ticks del eje de las x solo en los enteros
-        return axe
-
-    def dibujarEstadisticos(self, mostrar=False, guardar=True):
-
-        errorEntrenamiento  = self.estadisticos['errorEntrenamiento']
-        errorValidacion     = self.estadisticos['errorValidacion']
-        errorTesteo         = self.estadisticos['errorTesteo']
-        mseEntrenamiento    = self.estadisticos['mseEntrenamiento']
-        energiaLibreEntrenamiento = self.estadisticos['energiaLibreEntrenamiento']
-        energiaLibreValidacion  = self.estadisticos['energiaLibreValidacion']
-
-        f, axarr = matplotlib.pyplot.subplots(2, 3, sharex='col', sharey='row')
-
-        axarr[0, 0] = self.crearDibujo(errorEntrenamiento, axarr[0, 0], titulo='Error de Entrenamiento', estilo='r-')
-        axarr[0, 1] = self.crearDibujo(errorValidacion, axarr[0, 1], titulo='Error de Validacion', estilo='b-')
-        axarr[0, 2] = self.crearDibujo(errorTesteo, axarr[0, 2], titulo='Error de Testeo')
-
-        axarr[1, 0] = self.crearDibujo(mseEntrenamiento, axarr[1, 0], titulo='MSE de Entrenamiento')
-        axarr[1, 1] = self.crearDibujo(energiaLibreEntrenamiento, axarr[1, 1], titulo='Energia Libre Entrenamiento')
-        axarr[1, 2] = self.crearDibujo(energiaLibreValidacion, axarr[1, 2], titulo='Energia Libre Validacion')
-
-        matplotlib.pyplot.tight_layout()
-
-        if guardar:
-            nombreArchivo= self.ruta + 'rbm_estadisticos.pdf'
-            matplotlib.pyplot.savefig(nombreArchivo, bbox_inches='tight')
-
-        if mostrar:
-            matplotlib.pyplot.mostrar()
-        return
-
 
     def dibujarFiltros(self, nombreArchivo='filtros.png', automatico=True, formaFiltro = (10,10), binary=False, mostrar=False):
 
@@ -1131,12 +994,6 @@ class RBM(object):
             macro_batch_val_count = int(validationData.shape[0] / tamMacroBatchVal)
             sharedDataValidation = theano.shared(numpy.empty((tamMacroBatchVal,) + validationData.shape[1:], dtype=theanoFloat), borrow=True)
 
-
-        """
-        self.sharedEstadisticos = theano.shared(numpy.zeros((10), dtype=theanoFloat))
-        """
-
-
         trainer = None
         self.unidadesVisibles = self._cargar(key='unidadesVisibles')
         self.unidadesOcultas = self._cargar(key='unidadesOcultas')
@@ -1178,13 +1035,6 @@ class RBM(object):
 
             diffEnergiaTRN[indice], errorReconsTRN[indice], mseTRN[indice] = salida / macro_batch_count
 
-            """
-            costo = self.sharedEstadisticos.get_value()[0] / micro_batch_count
-            mse = self.sharedEstadisticos.get_value()[1] / micro_batch_count
-            fEnergy = self.sharedEstadisticos.get_value()[2] / micro_batch_count
-            self.sharedEstadisticos.set_value([0.0]*10)
-            """
-
             # imprimo algo de informacion sobre la terminal
             print(str('Epoca {: >4d} de {: >4d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
                         epoca, epocasAiterar, errorReconsTRN[indice], mseTRN[indice], diffEnergiaTRN[indice]),
@@ -1198,6 +1048,9 @@ class RBM(object):
 
         # se guardan los estadisticos
         self._guardar(diccionario={'diffEnergiaTRN':diffEnergiaTRN, 'errorReconsTRN':errorReconsTRN, 'mseTRN':mseTRN})
+
+        # se guardan los pesos y bias entrenados
+        self._guardar(diccionario={'w': self.w, 'biasVisible':self.visbiases, 'biasOculto': self.hidbiases})
 
         nombreArchivo=self.ruta+'estadisticos_'+self.nombre
         dibujarCostos(guardar=nombreArchivo, diffEnergiaTRN=diffEnergiaTRN, errorReconsTRN=errorReconsTRN, mseTRN=mseTRN)
@@ -1273,7 +1126,6 @@ class RBM(object):
 
         del data
         return [probabilidad_H1, muestra_V1, muestra_H1]
-
 
     def sampleo(self, data, labels=None, chains=20, samples=10, gibbsSteps=1000, patchesDim=(28,28), binary=False):
         """
@@ -1392,44 +1244,13 @@ class RBM(object):
 
         return 1
 
-    def guardar(self, nombreArchivo=None, method='simple', compression=None):
+    def guardarObjeto(self, nombreArchivo, compression='zip'):
         """
-        guarda a disco la instancia de la RBM
-        method is simple, no guardo como theano
-        :param nombreArchivo:
-        :param compression:
-        :param layerN: numero de capa a la cual pertence la rbm (DBN)
-        :param absolutName: si es true se omite los parametros a excepto el nombreArchivo
-        :return:
+        guarda la rbm, en formato comprimido, todo el objeto
         """
-        #from cupydle.dnn.utils import save as saver
-        warn("esta funcion sera <<deprecated>>, ver por guardarPrametros etc")
-        ruta = self.ruta
-        import time
-
-        if nombreArchivo is None:
-            nombreArchivo = ruta + "RBM_V" + str(self.n_visible) + "H" + str(self.n_hidden) + "_" + time.strftime('%Y%m%d_%H%M') + '.zip'
-        else:
-            nombreArchivo = ruta + nombreArchivo
-
-        if method != 'theano':
-            from cupydle.dnn.utils import save as saver
-            saver(objeto=self, filename=nombreArchivo, compression=compression)
-        else:
-            with open(nombreArchivo,'wb') as f:
-                # arreglar esto
-                from cupydle.dnn.utils_theano import save as saver
-                saver(objeto=self, filename=nombreArchivo, compression=compression)
-
-        return
-    # END SAVE
-
-    def guardarParametros(self, nombreArchivo):
-        """
-        guarda los parametros de la red en formato comprimido
-        """
-        numpy.savez_compressed(self.ruta + nombreArchivo + '.npz', w=self.getW, visBias=self.getVisible, hidBias=self.getOculto)
-        return 1
+        nombre = self.ruta + nombreArchivo
+        save(objeto=self, filename=nombre, compression=compression)
+        return 0
 
     @staticmethod
     def load(nombreArchivo=None, method='simple', compression=None):

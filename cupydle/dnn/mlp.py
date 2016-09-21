@@ -484,11 +484,11 @@ class MLP(object):
 
     def guardarObjeto(self, filename, compression='zip'):
         """
-        guarda la dbn, algunos datos para poder levantarla
+        guarda la mlp, en formato comprimido, todo el objeto
         """
         nombre = self.ruta + filename
         save(objeto=self, filename=nombre, compression=compression)
-        return
+        return 0
 
 if __name__ == '__main__':
     assert False, str(__file__ + " No es un modulo")
