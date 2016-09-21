@@ -130,12 +130,12 @@ class RBM(object):
         self.x = theano.tensor.matrix(name="x")
 
         # parametros para el entrenamiento
-        self.params = {}
-        self._initParams()
+        #self.params = {}
+        #self._initParams()
 
         # estadisticos
-        self.estadisticos = {}
-        self._initStatistics()
+        #self.estadisticos = {}
+        #self._initStatistics()
 
         self.nombre = 'rbmTest' if nombre is None else nombre
 
@@ -188,6 +188,7 @@ class RBM(object):
 
     def _initParams(self):
         """ inicializa los parametros de la red, un diccionario"""
+        warn("deprecateddddddasdadadasd\nadasdad\asdasdasd")
         self.params['epsilonw'] = 0.0
         self.params['epsilonvb'] = 0.0
         self.params['epsilonhb'] = 0.0
@@ -219,6 +220,22 @@ class RBM(object):
                  'w_inicial':           None,
                  'biasVisible_inicial': None,
                  'biasOculto_inicial':  None,
+                 'lr_pesos':            0.0,
+                 'lr_bvis':             0.0,
+                 'lr_bocu':             0.0,
+                 'costo_w':             0.0,
+                 'momento':             0.0,
+                 'epocas':              0.0,
+                 'unidadesVisibles':    UnidadBinaria(),
+                 'unidadesOcultas':     UnidadBinaria(),
+                 'dropoutVisibles':     1.0,
+                 'dropoutOcultas':      1.0,
+                 'costoTRN':            None,
+                 'costoVAL':            None,
+                 'costoTST':            None,
+                 'energiaTRN':          None,
+                 'energiaVAL':          None,
+                 'mseTRN':              None,
                  }
 
         # diccionario restringido en sus keys
@@ -282,6 +299,10 @@ class RBM(object):
 
         return retorno
 
+    def setParametros(self, parametros):
+        self._guardar(diccionario=parametros)
+        return 1
+
     def set_w(self, w):
         #if isinstance(w, numpy.ndarray):
         #    self.w.set_value(w)
@@ -315,6 +336,7 @@ class RBM(object):
         return 1
 
     def setParams(self, parametros):
+        warn("deprecateddddddddd\n\nsdasdsad")
         if not isinstance(parametros, dict):
             assert False, "necesito un diccionario"
 
@@ -343,6 +365,7 @@ class RBM(object):
         return 1
 
     def agregarEstadistico(self, estadistico):
+        warn("agregar estadisticos adeadasdas deprecates")
         # cuando agrega un estadistico (ya sea uno solo) se considera como una epoca nueva
         # por lo tanto se setea el resto de los estadisitcos con 0.0 los cuales no fueron
         # provistos
@@ -686,8 +709,8 @@ class RBM(object):
 
         # tamanio de la mascara
 
-        visibleDropout=self.params['dropoutVisibles']
-        hiddenDropout=self.params['dropoutOcultas']
+        visibleDropout= self._cargar(key='dropoutVisibles')
+        hiddenDropout = self._cargar(key='dropoutOcultas')
         dropoutMaskVisible = theanoGenerator.binomial(
                                 size=self.hidbiases.shape,
                                 n=1, p=visibleDropout,
@@ -889,8 +912,8 @@ class RBM(object):
         # corregir esto como lo hizo mrosca
         sized = (miniBatchSize, sharedData.get_value(borrow=True).shape[1])
 
-        visibleDropout=self.params['dropoutVisibles']
-        hiddenDropout=self.params['dropoutOcultas']
+        visibleDropout = self._cargar(key='dropoutVisibles')
+        hiddenDropout  = self._cargar(key='dropoutOcultas')
         dropoutMaskVisible = theanoGenerator.binomial(
                                 size=self.hidbiases.shape,
                                 n=1, p=visibleDropout,
@@ -969,22 +992,18 @@ class RBM(object):
         """
         # arreglo los parametros en caso de que no se hayan establecidos, considero las
         # tasa de aprendizaje para los bias igual al de los pesos
-        if self.params['epsilonvb'] is None:
-            self.params['epsilonvb'] = self.params['epsilonw']
+        assert numpy.any(self._cargar(key='lr_pesos') != 0.0), "La tasa de aprendizaje para los pesos no puede ser nula"
 
-        if numpy.any(self.params['epsilonvb'] == 0.0):
-            self.params['epsilonvb'] = self.params['epsilonw']
+        if self._cargar(key='lr_bvis') is None or numpy.any(self._cargar(key='lr_bvis') == 0.0):
+            self._guardar(diccionario={'lr_bvis':self._cargar(key='lr_pesos')})
 
-        if self.params['epsilonhb'] is None:
-            self.params['epsilonhb'] = self.params['epsilonw']
-        if numpy.any(self.params['epsilonhb'] == 0.0):
-            self.params['epsilonhb'] = self.params['epsilonw']
-        assert numpy.any(self.params['epsilonw'] != 0.0), "La tasa de aprendizaje para los pesos no puede ser nula"
+        if self._cargar(key='lr_bocu') is None or numpy.any(self._cargar(key='lr_bocu') == 0.0):
+            self._guardar(diccionario={'lr_bocu':self._cargar(key='lr_pesos')})
 
-        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
-        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
-        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
-        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
+        momento  = theano.tensor.cast(self._cargar(key='momento'),  dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self._cargar(key='lr_pesos'), dtype=theanoFloat)
+        lr_bvis  = theano.tensor.cast(self._cargar(key='lr_bvis'),dtype=theanoFloat)
+        lr_bocu  = theano.tensor.cast(self._cargar(key='lr_bocu'),dtype=theanoFloat)
         # el escalado del dropout es realizado en el ajuste fino... no aca
         """
         dropout = self.params['dropoutVisibles']
@@ -999,7 +1018,7 @@ class RBM(object):
         negativeDifference = theano.tensor.dot(probabilidad_Vk.T, probabilidad_Hk)
 
         delta = positiveDifference - negativeDifference
-        wUpdate = momentum * self.vishidinc
+        wUpdate = momento * self.vishidinc
         wUpdate += lr_pesos * delta / miniBatchSize
         #wUpdate *= (1.0/(dropout))
         updates.append((self.w, self.w + wUpdate))
@@ -1007,15 +1026,15 @@ class RBM(object):
 
         # actualizacion de los bias visibles
         visibleBiasDiff = theano.tensor.sum(self.x - muestra_Vk , axis=0)
-        biasVisUpdate = momentum * self.visbiasinc
-        biasVisUpdate += lr_vbias * visibleBiasDiff / miniBatchSize
+        biasVisUpdate = momento * self.visbiasinc
+        biasVisUpdate += lr_bvis * visibleBiasDiff / miniBatchSize
         updates.append((self.visbiases, self.visbiases + biasVisUpdate))
         updates.append((self.visbiasinc, biasVisUpdate))
 
         # actualizacion de los bias ocultos
         hiddenBiasDiff = theano.tensor.sum(probabilidad_H0 - probabilidad_Hk, axis=0)
-        biasHidUpdate = momentum * self.hidbiasinc
-        biasHidUpdate += lr_hbias * hiddenBiasDiff / miniBatchSize
+        biasHidUpdate = momento * self.hidbiasinc
+        biasHidUpdate += lr_bocu * hiddenBiasDiff / miniBatchSize
         updates.append((self.hidbiases, self.hidbiases + biasHidUpdate))
         updates.append((self.hidbiasinc, biasHidUpdate))
 
@@ -1024,7 +1043,7 @@ class RBM(object):
 
         return updates
 
-    def buildUpdates_bengio(self, updates, cost, constant):
+    def buildUpdates_versionConGrad(self, updates, cost, constant):
         """
         calcula las actualizaciones de la red sobre sus parametros w hb y vh
         con momento
@@ -1036,17 +1055,18 @@ class RBM(object):
         # para las derivadas, parametro que componene a la red
         self.internalParams = [self.w, self.hidbiases, self.visbiases]
 
-        if self.params['epsilonvb'] is None:
-            self.params['epsilonvb'] = self.params['epsilonw']
-        if self.params['epsilonvb'] == 0.0:
-            self.params['epsilonvb'] = self.params['epsilonw']
+        assert numpy.any(self._cargar(key='lr_pesos') != 0.0), "La tasa de aprendizaje para los pesos no puede ser nula"
 
-        if self.params['epsilonhb'] is None:
-            self.params['epsilonhb'] = self.params['epsilonw']
-        if self.params['epsilonhb'] == 0.0:
-            self.params['epsilonhb'] = self.params['epsilonw']
-        assert self.params['epsilonw'] != 0.0, "La tasa de aprendizaje para los pesos no puede ser nula"
+        if self._cargar(key='lr_bvis') is None or numpy.any(self._cargar(key='lr_bvis') == 0.0):
+            self._guardar(diccionario={'lr_bvis':self._cargar(key='lr_pesos')})
 
+        if self._cargar(key='lr_bocu') is None or numpy.any(self._cargar(key='lr_bocu') == 0.0):
+            self._guardar(diccionario={'lr_bocu':self._cargar(key='lr_pesos')})
+
+        momento  = theano.tensor.cast(self._cargar(key='momento'),  dtype=theanoFloat)
+        lr_pesos = theano.tensor.cast(self._cargar(key='lr_pesos'), dtype=theanoFloat)
+        lr_bvis  = theano.tensor.cast(self._cargar(key='lr_bvis'),dtype=theanoFloat)
+        lr_bocu  = theano.tensor.cast(self._cargar(key='lr_bocu'),dtype=theanoFloat)
 
         # We must not compute the gradient through the gibbs sampling
         gparams = theano.tensor.grad(cost, self.internalParams, consider_constant=[constant])
@@ -1058,21 +1078,16 @@ class RBM(object):
         # una lista de ternas [(w,dc/dw,w_old),(hb,dc/dhb,...),...]
         parametersTuples = zip(self.internalParams, gparams, oldUpdates)
 
-        momentum = theano.tensor.cast(self.params['momentum'], dtype=theanoFloat)
-        lr_pesos = theano.tensor.cast(self.params['epsilonw'], dtype=theanoFloat)
-        lr_vbias = theano.tensor.cast(self.params['epsilonvb'], dtype=theanoFloat)
-        lr_hbias = theano.tensor.cast(self.params['epsilonhb'], dtype=theanoFloat)
-
         otherUpdates = []
 
         for param, delta, oldUpdate in parametersTuples:
             # segun el paramerto tengo diferentes learning rates
             if param.name == self.w.name:
-                paramUpdate = momentum * oldUpdate - lr_pesos * delta
+                paramUpdate = momento * oldUpdate - lr_pesos * delta
             if param.name == self.visbiases.name:
-                paramUpdate = momentum * oldUpdate - lr_vbias * delta
+                paramUpdate = momento * oldUpdate - lr_bvis * delta
             if param.name == self.hidbiases.name:
-                paramUpdate = momentum * oldUpdate - lr_hbias * delta
+                paramUpdate = momento * oldUpdate - lr_bocu * delta
             #param es la variable o paramatro
             #paramUpdate son los incrementos
             #newParam es la variable mas su incremento
@@ -1090,6 +1105,10 @@ class RBM(object):
 
         :type tamMiniBatch: int
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
+
+        import numpy as np
+import shelve as sh
+datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
         """
         memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch = calcular_memoria_requerida(cantidad_ejemplos=data.shape[0], cantidad_valores=data.shape[1], tamMiniBatch=tamMiniBatch)
 
@@ -1123,8 +1142,8 @@ class RBM(object):
 
 
         trainer = None
-        self.unidadesVisibles = self.params['unidadesVisibles']
-        self.unidadesOcultas = self.params['unidadesOcultas']
+        self.unidadesVisibles = self._cargar(key='unidadesVisibles')
+        self.unidadesOcultas = self._cargar(key='unidadesOcultas')
         if pcd:
             print("Entrenando con Divergencia Contrastiva Persistente, {} pasos de Gibss.".format(gibbsSteps))
             trainer = self.DivergenciaContrastivaPersistente(tamMiniBatch, sharedData)
@@ -1146,7 +1165,7 @@ class RBM(object):
         print("Tamanio del MiniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
         print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
-        for epoch in range(1, self.params['epocas']):
+        for epoch in range(1, self._cargar(key='epocas')):
 
             costo = []; mse = []; fEnergy = []
             ####
@@ -1177,6 +1196,8 @@ class RBM(object):
             self.sharedEstadisticos.set_value([0.0]*10)
             """
 
+            # TODO estadisticos
+            """
             self.agregarEstadistico(
                 {'errorEntrenamiento': costo,
                  'mseEntrenamiento': mse,
@@ -1184,10 +1205,10 @@ class RBM(object):
                  'errorTesteo': 0.0,
                  'energiaLibreEntrenamiento': fEnergy,
                  'energiaLibreValidacion': 0.0})
-
+            """
             # imprimo algo de informacion sobre la terminal
             print(str('Epoca {:>3d} de {:>3d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch, self.params['epocas'], costo, mse, fEnergy),
+                        epoch, self._cargar(key='epocas'), costo, mse, fEnergy),
                     end=finLinea)
 
             if filtros:
@@ -1197,7 +1218,8 @@ class RBM(object):
         # END epoch
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
 
-        self.dibujarEstadisticos()
+        # TODO plot estadisticos
+        #self.dibujarEstadisticos()
         return 1
 
     def reconstruccion(self, muestraV, gibbsSteps=1):

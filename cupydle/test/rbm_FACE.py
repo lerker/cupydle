@@ -119,18 +119,21 @@ if __name__ == "__main__":
     # creo la red
     red = RBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
 
-    parametros = {'epsilonw':       tasaAprenW,
-                'epsilonvb':        tasaAprenV,
-                'epsilonhb':        tasaAprenO,
-                'momentum':         momentoTRN,
-                'weightcost':       weightcost,
+    parametros = {'lr_pesos':       tasaAprenW,
+                'lr_bvis':          tasaAprenV,
+                'lr_bocu':          tasaAprenO,
+                'momento':          momentoTRN,
+                'costo_w':          weightcost,
                 'unidadesVisibles': UnidadBinaria(),
                 'unidadesOcultas':  UnidadBinaria(),
                 'dropoutVisibles':  dropVis, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
                 'dropoutOcultas':   dropOcu} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
-    red.setParams(parametros)
-    red.setParams({'epocas':epocasTRN})
+
+    #red.setParams(parametros)
+    #red.setParams({'epocas':epocasTRN})
+    red.setParametros(parametros)
+    red.setParametros({'epocas':epocasTRN})
 
     T = temporizador()
     inicio = T.tic()
