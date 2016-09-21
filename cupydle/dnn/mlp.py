@@ -109,7 +109,7 @@ class MLP(object):
         for k,v in datos.items():
             almacenar[k]=v
 
-        with shelve.open(archivo, flag='n', writeback=False) as shelf:
+        with shelve.open(archivo, flag='n', writeback=False, protocol=2) as shelf:
             for key in almacenar.keys():
                 shelf[key] = almacenar[key]
             shelf.close()
@@ -342,8 +342,14 @@ class MLP(object):
         costoTST_final   = costoTST[indice]
 
         # se guardan los pesos y bias ya entrenados
-        [self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
-        [self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
+        # TODO consume mucha memoria, porque crea la lista y la deja cargada
+        #[self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
+        #[self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
+        # probar de iterar uno por uno
+        for x in self.capas:
+            self._guardar(diccionario={'pesos':x.getW})
+            self._guardar(diccionario={'bias':x.getB})
+
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
@@ -463,7 +469,7 @@ class MLP(object):
         #self.datosAlmacenar = datos
 
         # ojo con el writeback
-        with shelve.open(archivo, flag='w', writeback=False) as shelf:
+        with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in datos.keys():
                 shelf[key]=datos[key]
             shelf.close()
@@ -473,7 +479,7 @@ class MLP(object):
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+        with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
             if key is not None:
                 retorno = shelf[key]
             else:
