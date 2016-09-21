@@ -37,7 +37,7 @@ from cupydle.dnn.unidades import UnidadBinaria
 from cupydle.dnn.loss import errorCuadraticoMedio
 from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
 from cupydle.dnn.utils import temporizador, RestrictedDict
-from cupydle.dnn.graficos import imagenTiles
+from cupydle.dnn.graficos import imagenTiles, dibujarEstadisticosRBM
 
 # eliminar esto
 import matplotlib.pyplot
@@ -230,14 +230,10 @@ class RBM(object):
                  'unidadesOcultas':     UnidadBinaria(),
                  'dropoutVisibles':     1.0,
                  'dropoutOcultas':      1.0,
-                 'costoTRN':            None,
-                 'costoVAL':            None,
-                 'costoTST':            None,
-                 'energiaTRN':          None,
-                 'energiaVAL':          None,
-                 'mseTRN':              None,
+                 'diffEnergiaTRN':            None,
+                 'errorReconsTRN':            None,
+                 'mseTRN':            None,
                  }
-
         # diccionario restringido en sus keys
         almacenar = RestrictedDict(datos)
         for k,v in datos.items():
@@ -948,7 +944,7 @@ class RBM(object):
         energia_modelo = theano.tensor.mean(self.energiaLibre(probabilidad_Vk))
         #energia2 = theano.tensor.mean(self.energiaLibre(salidaLineal_Vk))
 
-        costo1 = energia_dato - energia_modelo
+        diffEnergia = energia_dato - energia_modelo
 
         # construyo las actualizaciones en los updates (variables shared)
         updates=self.construirActualizaciones(
@@ -959,22 +955,22 @@ class RBM(object):
                     muestra_Vk=muestra_Vk,
                     miniBatchSize=miniBatchSize)
 
-        costo2 = self.reconstructionCost(salidaLineal_Vk)
+        reconstError = self.reconstructionCost(salidaLineal_Vk)
 
 
-        #costo3 = self.reconstructionCost_MSE(droppedOutVisible, probabilidad_Vk)
-        costo3 = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
+        #mse = self.reconstructionCost_MSE(droppedOutVisible, probabilidad_Vk)
+        mse = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
 
         """
         estadisticos_update = []
-        estadistico = (self.sharedEstadisticos, self.sharedEstadisticos + [costo2, costo3, costo1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        estadistico = (self.sharedEstadisticos, self.sharedEstadisticos + [reconstError, mse, diffEnergia, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         estadisticos_update.append(estadistico)
         updates += estadisticos_update
         """
 
         train_rbm = theano.function(
                         inputs=[miniBatchIndex, steps],
-                        outputs=[costo2, costo3, costo1],
+                        outputs=[diffEnergia, reconstError, mse],
                         updates=updates,
                         givens={
                             self.x: sharedData[miniBatchIndex * miniBatchSize: (miniBatchIndex + 1) * miniBatchSize]
@@ -982,6 +978,7 @@ class RBM(object):
             name='train_rbm_cd'
         )
 
+        # retorna [diffEnergia, reconstError, mse] sobre el conjunto de entrenamiento
         return train_rbm
 
     def construirActualizaciones(self, updatesOriginal, probabilidad_H0, probabilidad_Vk, probabilidad_Hk, muestra_Vk, miniBatchSize):
@@ -1107,8 +1104,8 @@ class RBM(object):
         :param tamMiniBatch: cantidad de ejeemplos del subconjunto
 
         import numpy as np
-import shelve as sh
-datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
+        import shelve as sh
+        datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
         """
         memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch = calcular_memoria_requerida(cantidad_ejemplos=data.shape[0], cantidad_valores=data.shape[1], tamMiniBatch=tamMiniBatch)
 
@@ -1156,8 +1153,13 @@ datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
             # plot los filtros iniciales (sin entrenamiento)
             self.dibujarFiltros(nombreArchivo='filtros_epoca_0.pdf', automatico=True)
 
+        epocasAiterar = self._cargar(key='epocas')
 
-        costo = numpy.Inf; mse = numpy.Inf; fEnergy = numpy.Inf
+        # se almacenan por epoca los valores de los costo
+        diffEnergiaTRN = numpy.full((epocasAiterar,), numpy.Inf)
+        errorReconsTRN = numpy.full((epocasAiterar,), numpy.Inf)
+        mseTRN         = numpy.full((epocasAiterar,), numpy.Inf)
+
         finLinea = '\r' if printCompacto else '\n'
 
         print("Entrenando una RBM, con [{}] unidades visibles y [{}] unidades ocultas".format(self.n_visible, self.n_hidden))
@@ -1165,30 +1167,18 @@ datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
         print("Tamanio del MiniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
         print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
-        for epoch in range(1, self._cargar(key='epocas')):
+        for epoch in range(0, epocasAiterar):
+            indice = epoch
+            epoca  = epoch + 1
 
-            costo = []; mse = []; fEnergy = []
-            ####
-            # el macro batch se agrega aca, la unica diferencia esta en que se cargan los datos dentro
-            # y se se ejecuta normalmente
-            ####
+            salida = [0.0,0.0,0.0] # salida del trainer, ojo que si cambia la cantindad se debe cambiar aca [diffEnergia, reconstError, mse]
             for macro_batch_index in range(0,macro_batch_count):
-            ###
                 sharedData.set_value(data[macro_batch_index * tamMacroBatch: (macro_batch_index + 1) * tamMacroBatch], borrow=True)
+                # trainer devuelve 3 valores por llamada, mean-> axis=0 promeida cada valor y retorna una lista con los promedios (len==3)
+                salida += numpy.mean([trainer(batch, gibbsSteps) for batch in range(micro_batch_count)], axis=0)
 
-                for batch in range(0, micro_batch_count):
-                    # salida[monitoring_cost, mse, deltafreeEnergy]
-                    salida = trainer(batch, gibbsSteps)
+            diffEnergiaTRN[indice], errorReconsTRN[indice], mseTRN[indice] = salida / macro_batch_count
 
-                    costo.append(salida[0])
-                    mse.append(salida[1])
-                    fEnergy.append(salida[2])
-
-            ###
-
-            costo = numpy.mean(costo)
-            mse = numpy.mean(mse)
-            fEnergy = numpy.mean(fEnergy)
             """
             costo = self.sharedEstadisticos.get_value()[0] / micro_batch_count
             mse = self.sharedEstadisticos.get_value()[1] / micro_batch_count
@@ -1196,27 +1186,19 @@ datos = sh.open('/cupydle/test/face/test_RBM/mlp.cupydle')
             self.sharedEstadisticos.set_value([0.0]*10)
             """
 
-            # TODO estadisticos
-            """
-            self.agregarEstadistico(
-                {'errorEntrenamiento': costo,
-                 'mseEntrenamiento': mse,
-                 'errorValidacion': 0.0,
-                 'errorTesteo': 0.0,
-                 'energiaLibreEntrenamiento': fEnergy,
-                 'energiaLibreValidacion': 0.0})
-            """
             # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {:>3d} de {:>3d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
-                        epoch, self._cargar(key='epocas'), costo, mse, fEnergy),
+            print(str('Epoca {: >4d} de {: >4d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+                        epoca, epocasAiterar, errorReconsTRN[indice], mseTRN[indice], diffEnergiaTRN[indice]),
                     end=finLinea)
 
             if filtros:
-                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoch), automatico=True)
-
+                self.dibujarFiltros(nombreArchivo='filtros_epoca_{}.pdf'.format(epoca), automatico=True)
             # END SET
         # END epoch
         print("",flush=True) # para avanzar la linea y no imprima arriba de lo anterior
+
+        # se guardan los estadisticos
+        self._guardar(diccionario={'diffEnergiaTRN':diffEnergiaTRN, 'errorReconsTRN':errorReconsTRN, 'mseTRN':mseTRN})
 
         # TODO plot estadisticos
         #self.dibujarEstadisticos()

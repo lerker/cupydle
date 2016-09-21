@@ -375,27 +375,13 @@ def dibujarErrores(**kwargs):
         mostrar = True
 
     if 'costoTRN' in kwargs.keys():
-        costoTRN = kwargs['costoTRN']
-    else:
-        costoTRN = None
-
+        axe.plot(kwargs['costoTRN'], color='black', linewidth=2.0, label='Costo Entrenamiento', marker='^')
     if 'costoVAL' in kwargs.keys():
-        costoVAL = kwargs['costoVAL']
-    else:
-        costoVAL = None
-
+        axe.plot(kwargs['costoVAL'], color='blue', linewidth=2.0, label='Costo Validacion', linestyle='-.')
     if 'costoTST' in kwargs.keys():
-        costoTST = kwargs['costoTST']
-    else:
-        costoTST = None
-
-    if costoTRN is not None:
-        axe.plot(costoTRN, color='black', linewidth=2.0, label='Costo Entrenamiento', marker='^')
-    if costoVAL is not None:
-        axe.plot(costoVAL, color='blue', linewidth=2.0, label='Costo Validacion', linestyle='-.')
-    if costoTST is not None:
         linea = '' if numpy.isinf(costoTST).any() else '-'
-        axe.plot(costoTST, color='red', linewidth=2.0, label='Costo Testeo', marker='*', linestyle=linea)
+        axe.plot(kwargs['costoTST'], color='red', linewidth=2.0, label='Costo Testeo', marker='*', linestyle=linea)
+
 
     plt.title("COSTOS vs. EPOCAS")
     plt.legend()
@@ -406,4 +392,45 @@ def dibujarErrores(**kwargs):
         plt.savefig(kwargs['guardar']+'estadisticosMLP.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
 
     return axe
+
+def dibujarEstadisticosRBM(**kwargs):
+    """
+    kwargs['axe']=axe de matplotlib
+    kwargs['mostrar']= plot el dibujo
+    kwargs['diffEnergiaTRN']= array con la diferencia de energias en el conjunto de entrenamiento
+    kwargs['errorReconsTRN']= array con el costo de recosntruccion del conjunto de entrenamiento
+    kwargs['mseTRN']= error cuadratico medio
+    kwargs['']=
+    kwargs['']=
+    """
+    # configuraciones
+    if 'axe' in kwargs:
+        axe = kwargs['axe']
+    else:
+        plt.cla()
+        axe = plt.gca()
+
+    if 'mostrar' in kwargs.keys():
+        mostrar = kwargs['mostrar']
+    else:
+        mostrar = True
+
+    if 'diffEnergiaTRN' in kwargs.keys():
+        axe.plot(kwargs['diffEnergiaTRN'], color='black', linewidth=2.0, label='Dif. energias libre')
+    if 'errorReconsTRN' in kwargs.keys():
+        axe.plot(kwargs['errorReconsTRN'], color='blue', linewidth=2.0, label='Error reconstruccion')
+    if 'mseTRN' in kwargs.keys():
+        axe.plot(kwargs['mseTRN'], color='red', linewidth=2.0, label='error cuadratico medio')
+
+
+    plt.title("COSTOS vs. EPOCAS")
+    plt.legend()
+    plt.show() if mostrar else None
+
+    if 'guardar' in kwargs:
+        plt.savefig(kwargs['guardar']+'estadisticosRBM.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+        plt.savefig(kwargs['guardar']+'estadisticosRBM.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+
+    return axe
+
 
