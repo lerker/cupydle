@@ -117,6 +117,7 @@ if __name__ == "__main__":
 
     T = temporizador()
     inicio = T.tic()
+
     # se entrena la red
     clasificador.entrenar(trainSet=datos[0],
                           validSet=datos[1],
@@ -126,11 +127,6 @@ if __name__ == "__main__":
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
-
-    # TODO esto estaba en la funcion de MLP.entrenar, linea 349-353
-    for x in clasificador.capas:
-        clasificador._guardar(diccionario={'pesos':x.getW})
-        clasificador._guardar(diccionario={'bias':x.getB})
 
     # dibujar estadisticos
     clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')

@@ -209,7 +209,10 @@ class DBN(object):
                  'momento':             0.0,
                  'epocas':              0.0,
                  'activacion':          'sigmoidea',
-                 'toleranciaError':     0.0
+                 'toleranciaError':     0.0,
+                 'costoTRN':            0.0,
+                 'costoVAL':            0.0,
+                 'costoTST':            0.0
                  }
 
         # diccionario restringido en sus keys
@@ -365,12 +368,11 @@ class DBN(object):
         retorno = {}
         for key in self.datosAlmacenar._allowed_keys:
             if key in tmp and key not in ['tipo', 'pesos', 'nombre', 'numpy_rng', 'theano_rng', 'pesos_iniciales']:
-                retorno[key] = self.datosAlmacenar[key]
-        #for k in retorno:
-        #    print(k, retorno[k])
+                retorno[key] = self._cargar(key=key)
         del tmp
 
         clasificador.setParametroEntrenamiento(retorno)
+        del retorno
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
@@ -407,6 +409,9 @@ class DBN(object):
             clasificador._guardar(diccionario={'pesos':x.getW})
             clasificador._guardar(diccionario={'bias':x.getB})
 
+        # se guardan los estadisticos
+        self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
+
         return costoTRN, costoVAL, costoTST, costoTST_final
 
     def guardarObjeto(self, nombreArchivo, compression='zip'):
@@ -425,35 +430,18 @@ class DBN(object):
         nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        # datos a guardar
-        datos = self.datosAlmacenar
+        permitidas = self.datosAlmacenar._allowed_keys
+        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
 
-        if diccionario is not None:
+        with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():
-                if isinstance(datos[key],list) and diccionario[key] !=[]:
-                    datos[key].append(diccionario[key])
+                if isinstance(self.datosAlmacenar[key],list):
+                    tmp = shelf[key]
+                    tmp.append(diccionario[key])
+                    shelf[key] = tmp
+                    del tmp
                 else:
-                    datos[key] = diccionario[key]
-        else:
-            print("nada que guardar")
-            return 0
-
-        # todo ver si borro esto
-        #self.datosAlmacenar = datos
-
-        # ojo con el writeback
-        with shelve.open(archivo, flag='w', writeback=False) as shelf:
-            for key in datos.keys():
-                """
-                tmp = shelf[key]
-                if isinstance(tmp,list):
-                    print(key)
-                    tmp.extend(datos[key])
-                    shelf[key]=tmp
-                else:
-                    shelf[key]=datos[key]
-                """
-                shelf[key]=datos[key]
+                    shelf[key] = diccionario[key]
             shelf.close()
         return 0
 
@@ -461,8 +449,9 @@ class DBN(object):
         nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+        with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
             if key is not None:
+                assert key in shelf.keys(), "key no almacenada " + str(key)
                 retorno = shelf[key]
             else:
                 retorno = shelf.copy

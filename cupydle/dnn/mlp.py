@@ -286,6 +286,7 @@ class MLP(object):
         mejorEpoca = 0
 
         epocasAiterar = self._cargar(key='epocas')
+        print("epocassssSSSS", epocasAiterar)
         iteracionesMax = criterios['iteracionesMaximas'](maxIter=epocasAiterar)
         toleranciaErr = criterios['toleranciaError'](self._cargar(key='toleranciaError'))
 
@@ -346,11 +347,11 @@ class MLP(object):
         #[self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
         #[self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
         # probar de iterar uno por uno
-        """ TODO
+        # TODO
         for x in self.capas:
             self._guardar(diccionario={'pesos':x.getW})
             self._guardar(diccionario={'bias':x.getB})
-        """
+
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
@@ -453,26 +454,18 @@ class MLP(object):
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        # datos a guardar
-        datos = self.datosAlmacenar
+        permitidas = self.datosAlmacenar._allowed_keys
+        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
 
-        if diccionario is not None:
-            for key in diccionario.keys():
-                if isinstance(datos[key],list) and diccionario[key] !=[]:
-                    datos[key].append(diccionario[key])
-                else:
-                    datos[key] = diccionario[key]
-        else:
-            print("nada que guardar")
-            return 0
-
-        # todo ver si borro esto
-        #self.datosAlmacenar = datos
-
-        # ojo con el writeback
         with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
-            for key in datos.keys():
-                shelf[key]=datos[key]
+            for key in diccionario.keys():
+                if isinstance(self.datosAlmacenar[key],list):
+                    tmp = shelf[key]
+                    tmp.append(diccionario[key])
+                    shelf[key] = tmp
+                    del tmp
+                else:
+                    shelf[key] = diccionario[key]
             shelf.close()
         return 0
 
@@ -482,6 +475,7 @@ class MLP(object):
 
         with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
             if key is not None:
+                assert key in shelf.keys(), "key no almacenada " + str(key)
                 retorno = shelf[key]
             else:
                 retorno = shelf.copy
