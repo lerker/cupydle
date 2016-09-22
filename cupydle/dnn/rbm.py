@@ -1042,7 +1042,7 @@ class RBM(object):
             diffEnergiaTRN[indice], errorReconsTRN[indice], mseTRN[indice] = salida / macro_batch_count
 
             # imprimo algo de informacion sobre la terminal
-            print(str('Epoca {: >4d} de {: >4d}, error<TrnSet>:{:> 8.5f}, MSE<ejemplo>:{:> 8.5f}, EnergiaLibre<ejemplo>:{:> 8.5f}').format(
+            print(str('Epoca {: >4d} de {: >4d}, Costo:{:> 8.5f}, MSE:{:> 8.5f}, EnergiaLibre:{:> 8.5f}').format(
                         epoca, epocasAiterar, errorReconsTRN[indice], mseTRN[indice], diffEnergiaTRN[indice]),
                     end=finLinea)
 
