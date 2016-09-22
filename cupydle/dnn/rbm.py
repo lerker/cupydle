@@ -238,23 +238,18 @@ class RBM(object):
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        # datos a guardar
-        datos = self.datosAlmacenar
+        permitidas = self.datosAlmacenar._allowed_keys
+        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
 
-        if diccionario is not None:
+        with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():
-                if isinstance(datos[key],list) and diccionario[key] !=[]:
-                    datos[key].append(diccionario[key])
+                if isinstance(self.datosAlmacenar[key],list):
+                    tmp = shelf[key]
+                    tmp.append(diccionario[key])
+                    shelf[key] = tmp
+                    del tmp
                 else:
-                    datos[key] = diccionario[key]
-        else:
-            print("nada que guardar")
-            return 0
-
-        # ojo con el writeback
-        with shelve.open(archivo, flag='w', writeback=False) as shelf:
-            for key in datos.keys():
-                shelf[key]=datos[key]
+                    shelf[key] = diccionario[key]
             shelf.close()
         return 0
 
@@ -262,8 +257,9 @@ class RBM(object):
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
         archivo = self.ruta + nombreArchivo + '.cupydle'
 
-        with shelve.open(archivo, flag='r', writeback=False) as shelf:
+        with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
             if key is not None:
+                assert key in shelf.keys(), "key no almacenada " + str(key)
                 retorno = shelf[key]
             else:
                 retorno = shelf.copy
