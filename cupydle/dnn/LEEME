@@ -39,3 +39,10 @@ https://gist.github.com/dynamicguy/3d1fce8dae65e765f7c4
 -> https://github.com/uricamic/flandmark/blob/master/INSTALL
 
 
+PROFILER
+pip3 install cprofilev
+python3 -m cProfile -o salida -s cumulative cupydle/test/dbn_FACE.py --directorio "test_DBN" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 30 6 --lepocaTRN 200 --lepocaFIT 1000 -lrTRN 0.1 -lrFIT 0.1
+cprofilev -f salida
+
+cprofilev -f salida
+

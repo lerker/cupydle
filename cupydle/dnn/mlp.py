@@ -346,10 +346,11 @@ class MLP(object):
         #[self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
         #[self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
         # probar de iterar uno por uno
+        """ TODO
         for x in self.capas:
             self._guardar(diccionario={'pesos':x.getW})
             self._guardar(diccionario={'bias':x.getB})
-
+        """
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 

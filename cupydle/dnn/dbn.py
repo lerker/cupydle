@@ -402,6 +402,11 @@ class DBN(object):
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
 
+        # TODO esto estaba en la funcion de MLP.entrenar, linea 349-353
+        for x in clasificador.capas:
+            clasificador._guardar(diccionario={'pesos':x.getW})
+            clasificador._guardar(diccionario={'bias':x.getB})
+
         return costoTRN, costoVAL, costoTST, costoTST_final
 
     def guardarObjeto(self, nombreArchivo, compression='zip'):
