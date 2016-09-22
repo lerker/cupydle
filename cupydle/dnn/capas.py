@@ -70,7 +70,7 @@ class Capa(object):
         self.b = b
 
         # parameters of the model
-        self.params = [self.W, self.b]
+        #self.params = [self.W, self.b]
 
         self.x = entrada
 
@@ -149,7 +149,7 @@ class CapaClasificacion(Capa):
         self.b = b
 
         # parameters of the model
-        self.params = [self.W, self.b]
+        #self.params = [self.W, self.b]
 
         self.x = entrada
 

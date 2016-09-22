@@ -57,7 +57,7 @@ class MLP(object):
         self.capas = []
 
         # se guardan los parametros de la red a optimizar, W y b
-        self.params = []
+        #self.params = []
 
         # parametros para el entrenamiento
         self.cost   = 0.0
@@ -174,7 +174,7 @@ class MLP(object):
         self.capas.append(capa)
 
         # se guardan los parametros de las capas (w,b) para el entrenamiento
-        self.params += capa.params
+        #self.params += capa.params
         # se borra forzadamente el objeto para liberar espacio
         del capa, entrada
 
@@ -243,6 +243,8 @@ class MLP(object):
         if tamMacroBatch is None:
             tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=n_train_batches*batch_size)
 
+        del memoria_disponible, memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch
+
         # necesito actualizar los costos, si no hago este paso no tengo
         # los valores requeridos
         self.costos(y)
@@ -264,16 +266,16 @@ class MLP(object):
                                         updates=updates,
                                         y=y)
 
+        del updates, costo
 
-        k = self.predict()
-        ll = testY
         predictor = theano.function(
                         inputs=[],
-                        outputs=[k,ll],
+                        outputs=[self.predict(),testY],
                         givens={
                             self.x: testX},
                         name='predictor'
         )
+        del trainX, trainY, validX, validY, testX, testY
 
         unidades = [self.capas[0].getW.shape[0]]
         unidades.extend([c.getB.shape[0] for c in self.capas])
@@ -281,12 +283,11 @@ class MLP(object):
         print("Cantidad de ejemplos para el entrenamiento supervisado: ", n_train_batches*batch_size)
         print("Tamanio del miniBatch: ", tamMiniBatch, "Tamanio MacroBatch: ", tamMacroBatch)
         print("MEMORIA antes de iterar: ", gpu_info('Mb'), '\nEntrenando...') if MLP.DEBUG else None
-
+        del tamMiniBatch
         epoca = 0
         mejorEpoca = 0
 
         epocasAiterar = self._cargar(key='epocas')
-        print("epocassssSSSS", epocasAiterar)
         iteracionesMax = criterios['iteracionesMaximas'](maxIter=epocasAiterar)
         toleranciaErr = criterios['toleranciaError'](self._cargar(key='toleranciaError'))
 
@@ -339,14 +340,17 @@ class MLP(object):
         print('Entrenamiento Finalizado. Mejor puntaje de validacion: {:> 8.5f} con un performance en el test de {:> 8.5f}'.format
               (costoVAL[numpy.argmin(costoVAL)] * 100., costoTST[numpy.argmin(costoVAL)] * 100.))
 
+        del unidades, epocasAiterar, iteracionesMax, toleranciaErr
+
         costoTST[indice] = numpy.mean([test_model(i) for i in range(n_test_batches)])
         costoTST_final   = costoTST[indice]
+        del n_train_batches, n_valid_batches, n_test_batches
+        del train_model, validate_model, test_model
 
         # se guardan los pesos y bias ya entrenados
         # TODO consume mucha memoria, porque crea la lista y la deja cargada
         #[self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
         #[self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
-        # probar de iterar uno por uno
         # TODO
         for x in self.capas:
             self._guardar(diccionario={'pesos':x.getW})
@@ -376,7 +380,12 @@ class MLP(object):
 
         # compute the gradient of cost with respect to theta (sorted in params)
         # the resulting gradients will be stored in a list gparams
-        gparams = [theano.tensor.grad(cost, param) for param in self.params]
+        #self.params = parametros [W,b] "shared" de cada capa de la red
+        parametrosXcapa = []
+        for c in self.capas:
+            parametrosXcapa.extend([c.W, c.b])
+        #gparams = [theano.tensor.grad(cost, param) for param in self.params]
+        gparams = [theano.tensor.grad(cost, param) for param in parametrosXcapa]
 
         # specify how to update the parameters of the model as a list of
         # (variable, update expression) pairs
@@ -385,10 +394,8 @@ class MLP(object):
         # B = [b1, b2, b3, b4], zip generates a list C of same size, where each
         # element is a pair formed from the two lists :
         #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
-        updates = [
-            (param, param - self._cargar(key='tasaAprendizaje') * gparam)
-                for param, gparam in zip(self.params, gparams)
-            ]
+        #updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(self.params, gparams) ]
+        updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(parametrosXcapa, gparams) ]
 
         # si ya vienen con actualizaciones (updates previas)
         #actualizaciones.append(updates)
@@ -456,6 +463,7 @@ class MLP(object):
 
         permitidas = self.datosAlmacenar._allowed_keys
         assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
+        del permitidas
 
         with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():

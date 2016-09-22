@@ -819,13 +819,6 @@ class RBM(object):
         #mse = self.reconstructionCost_MSE(droppedOutVisible, probabilidad_Vk)
         mse = errorCuadraticoMedio(droppedOutVisible, probabilidad_Vk)
 
-        """
-        estadisticos_update = []
-        estadistico = (self.sharedEstadisticos, self.sharedEstadisticos + [reconstError, mse, diffEnergia, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        estadisticos_update.append(estadistico)
-        updates += estadisticos_update
-        """
-
         train_rbm = theano.function(
                         inputs=[miniBatchIndex, steps],
                         outputs=[diffEnergia, reconstError, mse],

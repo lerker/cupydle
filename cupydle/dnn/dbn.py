@@ -97,7 +97,7 @@ class rbmParams(object):
         self.lr_bocu            = lr_bocu
         self.costo_w            = costo_w
         self.momento            = momento
-        self.toleranciaError    = toleranciaError
+        #self.toleranciaError    = toleranciaError
         self.tamMiniBatch       = tamMiniBatch
         self.unidadesVisibles   = unidadesVisibles
         self.unidadesOcultas    = unidadesOcultas
@@ -114,7 +114,7 @@ class rbmParams(object):
         print("Castigo pesos:",self.costo_w)
         print("Pasos de Gibss:", self.pasosGibbs)
         print("Tamanio del minibatch:",self.tamMiniBatch)
-        print("Tolerancia del error permitido:",self.toleranciaError)
+        #print("Tolerancia del error permitido:",self.toleranciaError)
         print("Tipo de Unidades Visibles:", self.unidadesVisibles)
         print("Tipo de Unidades Ocultas:", self.unidadesOcultas)
         return str("")
@@ -172,7 +172,7 @@ class DBN(object):
         self.x = theano.tensor.matrix('samples')  # los datos de entrada son del tipo tensor de orden dos
         self.y = theano.tensor.ivector('labels')  # las etiquetas son tensores de orden uno (ints)
 
-        self.params = []
+        self.capas = []
         self.n_layers = 0
         self.pesos = [] #pesos almacenados en una lista, una vez entrenados se guardan aca
                         # para utilizarse en el fit o prediccion...
@@ -242,11 +242,11 @@ class DBN(object):
     def addLayer(self, n_visible=None, **kwargs):
 
         if n_visible is None:
-            assert self.params != [], "Debe prover de unidades de entrada para esta capa."
-            n_visible = self.params[-1].n_hidden
+            assert self.capas != [], "Debe prover de unidades de entrada para esta capa."
+            n_visible = self.capas[-1].n_hidden
 
         # agrego una capa de rbm a la dbn, con los parametros que le paso
-        self.params.append(rbmParams(n_visible=n_visible, **kwargs))
+        self.capas.append(rbmParams(n_visible=n_visible, **kwargs))
         self.n_layers += 1
 
         return
@@ -281,22 +281,22 @@ class DBN(object):
             os.makedirs(directorioRbm) if not os.path.exists(directorioRbm) else None
 
             # Construct an RBM that shared weights with this layer
-            capaRBM = RBM(n_visible=self.params[i].n_visible,
-                          n_hidden=self.params[i].n_hidden,
-                          w=self.params[i].w,
+            capaRBM = RBM(n_visible=self.capas[i].n_visible,
+                          n_hidden=self.capas[i].n_hidden,
+                          w=self.capas[i].w,
                           ruta=directorioRbm)
 
             # configuro la capa, la rbm
-            capaRBM.setParametros(self.params[i].getParametrosEntrenamiento)
+            capaRBM.setParametros(self.capas[i].getParametrosEntrenamiento)
 
             # train it!! layer per layer
             print("Entrenando la capa:", i+1)
             self._guardar(diccionario={'pesos_iniciales':capaRBM.getW}) if guardarPesosIniciales else None
 
             capaRBM.entrenamiento(data=layer_input,
-                                  tamMiniBatch=self.params[i].tamMiniBatch,
+                                  tamMiniBatch=self.capas[i].tamMiniBatch,
                                   pcd=pcd,
-                                  gibbsSteps=self.params[i].pasosGibbs,
+                                  gibbsSteps=self.capas[i].pasosGibbs,
                                   validationData=dataVal,
                                   filtros=filtros)
 
@@ -378,15 +378,15 @@ class DBN(object):
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
         for i in range(0,len(self.pesos)-1):
-            clasificador.agregarCapa(unidadesEntrada=self.params[i].n_visible,
-                                     unidadesSalida=self.params[i].n_hidden,
+            clasificador.agregarCapa(unidadesEntrada=self.capas[i].n_visible,
+                                     unidadesSalida=self.capas[i].n_hidden,
                                      clasificacion=False,
                                      activacion=activaciones[i],
                                      pesos=self.pesos[i],
                                      biases=None)
 
-        clasificador.agregarCapa(unidadesEntrada=self.params[-1].n_visible,
-                                 unidadesSalida=self.params[-1].n_hidden,
+        clasificador.agregarCapa(unidadesEntrada=self.capas[-1].n_visible,
+                                 unidadesSalida=self.capas[-1].n_hidden,
                                  clasificacion=True,
                                  activacion=activaciones[-1],
                                  pesos=self.pesos[-1],
@@ -404,11 +404,6 @@ class DBN(object):
         final = T.toc()
         print("Tiempo total para el ajuste de DBN: {}".format(T.transcurrido(inicio, final)))
 
-        # TODO esto estaba en la funcion de MLP.entrenar, linea 349-353
-        for x in clasificador.capas:
-            clasificador._guardar(diccionario={'pesos':x.getW})
-            clasificador._guardar(diccionario={'bias':x.getB})
-
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
@@ -422,7 +417,7 @@ class DBN(object):
         save(objeto=self, filename=nombre, compression=compression)
         return 0
 
-    def _guardar(self, nombreArchivo=None, diccionario=None):
+    def _guardar(self, nombreArchivo=None, diccionario=None, sobreescribir=False):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
         lo cual lo hace mas sencillo procesar luego
@@ -435,7 +430,7 @@ class DBN(object):
 
         with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():
-                if isinstance(self.datosAlmacenar[key],list):
+                if isinstance(self.datosAlmacenar[key],list) and not sobreescribir:
                     tmp = shelf[key]
                     tmp.append(diccionario[key])
                     shelf[key] = tmp
@@ -470,9 +465,9 @@ class DBN(object):
     def __str__(self):
         print("Name:", self.name)
         print("Cantidad de capas:", self.n_layers)
-        for i in range(0,len(self.params)):
+        for i in range(0,len(self.capas)):
             print("-[" + str(i+1) + "] :")
-            print(self.params[i])
+            print(self.capas[i])
         #if self.clasificacion:
         #    print("DBN para la tarea de clasificacion")
         #else:
