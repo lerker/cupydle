@@ -224,6 +224,17 @@ if __name__ == '__main__':
     Grid = ParameterGrid(parametros)
     #print(list(Grid))
     #print(len(Grid))
-    print(Grid[1])
+    cantidad_a_ejecutar = len(Grid)//2
 
-    ejecutar(**Grid[1])
+    for x in range(cantidad_a_ejecutar):
+        print("****************************************************")
+        print("\n\n")
+        print("Iteracion {} de {}".format(x, cantidad_a_ejecutar))
+        print("PARAMETROS:")
+        Grid[x]['directorio'] = ['dbn_grid_' + str(x)]
+        for k in Grid[x].keys():
+            print(k,Grid[x][k])
+        print("\n\n")
+        ejecutar(**Grid[x])
+        print("****************************************************")
+        print("\n\n")
