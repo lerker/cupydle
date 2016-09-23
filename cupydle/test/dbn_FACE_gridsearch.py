@@ -232,6 +232,7 @@ if __name__ == '__main__':
         print("Iteracion {} de {}".format(x, cantidad_a_ejecutar))
         print("PARAMETROS:")
         Grid[x]['directorio'] = ['dbn_grid_' + str(x)]
+        assert False, "ver esto que esta guardndo siempre en el mismo directorio..."
         for k in Grid[x].keys():
             print(k,Grid[x][k])
         print("\n\n")

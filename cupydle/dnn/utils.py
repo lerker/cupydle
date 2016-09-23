@@ -11,6 +11,8 @@ import gzip # gzip
 
 import timeit
 
+import numbers
+
 __author__      = "Ponzoni, Nelson"
 __copyright__   = "Copyright 2015"
 __credits__     = ["Ponzoni Nelson"]
@@ -239,6 +241,92 @@ class temporizador(object):
         minutes, seconds = divmod(rem, 60)
         tiempo = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
         return tiempo
+
+
+def safe_indexing(X, indices):
+    """Return items or rows from X using indices.
+    Allows simple indexing of lists or arrays.
+    Parameters
+    ----------
+    X : array-like, sparse-matrix, list.
+        Data from which to sample rows or items.
+    indices : array-like, list
+        Indices according to which X will be subsampled.
+    """
+    if hasattr(X, "iloc"):
+        # Pandas Dataframes and Series
+        try:
+            return X.iloc[indices]
+        except ValueError:
+            # Cython typed memoryviews internally used in pandas do not support
+            # readonly buffers.
+            warnings.warn("Copying input dataframe for slicing.",
+                          DataConversionWarning)
+            return X.copy().iloc[indices]
+    elif hasattr(X, "shape"):
+        if hasattr(X, 'take') and (hasattr(indices, 'dtype') and
+                                   indices.dtype.kind == 'i'):
+            # This is often substantially faster than X[indices]
+            return X.take(indices, axis=0)
+        else:
+            return X[indices]
+    else:
+        return [X[idx] for idx in indices]
+
+def check_consistent_length(*arrays):
+    """Check that all arrays have consistent first dimensions.
+    Checks whether all objects in arrays have the same shape or length.
+    Parameters
+    ----------
+    *arrays : list or tuple of input objects.
+        Objects that will be checked for consistent length.
+    """
+
+    lengths = [_num_samples(X) for X in arrays if X is not None]
+    uniques = np.unique(lengths)
+    if len(uniques) > 1:
+        raise ValueError("Found input variables with inconsistent numbers of"
+                         " samples: %r" % [int(l) for l in lengths])
+
+
+def indexable(*iterables):
+    """Make arrays indexable for cross-validation.
+    Checks consistent length, passes through None, and ensures that everything
+    can be indexed by converting sparse matrices to csr and converting
+    non-interable objects to arrays.
+    Parameters
+    ----------
+    *iterables : lists, dataframes, arrays, sparse matrices
+        List of objects to ensure sliceability.
+    """
+    result = []
+    for X in iterables:
+        if sp.issparse(X):
+            result.append(X.tocsr())
+        elif hasattr(X, "__getitem__") or hasattr(X, "iloc"):
+            result.append(X)
+        elif X is None:
+            result.append(X)
+        else:
+            result.append(np.array(X))
+    check_consistent_length(*result)
+    return result
+
+def check_random_state(seed):
+    """Turn seed into a np.random.RandomState instance
+    If seed is None, return the RandomState singleton used by np.random.
+    If seed is an int, return a new RandomState instance seeded with seed.
+    If seed is already a RandomState instance, return it.
+    Otherwise raise ValueError.
+    """
+    if seed is None or seed is np.random:
+        return np.random.mtrand._rand
+    if isinstance(seed, (numbers.Integral, np.integer)):
+        return np.random.RandomState(seed)
+    if isinstance(seed, np.random.RandomState):
+        return seed
+    raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
+                     ' instance' % seed)
 
 class RestrictedDict(dict):
     """
