@@ -20,12 +20,13 @@ optirun python3 cupydle/test/dbn_FACE.py --directorio "test_DBN" --dataset "all_
 """
 
 # dependecias internar
-import os, argparse, numpy as np
+import os, argparse, shelve, numpy as np
 
 # dependecias propias
 from cupydle.dnn.utils import temporizador
 from cupydle.dnn.dbn import DBN
 from cupydle.dnn.gridSearch import ParameterGrid
+from cupydle.dnn.validacion_cruzada import train_test_split
 
 def ejecutar(**kwargs):
 
@@ -185,13 +186,29 @@ def ejecutar(**kwargs):
     miDBN.setParametros({'epocas':epocasFIT})
     miDBN.setParametros({'toleranciaError':toleranciaError})
 
-    miDBN.ajuste(datos=datosMLP,
-                 listaPesos=None,
-                 fnActivacion="sigmoidea",
-                 semillaRandom=None,
-                 tambatch=tambatch)
+    costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste( datos=datosMLP,
+                                                                 listaPesos=None,
+                                                                 fnActivacion="sigmoidea",
+                                                                 semillaRandom=None,
+                                                                 tambatch=tambatch)
 
     miDBN.guardarObjeto(nombreArchivo=nombre)
+
+    return costoTRN, costoVAL, costoTST, costoTST_final
+
+
+def _guardar(nombreArchivo, diccionario=None):
+        """
+        Almacena todos los datos en un archivo pickle que contiene un diccionario
+        lo cual lo hace mas sencillo procesar luego
+        """
+        archivo = nombreArchivo + '.cupydle'
+
+        with shelve.open(archivo, flag='c', writeback=False, protocol=2) as shelf:
+            for key in diccionario.keys():
+                shelf[key] = diccionario[key]
+            shelf.close()
+        return 0
 
 if __name__ == '__main__':
 
@@ -217,25 +234,42 @@ if __name__ == '__main__':
                     'toleranciaError':  [0.1]
                 }
 
-    parametros['directorio'] = ['dbn_grid_' + str(1)]
     parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
     parametros['capas'] = [[85, 50, 6], [85, 30, 6]]
 
     Grid = ParameterGrid(parametros)
     #print(list(Grid))
     #print(len(Grid))
-    cantidad_a_ejecutar = len(Grid)//2
+    cantidad_combinaciones = len(Grid)
+    cantidad_a_ejecutar = cantidad_combinaciones // 2
+
+    nombreArchivo = 'resultados_dbnFACE_gridSearch'
+    print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {} QUE CONTIENE {} ITERACIONES\n\n".format(nombreArchivo, cantidad_a_ejecutar))
+
+    T = temporizador()
+    inicio = T.tic()
 
     for x in range(cantidad_a_ejecutar):
         print("****************************************************")
         print("\n\n")
         print("Iteracion {} de {}".format(x, cantidad_a_ejecutar))
         print("PARAMETROS:")
-        Grid[x]['directorio'] = ['dbn_grid_' + str(x)]
-        assert False, "ver esto que esta guardndo siempre en el mismo directorio..."
-        for k in Grid[x].keys():
-            print(k,Grid[x][k])
+        # modo random la eleccion de los parametros sobre el conjunto posible
+        indice = np.random.randint(cantidad_combinaciones)
+        # no tengo implementada el __setitem__ en ParameterGrid
+        params = Grid[indice]
+        params['directorio'] = 'dbn_grid_' + str(x)
+        for k in sorted(params.keys()):
+            print(str("{: >25} : {: <50}").format(k, str(params[k])))
         print("\n\n")
-        ejecutar(**Grid[x])
+        costoTRN, costoVAL, costoTST, costoTST_final = ejecutar(**params)
         print("****************************************************")
         print("\n\n")
+
+        _guardar(nombreArchivo=nombreArchivo, diccionario={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
+
+    final = T.toc()
+    print("\n\nGRID SEARCH  FINALIZADO\n\n")
+    print("Tiempo total requerido: {}".format(T.transcurrido(inicio, final)))
+
+
