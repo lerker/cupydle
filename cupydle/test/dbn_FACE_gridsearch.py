@@ -95,48 +95,26 @@ def ejecutar(**kwargs):
     clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
     del datos # libera memoria
 
-    # modo hardcore activatedddd
-    # aplico el mismo porcentaje para dividir el conjunto de los datos en train y test
-    # y el mismo porcentaje para train propio y validacion
+    # divido todo el conjunto con 120 ejemplos para el test
+    # separo con un 86% aprox
+    X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
 
-    cantidad = int(clases.shape[0] * porcentaje)
-    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
-    # es por ello que acomodo la cantidad hasta que quepa
-    while (cantidad % tambatch):
-        cantidad += 1
-        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
-    cantidad_train = cantidad
-    cantidad = int(cantidad_train * porcentaje)
-    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
-    # es por ello que acomodo la cantidad hasta que quepa
-    while (cantidad % tambatch):
-        cantidad += 1
-        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
-    cantidad_train2 = cantidad
+    # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
+    X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
 
-
-    datosDBN = []
-    datosMLP = []
-
-    # entrena con todos los datos, test nunca los toca obvio
-    datosTRN_DBN = (videos[:cantidad_train,:], clases[:cantidad_train])
-
-    # entrena el MLP con una parte para train y otra validacion
-    datosTRN = (videos[:cantidad_train2,:], clases[:cantidad_train2])
-    datosVAL = (videos[cantidad_train2:cantidad_train,:],clases[cantidad_train2:cantidad_train])
-    datosTST = (videos[cantidad_train:,:],clases[cantidad_train:])
-
-    datosDBN.append(datosTRN_DBN);
-    datosMLP.append(datosTRN); datosMLP.append(datosVAL); datosMLP.append(datosTST)
+    datosDBN = []; datosMLP = []
+    datosDBN.append((X_train, y_train))
+    datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
 
     print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
     print("                                               :", "-------------------")
-    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosTRN_DBN[1]))
-    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosTRN[1]))
-    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosVAL[1]))
-    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosTST[1]))
-    print("Entrenado la DBN con {} ejemplos".format(len(datosTRN_DBN[0])))
-    del datosTRN_DBN, datosTRN, datosVAL, datosTST
+    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
+    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
+    print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][0])))
+
+    del X_train, X_test, y_train, y_test, X_train_sub, X_valid, y_train_sub, y_valid
 
     ###########################################################################
     ##
@@ -167,6 +145,8 @@ def ejecutar(**kwargs):
                    guardarPesosIniciales=True,
                    filtros=True)
 
+    del datosDBN
+
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
     ###########################################################################
@@ -191,6 +171,8 @@ def ejecutar(**kwargs):
                                                                  fnActivacion="sigmoidea",
                                                                  semillaRandom=None,
                                                                  tambatch=tambatch)
+
+    del datosMLP
 
     miDBN.guardarObjeto(nombreArchivo=nombre)
 
