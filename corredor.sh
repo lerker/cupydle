@@ -35,7 +35,10 @@ chmod +x cupydle/test/mnist/get_data.sh
 #python3 cupydle/test/dbn_FACE.py --directorio "test_DBN3" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 80 70 60 50 40 20 10 6 --lepocaTRN 1000 --lepocaFIT 100000 -lrTRN 0.08 -lrFIT 0.08 --unidadVis binaria --tolErr 0.08 2>&1 | tee -a ${ARCHIVO_LOG}
 
 # dbn grid seach sobre los PCA 85
-python3 cupydle/test/dbn_FACE_gridsearch.py 2>&1 | tee -a ${ARCHIVO_LOG}
+#optirun python3 cupydle/test/dbn_KML_gridSearch.py --directorio KML --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" --capa1 85 60 6 --capa2 85 50 6 --capa3 85 30 6 2>&1 | tee -a ${ARCHIVO_LOG}
+
+# dbn grid search sobre los datos puros
+python3 cupydle/test/dbn_KML_gridSearch.py --directorio KML_video --dataset "all_av_features_clases_shuffled_minmax.npz" --capa1 230346 1000 6 --capa2 230346 500 6 2>&1 | tee -a ${ARCHIVO_LOG}
 
 FECHA_ARCHIVO_FIN=$(date)
 var2=""

@@ -13,14 +13,14 @@ __status__      = "Production"
 
 
 """
-GRID SEARCH
+Estructura basica para la implementacion basica de una DBN sobre una base de datos KML
 
-optirun python3 cupydle/test/dbn_FACE.py --directorio "test_DBN" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 10 --lepocaFIT 100 -lrTRN 0.01 --unidadVis binaria --tolErr 0.08
+optirun python3 cupydle/test/dbn_basica.py "all_videos_features_clases_shuffled_PCA85_minmax.npz"
 
 """
 
 # dependecias internar
-import os, argparse, shelve, numpy as np
+import os, argparse, shelve, sys, numpy as np
 
 # dependecias propias
 from cupydle.dnn.utils import temporizador
@@ -28,7 +28,27 @@ from cupydle.dnn.dbn import DBN
 from cupydle.dnn.gridSearch import ParameterGrid
 from cupydle.dnn.validacion_cruzada import train_test_split
 
-def ejecutar(**kwargs):
+Parametros = {  'directorio':       'dbn_dir',
+                'dataset':          'dbn_data',
+                'capas':            [],
+                'epocasTRN':        0,    # debe ser listas de listas
+                'epocasFIT':        0,
+                'tambatch':         0.0,
+                'porcentaje':       0.0,
+                'tasaAprenTRN':     0.0,
+                'tasaAprenFIT':     0.0,
+                'pasosGibbs':       0.0,
+                'nombre':           'dbn',
+                'pcd':              False,
+                'regularizadorL1':  0.0,
+                'regularizadorL2':  0.0,
+                'momentoTRN':       0.0,
+                'momentoFIT':       0.0,
+                'unidadVis':        'binaria',
+                'toleranciaError':  0.1
+            }
+
+def DBN_basica(**kwargs):
 
     # parametros pasados por consola
     directorio      = kwargs['directorio']
@@ -80,7 +100,7 @@ def ejecutar(**kwargs):
 
     ###########################################################################
     ##
-    ##        M A N I P U L A C I O N    DE   L O S    D A T O S
+    ##   P R E P A R A N D O   L O S   D A T O S   E N T R E N A M I E N T O
     ##
     ###########################################################################
 
@@ -97,30 +117,21 @@ def ejecutar(**kwargs):
 
     # divido todo el conjunto con 120 ejemplos para el test
     # separo con un 86% aprox
-    X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
+    X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=42)
+    del videos, clases
 
-    # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
-    X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
-
-    datosDBN = []; datosMLP = []
-    datosDBN.append((X_train, y_train))
-    datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
-
-    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
-    print("                                               :", "-------------------")
-    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
-    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
-    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
-    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
-    print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][0])))
-
-    del X_train, X_test, y_train, y_test, X_train_sub, X_valid, y_train_sub, y_valid
+    datosDBN = []; datosDBN.append((X_train, y_train))
+    del X_train, y_train
 
     ###########################################################################
     ##
     ##          P R E - E N T R E N A M I E N T O        R B M s
     ##
     ###########################################################################
+    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+    print("                                               :", "-------------------")
+    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
+    print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
     # se crea el modelo
     miDBN = DBN(name=nombre, ruta=rutaCompleta)
@@ -145,15 +156,51 @@ def ejecutar(**kwargs):
                    guardarPesosIniciales=True,
                    filtros=True)
 
-    del datosDBN
-
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
+    del datosDBN
+    # FIN DEL ENTRENAMIENTO
+
+
+    ###########################################################################
+    ##
+    ##   P R E P A R A N D O   L O S   D A T O S   A J U S T E  F I N O
+    ##
+    ###########################################################################
+
+    # se cargan  los datos, debe ser un archivo comprimido, en el cual los
+    # arreglos estan en dos keys, 'videos' y 'clases'
+    try:
+        datos = np.load(rutaDatos + dataset)
+    except:
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
+
+    videos = datos['videos']
+    clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
+    del datos # libera memoria
+
+    # divido todo el conjunto con 120 ejemplos para el test
+    # separo con un 86% aprox
+    X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
+    del videos, clases
+
+    # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
+    X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
+    del X_train, y_train
+
+    datosMLP = []
+    datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
+    del X_train_sub, X_valid, y_train_sub, y_valid, X_test, y_test
 
     ###########################################################################
     ##
     ##                 A J U S T E     F I N O    ( M L P )
     ##
     ###########################################################################
+    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+    print("                                               :", "-------------------")
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
+    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
 
     #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
     print(miDBN)
@@ -175,6 +222,8 @@ def ejecutar(**kwargs):
     del datosMLP
 
     miDBN.guardarObjeto(nombreArchivo=nombre)
+
+    # FIN DEL AJUSTE FINO
 
     return costoTRN, costoVAL, costoTST, costoTST_final
 
@@ -216,7 +265,9 @@ if __name__ == '__main__':
                     'toleranciaError':  [0.1]
                 }
 
-    parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
+    assert len(sys.argv) == 2, "cantidad incorrecta de parametros"
+    #parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
+    parametros['dataset'] = [sys.argv[1]]
     parametros['capas'] = [[85, 50, 6], [85, 30, 6]]
 
     Grid = ParameterGrid(parametros)
@@ -244,7 +295,7 @@ if __name__ == '__main__':
         for k in sorted(params.keys()):
             print(str("{: >25} : {: <50}").format(k, str(params[k])))
         print("\n\n")
-        costoTRN, costoVAL, costoTST, costoTST_final = ejecutar(**params)
+        costoTRN, costoVAL, costoTST, costoTST_final = DBN_basica(**params)
         print("****************************************************")
         print("\n\n")
 
