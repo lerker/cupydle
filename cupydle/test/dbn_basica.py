@@ -153,8 +153,8 @@ def DBN_basica(**kwargs):
     miDBN.entrenar(dataTrn=datosDBN[0][0], # imagenes de entrenamiento
                    dataVal=None, # imagenes de validacion
                    pcd=pcd,
-                   guardarPesosIniciales=True,
-                   filtros=True)
+                   guardarPesosIniciales=False,
+                   filtros=False)
 
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
     del datosDBN
