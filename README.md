@@ -1,6 +1,6 @@
 # CUPYDLE
 
-![cupydle](https://github.com/lerker/cupydle/docs/img/logo.png)
+![cupydle](https://github.com/lerker/cupydle/blob/master/docs/img/logo.png)
 
 <img style="display: inline;" src="docs/img/logo.png" width="300" />
 
