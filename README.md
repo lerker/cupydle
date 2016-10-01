@@ -1,8 +1,8 @@
 # CUPYDLE
 
-![cupydle](https://github.com/lerker/cupydle/blob/master/docs/img/logo.png)
+%![cupydle](https://github.com/lerker/cupydle/blob/master/docs/img/logo.png)
 
-<img style="display: inline;" src="docs/img/logo.png" width="300" />
+<img style="display: inline;" src="docs/img/logo.png" width="300" height="400"/>
 
 [![Build Status](https://travis-ci.org/lerker/cupydle.svg?branch=master)](https://travis-ci.org/lerker/cupydle) [![GitHub issues](https://img.shields.io/github/issues/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/issues) [![GitHub license](https://img.shields.io/badge/license-Apache%202-blue.svg?style=plastic)](https://raw.githubusercontent.com/lerker/cupydle/master/LICENSE) [![GitHub forks](https://img.shields.io/github/forks/lerker/cupydle.svg?style=plastic)](https://github.com/lerker/cupydle/network) [![todofy badge](https://todofy.org/b/lerker/cupydle)](https://todofy.org/r/lerker/cupydle)
 
