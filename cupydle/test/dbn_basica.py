@@ -109,19 +109,47 @@ def DBN_basica(**kwargs):
     try:
         datos = np.load(rutaDatos + dataset)
     except:
-        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
+        try:
+            rutaTest         = directorioActual + '/cupydle/test/mnist/'     # sobre el de ejecucion la ruta a los tests
+            rutaDatos        = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almacenan la base de datos
+            datos = np.load(rutaDatos + dataset)
+        except:
+            assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
-    videos = datos['videos']
-    clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
-    del datos # libera memoria
+    KML = False
+    if 'videos' in datos.keys():
+        KML = True
 
-    # divido todo el conjunto con 120 ejemplos para el test
-    # separo con un 86% aprox
-    X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=42)
-    del videos, clases
+    if KML:
 
-    datosDBN = []; datosDBN.append((X_train, y_train))
-    del X_train, y_train
+        videos = datos['videos']
+        clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
+        del datos # libera memoria
+
+        # divido todo el conjunto con 120 ejemplos para el test
+        # separo con un 86% aprox
+        X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=42)
+        del videos, clases
+
+        datosDBN = []; datosDBN.append((X_train, y_train))
+        del X_train, y_train
+
+    else:
+
+        entrenamiento = datos['entrenamiento']
+        entrenamiento_clases = datos['entrenamiento_clases'] #las clases creo que arrancan bien
+
+        #validacion = datos['validacion']
+        #validacion_clases = datos['validacion_clases'] #las clases creo que arrancan bien
+
+        #testeo = datos['testeo']
+        #testeo_clases = datos['testeo_clases'] #las clases creo que arrancan bien
+        del datos # libera memoria
+
+        entrenamiento = entrenamiento.astype(np.float32)
+        entrenamiento_clases = entrenamiento_clases.astype(np.int32)
+        datosDBN = []; datosDBN.append((entrenamiento, entrenamiento_clases))
+        del entrenamiento, entrenamiento_clases
 
     ###########################################################################
     ##
@@ -174,22 +202,53 @@ def DBN_basica(**kwargs):
     except:
         assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
-    videos = datos['videos']
-    clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
-    del datos # libera memoria
+    KML = False
+    if 'videos' in datos.keys():
+        KML = True
 
-    # divido todo el conjunto con 120 ejemplos para el test
-    # separo con un 86% aprox
-    X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
-    del videos, clases
+    if KML:
 
-    # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
-    X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
-    del X_train, y_train
+        videos = datos['videos']
+        clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
+        del datos # libera memoria
 
-    datosMLP = []
-    datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
-    del X_train_sub, X_valid, y_train_sub, y_valid, X_test, y_test
+        # divido todo el conjunto con 120 ejemplos para el test
+        # separo con un 86% aprox
+        X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
+        del videos, clases
+
+        # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
+        X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
+        del X_train, y_train
+
+        datosMLP = []
+        datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
+        del X_train_sub, X_valid, y_train_sub, y_valid, X_test, y_test
+
+    else:
+
+        entrenamiento = datos['entrenamiento']
+        entrenamiento_clases = datos['entrenamiento_clases'] #las clases creo que arrancan bien
+
+        validacion = datos['validacion']
+        validacion_clases = datos['validacion_clases'] #las clases creo que arrancan bien
+
+        testeo = datos['testeo']
+        testeo_clases = datos['testeo_clases'] #las clases creo que arrancan bien
+        del datos # libera memoria
+
+        entrenamiento = entrenamiento.astype(np.float32)
+        entrenamiento_clases = entrenamiento_clases.astype(np.int32)
+
+        validacion = validacion.astype(np.float32)
+        validacion_clases = validacion_clases.astype(np.int32)
+
+        testeo = testeo.astype(np.float32)
+        testeo_clases = testeo_clases.astype(np.float32)
+
+        datosMLP = []
+        datosMLP.append((entrenamiento,entrenamiento_clases)); datosMLP.append((validacion,validacion_clases)); datosMLP.append((testeo,testeo_clases))
+        del entrenamiento,entrenamiento_clases,validacion,validacion_clases,testeo,testeo_clases
 
     ###########################################################################
     ##
