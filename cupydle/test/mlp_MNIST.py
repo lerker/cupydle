@@ -133,10 +133,10 @@ if __name__ == "__main__":
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
-    clasificador.score(datos=datosMLP[2], guardar='Matriz de Confusion')
 
     # dibujar estadisticos
     clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')
+    clasificador.score(datos=datosMLP[2], guardar='Matriz de Confusion')
 
     # guardando los parametros aprendidos
     clasificador.guardarObjeto(nombreArchivo=nombre)
