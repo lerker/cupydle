@@ -111,18 +111,10 @@ def DBN_basica(**kwargs):
     except:
         assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
-    entrenamiento = datos['entrenamiento']
-    entrenamiento_clases = datos['entrenamiento_clases'] #las clases creo que arrancan bien
-
-    #validacion = datos['validacion']
-    #validacion_clases = datos['validacion_clases'] #las clases creo que arrancan bien
-
-    #testeo = datos['testeo']
-    #testeo_clases = datos['testeo_clases'] #las clases creo que arrancan bien
+    entrenamiento        = datos['entrenamiento'].astype(np.float32)
+    entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
     del datos # libera memoria
 
-    entrenamiento = entrenamiento.astype(np.float32)
-    entrenamiento_clases = entrenamiento_clases.astype(np.int32)
     datosDBN = []; datosDBN.append((entrenamiento, entrenamiento_clases))
     del entrenamiento, entrenamiento_clases
 
@@ -131,8 +123,8 @@ def DBN_basica(**kwargs):
     ##          P R E - E N T R E N A M I E N T O        R B M s
     ##
     ###########################################################################
-    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
-    print("                                               :", "-------------------")
+    print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
+    print("                                               :", "-------------------------------")
     print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
     print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
@@ -178,36 +170,28 @@ def DBN_basica(**kwargs):
         assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
 
-    entrenamiento = datos['entrenamiento']
-    entrenamiento_clases = datos['entrenamiento_clases'] #las clases creo que arrancan bien
-
-    validacion = datos['validacion']
-    validacion_clases = datos['validacion_clases'] #las clases creo que arrancan bien
-
-    testeo = datos['testeo']
-    testeo_clases = datos['testeo_clases'] #las clases creo que arrancan bien
+    entrenamiento        = datos['entrenamiento'].astype(np.float32)
+    entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
+    validacion           = datos['validacion'].astype(np.float32)
+    validacion_clases    = datos['validacion_clases'].astype(np.int32)
+    testeo               = datos['testeo'].astype(np.float32)
+    testeo_clases        = datos['testeo_clases'].astype(np.int32)
     del datos # libera memoria
 
-    entrenamiento = entrenamiento.astype(np.float32)
-    entrenamiento_clases = entrenamiento_clases.astype(np.int32)
-
-    validacion = validacion.astype(np.float32)
-    validacion_clases = validacion_clases.astype(np.int32)
-
-    testeo = testeo.astype(np.float32)
-    testeo_clases = testeo_clases.astype(np.float32)
-
     datosMLP = []
-    datosMLP.append((entrenamiento,entrenamiento_clases)); datosMLP.append((validacion,validacion_clases)); datosMLP.append((testeo,testeo_clases))
-    del entrenamiento,entrenamiento_clases,validacion,validacion_clases,testeo,testeo_clases
+    datosMLP.append((entrenamiento, entrenamiento_clases))
+    datosMLP.append((validacion, validacion_clases))
+    datosMLP.append((testeo, testeo_clases))
+    del entrenamiento, entrenamiento_clases, validacion, validacion_clases
+    del testeo, testeo_clases
 
     ###########################################################################
     ##
     ##                 A J U S T E     F I N O    ( M L P )
     ##
     ###########################################################################
-    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
-    print("                                               :", "-------------------")
+    print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
+    print("                                               :", "-------------------------------")
     print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
     print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
@@ -272,6 +256,26 @@ if __name__ == '__main__':
                     'momentoTRN':       [0.0],
                     'momentoFIT':       [0.0, 0.1],
                     'unidadVis':        ['binaria', 'gaussiana'],
+                    'toleranciaError':  [0.1]
+                }
+
+    parametros = {  'directorio':       ['dbn_dir'],
+                    'dataset':          [None],
+                    'capas':            [],
+                    'epocasTRN':        [[10]],    # debe ser listas de listas
+                    'epocasFIT':        [100],
+                    'tambatch':         [100],
+                    'porcentaje':       [0.8],
+                    'tasaAprenTRN':     [0.01],
+                    'tasaAprenFIT':     [0.1],
+                    'pasosGibbs':       [1],
+                    'nombre':           ['dbn'],
+                    'pcd':              [True, False],
+                    'regularizadorL1':  [0.0],
+                    'regularizadorL2':  [0.0],
+                    'momentoTRN':       [0.0],
+                    'momentoFIT':       [0.0, 0.1],
+                    'unidadVis':        ['binaria'],
                     'toleranciaError':  [0.1]
                 }
 
