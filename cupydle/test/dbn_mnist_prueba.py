@@ -195,6 +195,8 @@ ax.annotate("Clases", xy=(centro_diagrama, 0), xycoords=('data', 'axes fraction'
 #plt.title("Cantidad de ejemplos de entrenamiento por clase")
 plt.savefig('cantidad_ejemplos_totales.png', transparent=True)
 plt.savefig('cantidad_ejemplos_totales.pdf', transparent=True)
+plt.savefig('cantidad_ejemplos_totales.svg', transparent=True)
+plt.savefig('cantidad_ejemplos_totales.eps', transparent=True)
 
 plt.legend(loc=4)
 plt.show()
@@ -202,7 +204,7 @@ plt.show()
 
 
 #############################
-
+"""
 # guardar
 #nombre_archivo_salida='mnist'
 #np.savez_compressed(nombre_archivo_salida + '.npz', entrenamiento=entrenamiento[0], entrenamiento_clases=entrenamiento[1], validacion=validacion[0], validacion_clases=validacion[1], testeo=testeo[0], testeo_clases=testeo[1])
@@ -241,3 +243,39 @@ testeo  = (z_score(testeo[0]), testeo[1])
 
 nombre_archivo_salida='mnist_zscore'
 np.savez_compressed(nombre_archivo_salida + '.npz', entrenamiento=entrenamiento[0], entrenamiento_clases=entrenamiento[1], validacion=validacion[0], validacion_clases=validacion[1], testeo=testeo[0], testeo_clases=testeo[1])
+"""
+images=[]
+
+#images = entrenamiento[0][:10]
+indice = 0
+while len(images) != 10:
+    if entrenamiento[1][indice]==len(images):
+        images.append(entrenamiento[0][indice])
+    indice+=1
+
+fig = plt.figure()
+images = [np.reshape(f, (-1, 28)) for f in images]
+
+#if crop:
+#    images = [image[:, 3:25] for image in images]
+import matplotlib
+image = np.concatenate(images, axis=1)
+ax = fig.add_subplot(1, 1, 1)
+ax.matshow(image, cmap = matplotlib.cm.binary)
+plt.xticks(np.array([]))
+plt.yticks(np.array([]))
+"""
+if save == 'png' or save is True:
+    plt.savefig(self.path + "tenDigits" + ".png", format='png')
+elif save == 'eps':
+    plt.savefig(self.path + 'tenDigits' + '.eps', format='eps', dpi=1000)
+elif save == 'svg':
+    plt.savefig(self.path + 'tenDigits' + '.svg', format='svg', dpi=1000)
+else:
+    pass
+"""
+plt.tight_layout()
+plt.savefig("diezDigitos" + '.eps', format='eps', dpi=1000, transparent=True)
+plt.savefig("diezDigitos" + '.png', format='png', dpi=1000, transparent=True)
+plt.show()
+

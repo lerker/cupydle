@@ -13,111 +13,120 @@ __status__      = "Production"
 
 
 """
+Script de pruebas sobre la base de datos MNIST con un modelo de regresion lineal
 
+Simplemente carga los datos y ajusta la red con los parametros pasados
+
+
+# version corta
+optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -lrTRN 0.01 --tolError 0.08 --MLPrapido
+
+# version larga
+optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -b 100 -lrTRN 0.01 --tolError 0.01 --reguL1 0.0 --reguL2 0.0 --momentoTRN 0.0
 """
 
-import numpy
-import time
-import os
-import sys
-import subprocess
-import argparse
+# dependencias internas
+import os, argparse, numpy as np
 
-# Dependencias Externas
-## Core
-from cupydle.dnn.funciones import sigmoideaTheano
-## Data
-from cupydle.test.mnist.mnist import MNIST
-from cupydle.test.mnist.mnist import open4disk
-from cupydle.test.mnist.mnist import save2disk
-## Utils
+# dependecias propias
 from cupydle.dnn.utils import temporizador
-
 from cupydle.dnn.mlp import MLP
 
 if __name__ == "__main__":
 
-    directorioActual= os.getcwd()                                   # directorio actual de ejecucion
-    rutaTest        = directorioActual + '/cupydle/test/mnist/'     # sobre el de ejecucion la ruta a los tests
-    rutaDatos       = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almacenan la base de datos
-    carpetaTest     = 'test_MLP/'                                   # carpeta a crear para los tests
-    rutaCompleta    = rutaTest + carpetaTest
+    parser = argparse.ArgumentParser(description='Prueba de un MLP sobre MNIST')
+    parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_MLP', required=False, help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--nombre',           type=str,   dest="nombre",         default='mlp',      required=False, help="Nombre del modelo")
+    parser.add_argument('--dataset',          type=str,   dest="dataset",        default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")
+    parser.add_argument('-l', '--capas',      type=int,   dest="capas",          default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('-let', '--lepocaTRN',type=int,   dest="epocasTRN",      default=10,         required=False, help="cantidad de epocas de entrenamiento")
+    parser.add_argument('-b', '--batchsize',  type=int,   dest="tambatch",       default=10,         required=False, help="Tamanio del minibatch para el entrenamiento")
+    parser.add_argument('-lrTRN',             type=float, dest="tasaAprenTRN",   default=0.01,       required=False, help="Tasa de aprendizaje para la red")
+    parser.add_argument('--reguL1',           type=float, dest="regularizadorL1",default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
+    parser.add_argument('--reguL2',           type=float, dest="regularizadorL2",default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
+    parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
+    parser.add_argument('--tolError',         type=float, dest="tolError",       default=0.0,        required=False, help="Toleracia al error como criterio de parada temprana")
+    parser.add_argument('--MLPrapido',        action="store_true", dest="mlprapido", default=False,  required=False, help="Activa el entrenamiento rapido para el MLP, no testea todos los conjuntos de test, solo los mejores validaciones")
 
-    if not os.path.exists(rutaCompleta):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',rutaCompleta)
-        os.makedirs(rutaCompleta)
+    argumentos = parser.parse_args()
 
-    if not os.path.exists(rutaDatos):
-        print("Creando la base de datos en:", rutaDatos)
-        os.makedirs(rutaDatos)
+    # parametros pasados por consola
+    directorio      = argumentos.directorio
+    dataset         = argumentos.dataset
+    capas           = argumentos.capas
+    epocasTRN       = argumentos.epocasTRN
+    tambatch        = argumentos.tambatch
+    tasaAprenTRN    = argumentos.tasaAprenTRN
+    nombre          = argumentos.nombre
+    regularizadorL1 = argumentos.regularizadorL1
+    regularizadorL2 = argumentos.regularizadorL2
+    momentoTRN      = argumentos.momentoTRN
+    tolError        = argumentos.tolError
+    mlprapido       = argumentos.mlprapido
 
-    # chequeo si necesito descargar los datos
-    subprocess.call(rutaTest + 'get_data.sh', shell=True)
+    capas        = np.asarray(capas)
+    tasaAprenTRN = np.float32(tasaAprenTRN)
+    momentoTRN   = np.float(momentoTRN)
+    tolError     = np.float(tolError)
 
-    setName = "mnist"
-    MNIST.prepare(rutaDatos, nombre=setName, compresion='bzip2')
+    # chequeos
+    assert dataset.find('.npz') != -1, "El conjunto de datos debe ser del tipo '.npz'"
 
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
-    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
-    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
-    args = parser.parse_args()
+    # configuraciones con respecto a los directorios
+    directorioActual = os.getcwd()            # directorio actual de ejecucion
+    rutaTest         = directorioActual + '/cupydle/test/mnist/' # ruta tests
+    rutaDatos        = directorioActual + '/cupydle/data/DB_mnist/' #ruta DB
+    carpetaTest      = directorio + '/'       # carpeta a crear para los tests
+    rutaCompleta     = rutaTest + carpetaTest
+    os.makedirs(rutaCompleta) if not os.path.exists(rutaCompleta) else None
 
-    guardar = args.guardar
-    modelName = args.modelo
-    #modelName = 'capa1.pgz'
+    # carga los datos
+    datos = np.load(rutaDatos + dataset)
 
-    # se leen de disco la base de datos
-    mn = open4disk(filename=rutaDatos + setName, compression='bzip2')
-    #mn.info
+    entrenamiento        = datos['entrenamiento'].astype(np.float32)
+    entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
+    validacion           = datos['validacion'].astype(np.float32)
+    validacion_clases    = datos['validacion_clases'].astype(np.int32)
+    testeo               = datos['testeo'].astype(np.float32)
+    testeo_clases        = datos['testeo_clases'].astype(np.int32)
+    del datos # libera memoria
 
-    # obtengo todos los subconjuntos
-    #train_img,  train_labels= mn.get_training()
-    #test_img,   test_labels = mn.get_testing()
-    #val_img,    val_labels  = mn.get_validation()
-
-    # lista de tupas, [(x_trn, y_trn), ...]
-    # los datos estan normalizados...
-    datos = [mn.get_training(), mn.get_testing(), mn.get_validation()]
-    datos = [( ((x/255.0).astype(numpy.float32)), y) for x, y in datos]
-
-    batchSize = 10
-    n_epochs = 1
-
-    # [unidades_de_entrada, primer_capa_oculta, segunda_capa_oculta, salida]
-    unidadesCapas = [784, 500, 100, 10]
+    datosMLP = []
+    datosMLP.append((entrenamiento, entrenamiento_clases))
+    datosMLP.append((validacion, validacion_clases))
+    datosMLP.append((testeo, testeo_clases))
+    del entrenamiento, entrenamiento_clases, validacion, validacion_clases
+    del testeo, testeo_clases
 
     # creo la red
-    #MNIST.plot_one_digit(train_img.get_value()[0])
-    clasificador = MLP( clasificacion=True,
-                        rng=None,
-                        ruta=rutaCompleta)
+    clasificador = MLP(ruta=rutaCompleta, nombre=nombre)
 
-    clasificador.setParametroEntrenamiento({'tasaAprendizaje':0.01})
-    clasificador.setParametroEntrenamiento({'regularizadorL1':0.00})
-    clasificador.setParametroEntrenamiento({'regularizadorL2':0.0001})
-    clasificador.setParametroEntrenamiento({'momento':0.0})
-    clasificador.setParametroEntrenamiento({'activationfuntion':sigmoideaTheano()})
-    clasificador.setParametroEntrenamiento({'epocas':10})
-    clasificador.setParametroEntrenamiento({'toleranciaError':0.08})
+    # se agregan los parametros
+    parametros = {'tasaAprendizaje':  tasaAprenTRN,
+                  'regularizadorL1':  regularizadorL1,
+                  'regularizadorL2':  regularizadorL2,
+                  'momento':          momentoTRN,
+                  'epocas':           epocasTRN,
+                  'toleranciaError':  tolError}
+    clasificador.setParametroEntrenamiento(parametros)
 
-    clasificador.agregarCapa(unidadesEntrada=784, unidadesSalida=500, clasificacion=False, activacion=sigmoideaTheano(), pesos=None, biases=None)
-    clasificador.agregarCapa(unidadesSalida=10, clasificacion=True, pesos=None, biases=None)
+    for idx, _ in enumerate(capas[:-2]): # es -2 porque no debo tener en cuenta la primera ni la ultima
+        clasificador.agregarCapa(unidadesEntrada=capas[idx], unidadesSalida=capas[idx+1], clasificacion=False, activacion='sigmoidea', pesos=None, biases=None)
+    clasificador.agregarCapa(unidadesSalida=capas[-1], clasificacion=True, pesos=None, biases=None)
 
     T = temporizador()
     inicio = T.tic()
-
-
-
-    clasificador.entrenar(trainSet=datos[0],
-                          validSet=datos[1],
-                          testSet=datos[2],
-                          batch_size=batchSize)
+    # se entrena la red
+    clasificador.entrenar(trainSet=datosMLP[0], validSet=datosMLP[1], testSet=datosMLP[2], batch_size=tambatch, rapido=mlprapido)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
+    # dibujar estadisticos
+    clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')
+
     # guardando los parametros aprendidos
-    clasificador.guardarParametros()
+    clasificador.guardarObjeto(nombreArchivo=nombre)
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

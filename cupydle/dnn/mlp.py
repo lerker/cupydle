@@ -453,6 +453,25 @@ class MLP(object):
         )
         return train_model, validate_model, test_model
 
+
+    def score(self, datosTesteo):
+        #TODO
+        # hacer matriz de 10x10... e ir completando fila por fila
+        testX, testY = datosTesteo
+
+        # allocate symbolic variables for the data
+        index = theano.tensor.lscalar() # index to a [mini]batch
+
+        test_model = theano.function(
+                                    inputs=[index],
+                                    outputs=self.netErrors(y),
+                                    givens={
+                                            self.x: testX[index * batch_size:(index + 1) * batch_size],
+                                            y: testY[index * batch_size:(index + 1) * batch_size]
+                                            },
+                                    name='test_model'
+        )
+
     def _guardar(self, nombreArchivo=None, diccionario=None):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
