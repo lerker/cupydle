@@ -25,8 +25,7 @@ For example ``tile_raster_images`` helps in generating a easy to grasp
 image from a set of samples or weights.
 """
 
-import numpy
-import os
+import os, itertools, numpy
 from numpy import arange as npArange
 from numpy import linspace as npLinspace
 
@@ -401,5 +400,50 @@ def dibujarCostos(**kwargs):
     if 'guardar' in kwargs:
         plt.savefig(kwargs['guardar']+'.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
         plt.savefig(kwargs['guardar']+'.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+
+    return axe
+
+
+
+
+def dibujarMatrizConfusion(cm, clases, normalizar=False, titulo='Matriz de Confusion', cmap=plt.cm.Blues, axe=None, mostrar=False, guardar=None):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    if axe is None:
+        axe = plt.gca()
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(titulo)
+    plt.colorbar()
+    tick_marks = numpy.arange(len(clases))
+    plt.xticks(tick_marks, clases, rotation=45)
+    plt.yticks(tick_marks, clases)
+
+    if normalizar:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, numpy.newaxis]
+        cm = numpy.around(cm, decimals=2) #redondeo de los flotantes
+        print("Matriz de Confusion Normalizada")
+    else:
+        print('Matriz de Confusion')
+
+    print(cm)
+
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, cm[i, j],
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('Etiqueta Real')
+    plt.xlabel('Etiqueta Prediccion')
+
+    if guardar is not None:
+        plt.savefig(guardar+'.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+        plt.savefig(guardar+'.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
+
+    plt.show() if mostrar else None
 
     return axe

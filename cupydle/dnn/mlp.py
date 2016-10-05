@@ -38,6 +38,7 @@ from cupydle.dnn.stops import criterios
 from cupydle.dnn.utils import RestrictedDict, save, load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset, gpu_info, calcular_chunk
 from cupydle.dnn.graficos import dibujarCostos
+from cupydle.dnn.graficos import dibujarMatrizConfusion
 
 class MLP(object):
     # atributo estatico o de la clase, unico para todas las clases instanciadas
@@ -454,23 +455,33 @@ class MLP(object):
         return train_model, validate_model, test_model
 
 
-    def score(self, datosTesteo):
-        #TODO
-        # hacer matriz de 10x10... e ir completando fila por fila
-        testX, testY = datosTesteo
+    def score(self, datos, normalizar=False, mostrar=False, guardar=None):
+        """
+        matriz de confusion
+        """
+        testX, testY = datos
+        cantidad_clases = len(numpy.bincount(testY))
+        matriz = numpy.zeros((cantidad_clases, cantidad_clases), dtype=numpy.int32)
 
-        # allocate symbolic variables for the data
-        index = theano.tensor.lscalar() # index to a [mini]batch
+        score_model = theano.function(inputs=[],
+                                    outputs=self.predict(),
+                                    givens={self.x: testX},
+                                    name='score_model')
 
-        test_model = theano.function(
-                                    inputs=[index],
-                                    outputs=self.netErrors(y),
-                                    givens={
-                                            self.x: testX[index * batch_size:(index + 1) * batch_size],
-                                            y: testY[index * batch_size:(index + 1) * batch_size]
-                                            },
-                                    name='test_model'
-        )
+        salida = score_model()
+
+        for idx in range(len(salida)):
+            #matriz[salida[idx], testY[idx]] +=1
+
+            # fila=real; columna=prediccion
+            matriz[testY[idx],salida[idx]] +=1
+
+        titulo = 'Matriz de Confusion Normalizada' if normalizar else 'Matriz de Confusion'
+
+        class_names = list(range(cantidad_clases))
+        dibujarMatrizConfusion(matriz, clases=class_names, titulo='Matriz de Confusion', axe=None, mostrar=True, guardar=self.ruta + guardar)
+
+        return matriz
 
     def _guardar(self, nombreArchivo=None, diccionario=None):
         """

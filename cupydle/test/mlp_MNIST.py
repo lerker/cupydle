@@ -116,11 +116,24 @@ if __name__ == "__main__":
 
     T = temporizador()
     inicio = T.tic()
-    # se entrena la red
+
+    ###########################################################################
+    ##
+    ##                 A J U S T E     F I N O    ( M L P )
+    ##
+    ###########################################################################
+    print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
+    print("                                               :", "-------------------------------")
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
+    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
+
     clasificador.entrenar(trainSet=datosMLP[0], validSet=datosMLP[1], testSet=datosMLP[2], batch_size=tambatch, rapido=mlprapido)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
+
+    clasificador.score(datos=datosMLP[2], guardar='Matriz de Confusion')
 
     # dibujar estadisticos
     clasificador.dibujarEstadisticos(mostrar=False, guardar=rutaCompleta+'estadisticosMLP')
