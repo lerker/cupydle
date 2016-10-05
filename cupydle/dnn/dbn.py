@@ -407,6 +407,10 @@ class DBN(object):
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
+        # dibujar estadisticos
+        clasificador.dibujarEstadisticos(mostrar=False, guardar=clasificador.ruta+'estadisticosMLP')
+        clasificador.score(datos=datos[2], guardar='Matriz de Confusion')
+
         return costoTRN, costoVAL, costoTST, costoTST_final
 
     def guardarObjeto(self, nombreArchivo, compression='zip'):

@@ -13,9 +13,9 @@ __status__      = "Production"
 
 
 """
-Estructura basica para la implementacion basica de una DBN sobre una base de datos KML
+Estructura basica para la implementacion basica de una DBN sobre una base de datos MNIST
 
-optirun python3 cupydle/test/dbn_basica.py "mnist_minmax.npz"
+optirun python3 cupydle/test/dbn_basica_MNIST.py "mnist_minmax.npz"
 
 """
 
@@ -124,7 +124,7 @@ def DBN_basica(**kwargs):
     ##
     ###########################################################################
     print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
-    print("                                               :", "-------------------------------")
+    print("                                               :", "-------------------------------------------------")
     print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
     print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
@@ -149,7 +149,7 @@ def DBN_basica(**kwargs):
                    dataVal=None, # imagenes de validacion
                    pcd=pcd,
                    guardarPesosIniciales=False,
-                   filtros=False)
+                   filtros=True)
 
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
     del datosDBN
@@ -191,7 +191,7 @@ def DBN_basica(**kwargs):
     ##
     ###########################################################################
     print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
-    print("                                               :", "-------------------------------")
+    print("                                               :", "-------------------------------------------------")
     print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
     print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
@@ -262,8 +262,8 @@ if __name__ == '__main__':
     parametros = {  'directorio':       ['dbn_dir'],
                     'dataset':          [None],
                     'capas':            [],
-                    'epocasTRN':        [[10]],    # debe ser listas de listas
-                    'epocasFIT':        [100],
+                    'epocasTRN':        [[5]],    # debe ser listas de listas
+                    'epocasFIT':        [10],
                     'tambatch':         [100],
                     'porcentaje':       [0.8],
                     'tasaAprenTRN':     [0.01],

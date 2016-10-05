@@ -14,10 +14,9 @@ __status__      = "Production"
 
 """
 GRID SEARCH
-# ejemplo con dos capas del pca y directoria KML
-# anda hasta con 5 capas
+# ejemplo con dos capas del pca y directoria MNIST
 
-optirun python3 cupydle/test/dbn_MNIST_2.py --directorio MNIST --dataset "mnist_minmax.npz" --capa1 784 500 10 --capa2 784 100 10
+optirun python3 cupydle/test/dbn_MNIST_gridSearch.py --directorio MNIST --dataset "mnist_minmax.npz" --capa1 784 500 10 --capa2 784 100 10
 
 """
 
@@ -30,7 +29,7 @@ from cupydle.dnn.dbn import DBN
 from cupydle.dnn.gridSearch import ParameterGrid
 from cupydle.dnn.validacion_cruzada import train_test_split
 
-from cupydle.test.dbn_basica import DBN_basica, _guardar
+from cupydle.test.dbn_basica_MNIST import DBN_basica, _guardar
 
 if __name__ == '__main__':
 
