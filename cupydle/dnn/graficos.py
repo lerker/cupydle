@@ -412,6 +412,8 @@ def dibujarMatrizConfusion(cm, clases, normalizar=False, titulo='Matriz de Confu
     Normalization can be applied by setting `normalize=True`.
     """
     if axe is None:
+        plt.cla()   # Clear axis
+        plt.clf()   # Clear figure
         axe = plt.gca()
 
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
