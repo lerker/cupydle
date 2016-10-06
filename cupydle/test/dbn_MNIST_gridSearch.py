@@ -95,7 +95,7 @@ if __name__ == '__main__':
     cantidad_combinaciones = len(Grid)
     cantidad_a_ejecutar = cantidad_combinaciones // 2
 
-    nombreArchivo = 'resultados_dbnFACE_gridSearch'
+    nombreArchivo = 'resultados_dbnMNIST_gridSearch'
     print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {} QUE CONTIENE {} ITERACIONES\n\n".format(nombreArchivo, cantidad_a_ejecutar))
 
     T = temporizador()

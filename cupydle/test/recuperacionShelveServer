@@ -1,0 +1,12 @@
+import shelve, numpy
+datos=shelve.open('resultados_dbnFACE_gridSearch.cupydle', flag='r')
+list(datos.keys())
+datos['1']
+type(datos['0'])
+datos['0']['costoTST']
+x=datos['0']['costoTST']
+
+numpy.savez('archivoGuardado', array1=x)
+
+y=numpy.load('archivoGuardado.npz')
+y['array1']
