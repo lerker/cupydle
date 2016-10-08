@@ -110,6 +110,46 @@ class UnidadBinaria(Unidad):
         return ("Unidad Binaria")
 
 
+class UnidadBinariaDropout(Unidad):
+    def __init__(self):
+        # inicializar la clase padre
+        super(UnidadBinaria, self).__init__()
+        #self.theanoGenerator = RandomStreams(seed=npRandint(1, 1000))
+        # aca los metodos propios de esta clase
+        #self.__baz = 21
+        self.fn = sigmoideaTheano()
+
+    def deterministico(self, x):
+        return self.fn(x)
+
+    def noDeterministico(self, x):
+        # TODO por lo visto la binomial no esta implementada en CUDA,
+        # por lo tanto lo lleva a la GPU a los datos
+        # luego calcula la binomial (la cual la trae a la CPU de nuevo los datos)
+        # y por ultimo lleva de nuevo a la GPU los datos calculado
+        ### SOLUCION
+        # deberia calcularse los numeros binomiales ({0,1}) en la GPU sin usar RandomStreams.binomial
+        # si se retorna val y al theano.tensor.nnet.sigmoid(x) se le agrega 'transfer('gpu')' de la
+        # activationProbability en el grafo se da cuenta de la optimizacion
+        ###$
+        # http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
+        # There are 2 other implementations based on MRG31k3p and CURAND.
+        # The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
+        probability = self.deterministico(x)
+        return self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat), probability
+
+    def probabilidadActivacion(self, x):
+        return self.deterministico(x)
+
+    def activar(self, x, p):
+        probability = self.deterministico(x)
+        mask = self.theanoGenerator.binomial(probability.shape, n=1, p=p)
+        activacion = self.theanoGenerator.binomial(size=probability.shape, n=1, p=probability, dtype=theanoFloat)
+        return mask*activacion, probability
+
+    def __str__(self):
+        return ("Unidad Binaria")
+
 class UnidadGaussiana(Unidad):
     def __init__(self, media=0.0, desviacionEstandar=1.0, factor=1.0):
         # inicializar la clase padre
