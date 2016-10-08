@@ -18,161 +18,141 @@ Aplicado a la base de datos de 'benchmark' MNIST
 
 http://yann.lecun.com/exdb/mnist/
 
+
+# version corta
+optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6 --gibbs 1 --unidadVis binaria
+
+# version larga
+
 """
 
-import numpy
-import time
-import os
-import sys
-import subprocess
-import argparse
 
-# Dependencias Externas
-## Core
-from cupydle.dnn.unidades import UnidadBinaria
-from cupydle.dnn.unidades import UnidadGaussiana
-## Data
-from cupydle.test.mnist.mnist import MNIST
-from cupydle.test.mnist.mnist import open4disk
-from cupydle.test.mnist.mnist import save2disk
-## Utils
+# dependencias internas
+import os, argparse, numpy as np
+
+# dependecias propias
 from cupydle.dnn.utils import temporizador
-
 from cupydle.dnn.rbm import RBM
+
 
 if __name__ == "__main__":
 
-    directorioActual= os.getcwd()                                   # directorio actual de ejecucion
+    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST')
+
+    parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_RBM', required=False, help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--nombre',           type=str,   dest="nombre",         default='rbm',      required=False, help="Nombre del modelo")
+    parser.add_argument('--dataset',          type=str,   dest="dataset",        default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")
+    parser.add_argument('-let', '--lepocaTRN',type=int,   dest="epocasTRN",      default=10,         required=False, help="cantidad de epocas de entrenamiento")
+    parser.add_argument('-b', '--batchsize',  type=int,   dest="tambatch",       default=10,         required=False, help="Tamanio del minibatch para el entrenamiento")
+    parser.add_argument('-lrW',               type=float, dest="tasaAprenW",     default=0.01,       required=False, help="Tasa de aprendizaje para los pesos")
+    parser.add_argument('-lrV',               type=float, dest="tasaAprenV",     default=0.01,       required=False, help="Tasa de aprendizaje para los bias visibles")
+    parser.add_argument('-lrO',               type=float, dest="tasaAprenO",     default=0.01,       required=False, help="Tasa de aprendizaje para los bias ocultos")
+    parser.add_argument('-wc',                type=float, dest="weightcost",     default=0.00,       required=False, help="Tasa de castigo a los pesos (weieght cost)")
+    parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
+    parser.add_argument('--dropVis',          type=float, dest="dropVis",        default=1.0,        required=False, help="Tasa dropout para las unidades visibles, p porcentaje de activacion")
+    parser.add_argument('--dropOcu',          type=float, dest="dropOcu",        default=1.0,        required=False, help="Tasa dropout para las unidades ocultas, p porcentaje de activacion")
+    parser.add_argument('-v', '--visibles',   type=int,   dest="visibles",       default=230300,     required=True,  help="Cantidad de Unidades Visibles")
+    parser.add_argument('-o', '--ocultas',    type=int,   dest="ocultas",        default=100,        required=True,  help="Cantidad de Unidades Ocultas")
+    parser.add_argument('-pcd',               action="store_true",  dest="pcd",  default=False,      required=False, help="Activa el entrenamiento con Divergencia Contrastiva Persistente")
+    parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva (Persistente?)")
+    parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
+    argumentos = parser.parse_args()
+
+    # parametros pasados por consola
+    directorio      = argumentos.directorio
+    nombre          = argumentos.nombre
+    dataset         = argumentos.dataset
+    epocasTRN       = argumentos.epocasTRN
+    tambatch        = argumentos.tambatch
+    tasaAprenW      = argumentos.tasaAprenW
+    tasaAprenV      = argumentos.tasaAprenV
+    tasaAprenO      = argumentos.tasaAprenO
+    momentoTRN      = argumentos.momentoTRN
+    visibles        = argumentos.visibles
+    ocultas         = argumentos.ocultas
+    pcd             = argumentos.pcd
+    pasosGibbs      = argumentos.pasosGibbs
+    weightcost      = argumentos.weightcost
+    dropVis         = argumentos.dropVis
+    dropOcu         = argumentos.dropOcu
+    unidadVis       = argumentos.unidadVis
+
+    # chequeos
+    tasaAprenW      = np.float32(tasaAprenW)
+    tasaAprenV      = np.float32(tasaAprenV)
+    tasaAprenO      = np.float32(tasaAprenO)
+    momentoTRN      = np.float32(momentoTRN)
+    weightcost      = np.float32(weightcost)
+    dropVis         = np.float32(dropVis)
+    dropOcu         = np.float32(dropOcu)
+
+    # configuraciones con respecto a los directorios
+    directorioActual= os.getcwd()                                  # directorio actual de ejecucion
     rutaTest        = directorioActual + '/cupydle/test/mnist/'     # sobre el de ejecucion la ruta a los tests
     rutaDatos       = directorioActual + '/cupydle/data/DB_mnist/'  # donde se almacenan la base de datos
-    carpetaTest     = 'test_RBM/'                                   # carpeta a crear para los tests
+    carpetaTest     = directorio + '/'                   # carpeta a crear para los tests
     rutaCompleta    = rutaTest + carpetaTest
 
-    if not os.path.exists(rutaCompleta):        # si no existe la crea
-        print('Creando la carpeta para el test en: ',rutaCompleta)
-        os.makedirs(rutaCompleta)
+    os.makedirs(rutaCompleta) if not os.path.exists(rutaCompleta) else None
 
-    if not os.path.exists(rutaDatos):
-        print("Creando la base de datos en:", rutaDatos)
-        os.makedirs(rutaDatos)
+     # carga los datos
+    datos = np.load(rutaDatos + dataset)
 
-    # chequeo si necesito descargar los datos
-    subprocess.call(rutaTest + 'get_data.sh', shell=True)
+    entrenamiento        = datos['entrenamiento'].astype(np.float32)
+    entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
+    validacion           = datos['validacion'].astype(np.float32)
+    validacion_clases    = datos['validacion_clases'].astype(np.int32)
+    testeo               = datos['testeo'].astype(np.float32)
+    testeo_clases        = datos['testeo_clases'].astype(np.int32)
+    del datos # libera memoria
 
-    setName = "mnist"
-    MNIST.prepare(rutaDatos, nombre=setName, compresion='bzip2')
+    datos = []
+    datos.append((entrenamiento, entrenamiento_clases))
+    datos.append((validacion, validacion_clases))
+    datos.append((testeo, testeo_clases))
+    del entrenamiento, entrenamiento_clases, validacion, validacion_clases
+    del testeo, testeo_clases
 
-    parser = argparse.ArgumentParser(description='Prueba de una RBM sobre MNIST.')
-    parser.add_argument('-g', '--guardar', action="store_true", dest="guardar", help="desea guardar (correr desde cero)", default=False)
-    parser.add_argument('-m', '--modelo', action="store", dest="modelo", help="nombre del binario donde se guarda/abre el modelo", default="capa1.pgz")
-    args = parser.parse_args()
-
-    guardar = args.guardar
-    modelName = args.modelo
-    #modelName = 'capa1.pgz'
-
-    # se leen de disco la base de datos
-    mn = open4disk(filename=rutaDatos + setName, compression='bzip2')
-    #mn.info
-
-    # obtengo todos los subconjuntos
-    #train_img,  train_labels= mn.get_training()
-    #test_img,   test_labels = mn.get_testing()
-    #val_img,    val_labels  = mn.get_validation()
-
-    # lista de tupas, [(x_trn, y_trn), ...]
-    # los datos estan normalizados...
-    datos = [mn.get_training(), mn.get_testing(), mn.get_validation()]
-    datos = [( ((x/255.0).astype(numpy.float32)), y) for x, y in datos]
-
-    # parametros de la red
-    n_visible = 784
-    n_hidden  = 500
-    batchSize = 10
+    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+    print("                                               :", "-------------------")
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datos[0][1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datos[1][1]))
 
     # creo la red
-    red = RBM(n_visible=n_visible, n_hidden=n_hidden, ruta=rutaCompleta)
-    #red.dibujarPesos(red.get_pesos... )
-    #red.dibujarFiltros(nombreArchivo="filtritos.pdf")
+    red = RBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
 
-    parametros={'epsilonw':0.1,
-                'epsilonvb':0.1,
-                'epsilonhb':0.1,
-                'momentum':0.0,
-                'weightcost':0.0,
-                'unidadesVisibles':UnidadBinaria(),
-                'unidadesOcultas':UnidadBinaria(),
-                'dropoutVisibles': 1.0, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
-                'dropoutOcultas': 1.0} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
+    parametros = {'lr_pesos':       tasaAprenW,
+                'lr_bvis':          tasaAprenV,
+                'lr_bocu':          tasaAprenO,
+                'momento':          momentoTRN,
+                'costo_w':          weightcost,
+                'unidadesVisibles': unidadVis,
+                'unidadesOcultas':  'binaria',
+                'dropoutVisibles':  dropVis, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
+                'dropoutOcultas':   dropOcu} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
 
-    red.setParams(parametros)
-    red.setParams({'epocas':100})
-
+    red.setParametros(parametros)
+    red.setParametros({'epocas':epocasTRN})
 
     T = temporizador()
     inicio = T.tic()
 
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0:1], gibbsSteps=1)[0]
-    #salida = red.reconstruccion(vsample=(train_img/255.0).astype(numpy.float32)[0], gibbsSteps=1)
-    #MNIST.plot_one_digit((train_img/255.0).astype(numpy.float32)[0])
-    #MNIST.plot_one_digit(salida)
-
-
     red.entrenamiento(data=datos[0][0],
-                      validationData=datos[1][0],
-                      tamMiniBatch=batchSize,
-                      #tamMacroBatch=datos[1][0].shape[0]//2,
+                      tamMiniBatch=tambatch,
                       tamMacroBatch=None,
-                      pcd=False,
-                      gibbsSteps=1,
+                      pcd=pcd,
+                      gibbsSteps=pasosGibbs,
+                      validationData=None,
                       filtros=True)
 
     final = T.toc()
     print("Tiempo total para entrenamiento: {}".format(T.transcurrido(inicio, final)))
 
-    # guardo los estadisticos
-    #red.dibujarEstadisticos(show=True, save='estadisticos.png')
-    #red.dibujarEstadisticos(show=True, save=rutaCompleta+'estadisticos.png')
-
-    red.sampleo(data=datos[0][0],
-                labels=datos[0][1])
-
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
-    red.guardar(nombreArchivo="rbm_mnist.zip")
+    red.guardarObjeto(nombreArchivo="RBM_MNIST")
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
 
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
-
-
-"""
-lerker@nelo-linux: cupydle [memoria !]$  optirun python3 cupydle/test/rbm_MNIST.py
-Using gpu device 0: GeForce GT 420M (CNMeM is disabled, cuDNN not available)
-Entrenando una RBM, con [784] unidades visibles y [500] unidades ocultas
-Cantidad de ejemplos para el entrenamiento no supervisado:  50000
-Entrenando con Divergencia Contrastiva, 1 pasos de Gibss.
-Unidades de visibles: Unidad Binaria Unidades Ocultas: Unidad Binaria
-Epoca   1 de   5, error<TrnSet>:     inf, MSE<ejemplo> :     inf, EnergiaLibre<ejemplo>:     inf
-Epoca   2 de   5, error<TrnSet>:-90.23674, MSE<ejemplo> : 130.21144, EnergiaLibre<ejemplo>:-3.74406
-Epoca   3 de   5, error<TrnSet>:-82.94151, MSE<ejemplo> : 108.59375, EnergiaLibre<ejemplo>: 1.02042
-Epoca   4 de   5, error<TrnSet>:-81.69224, MSE<ejemplo> : 105.26365, EnergiaLibre<ejemplo>: 1.78799
-Epoca   5 de   5, error<TrnSet>:-80.99998, MSE<ejemplo> : 103.43192, EnergiaLibre<ejemplo>: 2.49729
-
-Tiempo total para entrenamiento: 00:03:19.35
-labels:  [5 5 9 1 0 8 1 6 2 5 3 7 4 0 5 9 6 1 7 3]
- ... plotting sample 0
- ... plotting sample 1
- ... plotting sample 2
- ... plotting sample 3
- ... plotting sample 4
- ... plotting sample 5
- ... plotting sample 6
- ... plotting sample 7
- ... plotting sample 8
- ... plotting sample 9
-Guardando el modelo en ... /run/media/lerker/Documentos/Proyecto/Codigo/cupydle/cupydle/test/mnist/test_RBM/
-Tiempo total para guardar: 00:00:00.43
-ICE default IO error handler doing an exit(), pid = 2172, errno = 32
-"""

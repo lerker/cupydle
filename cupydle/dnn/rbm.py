@@ -39,7 +39,7 @@ from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_
 from cupydle.dnn.utils import temporizador, RestrictedDict, save
 from cupydle.dnn.graficos import imagenTiles, dibujarCostos
 # eliminar esto
-import matplotlib.pyplot
+#import matplotlib.pyplot
 
 try:
     import PIL.Image as Image
