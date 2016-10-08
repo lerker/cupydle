@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
     parser.add_argument('--dropVis',          type=float, dest="dropVis",        default=1.0,        required=False, help="Tasa dropout para las unidades visibles, p porcentaje de activacion")
     parser.add_argument('--dropOcu',          type=float, dest="dropOcu",        default=1.0,        required=False, help="Tasa dropout para las unidades ocultas, p porcentaje de activacion")
-    parser.add_argument('-v', '--visibles',   type=int,   dest="visibles",       default=230300,     required=True,  help="Cantidad de Unidades Visibles")
+    parser.add_argument('-v', '--visibles',   type=int,   dest="visibles",       default=784,        required=True,  help="Cantidad de Unidades Visibles")
     parser.add_argument('-o', '--ocultas',    type=int,   dest="ocultas",        default=100,        required=True,  help="Cantidad de Unidades Ocultas")
     parser.add_argument('-pcd',               action="store_true",  dest="pcd",  default=False,      required=False, help="Activa el entrenamiento con Divergencia Contrastiva Persistente")
     parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva (Persistente?)")
