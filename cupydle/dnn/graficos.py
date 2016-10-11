@@ -28,6 +28,7 @@ image from a set of samples or weights.
 import os, itertools, numpy
 from numpy import arange as npArange
 from numpy import linspace as npLinspace
+import math
 
 from theano.tensor import dvector as Tdvector
 from theano.tensor import cast as Tcast
@@ -36,7 +37,10 @@ from theano import config as Tconfig
 theanoFloat  = Tconfig.floatX
 import theano.printing
 
-#import matplotlib.pylab as plt
+try:
+    import PIL.Image as Image
+except ImportError:
+    import Image
 
 havedisplay = "DISPLAY" in os.environ
 if not havedisplay:
@@ -187,6 +191,143 @@ def imagenTiles(X, img_shape, tile_shape, tile_spacing=(0, 0),
                         tile_col * (W + Ws): tile_col * (W + Ws) + W
                     ] = this_img * c
         return out_array
+
+def dibujarFiltros(w, nombreArchivo=None, automatico=None, formaFiltro = None, binary=False, mostrar=None):
+    # dibujar lso filtros por orden de norma l2, de forma automatica. http://www.ehu.eus/izaballa/Ana_Matr/Transparencias/presen02-1x2.pdf
+    assert isinstance(formaFiltro, tuple), "Forma filtro debe ser una tupla (X,Y)"
+
+    # corrige si lo indico... sino es porque quiero asi, en modo auto es cuadrado
+    if automatico:
+        cantPesos = w.shape[0]
+        # ancho/alto tile es la cantidad dividido su raiz y tomando el floor
+        # a entero
+        anchoTile= int(cantPesos // math.sqrt(cantPesos))
+        cantPesosCorregido = anchoTile ** 2
+        if cantPesos != cantPesosCorregido:
+            cantPesos = cantPesosCorregido
+
+        formaImagen = (anchoTile, anchoTile)
+
+
+    image = Image.fromarray(
+        imagenTiles(
+            # se mandan las imagenes desde 0 a hasta donde cuadre
+            X=w.T[:,0:cantPesos],
+            img_shape=formaImagen,
+            tile_shape=formaFiltro,
+            tile_spacing=(1, 1)
+        )
+    )
+    if binary:
+        gray = image.convert('L')
+        # Let numpy do the heavy lifting for converting pixels to pure black or white
+        bw = numpy.asarray(gray).copy()
+        # Pixel range is 0...255, 256/2 = 128
+        bw[bw < 128] = 0    # Black
+        bw[bw >= 128] = 255 # White
+        # Now we put it back in Pillow/PIL land
+        image = Image.fromarray(bw)
+
+    # si le pase un nombre es porque lo quiero guardar
+    if nombreArchivo is not None:
+        image.save(nombreArchivo)
+    else:
+        nombreArchivo=''
+
+    if mostrar:
+        image.show(title=nombreArchivo)
+
+    return 0
+
+def dibujarCadenaMuestras(data, labels=None, chains=20, samples=10, gibbsSteps=1000, patchesDim=(28,28), binary=False):
+
+    data  = theano.shared(numpy.asarray(a=data, dtype=theanoFloat), name='DataSample')
+    n_samples = data.get_value(borrow=True).shape[0]
+
+    # seleeciona de forma aleatoria donde comienza a extraer los ejemplos
+    # devuelve un solo indice.. desde [0,..., n - chains]
+    test_idx = self.numpy_rng.randint(n_samples - chains)
+
+    # inicializacion de todas las cadenas... el estado persiste a traves
+    # del muestreo
+    cadenaFija = theano.shared(
+                    numpy.asarray(data.get_value(borrow=True)
+                                    [test_idx:test_idx + chains],
+                                dtype=theanoFloat
+                    )
+    )
+    # tengo leyenda sobre la imagen?
+    if labels is not None:
+        lista = range(test_idx, test_idx + chains)
+        print("labels: ", str(labels[lista]))
+
+    ([_, _, _, _, probabilidad_V1, muestra_V1],
+      updates) = self.pasoGibbsVHV(self.x, gibbsSteps)
+
+    # cambiar el valor de la cadenaFija al de la reconstruccion de las visibles
+    updates.update({cadenaFija: muestra_V1})
+
+    # funcion princial
+    muestreo = theano.function(inputs=[],
+                               outputs=[probabilidad_V1, muestra_V1],
+                               updates=updates,
+                               givens={self.x: cadenaFija},
+                               name='muestreo'
+    )
+
+    # dimensiones de los patches, para el mnist es (28,28)
+    #ancho=28
+    #alto=28
+    alto, ancho = patchesDim
+    imageResults = numpy.zeros(((alto+1) * samples + 1, (ancho+1) * chains - 1),
+                        dtype='uint8')
+    for idx in range(samples):
+        #genero muestras y visualizo cada gibssSteps, ya que las muestras intermedias
+        # estan muy correlacionadas, se visializa la probabilidad de activacion de
+        # las unidades ocultas (NO la muestra binomial)
+        probabilidad_V1, visiblerecons = muestreo()
+
+        print(' ... plotting sample {}'.format(idx))
+        imageResults[(alto+1) * idx:(ancho+1) * idx + ancho, :] \
+            = imagenTiles(X=probabilidad_V1,
+                          img_shape=(alto, ancho),
+                          tile_shape=(1, chains),
+                          tile_spacing=(1, 1)
+            )
+
+    # construct image
+    image = Image.fromarray(imageResults)
+
+    nombreArchivo = self.ruta + "samples_" + str(labels[lista])
+    nombreArchivo = nombreArchivo.replace(" ", "_")
+
+    # poner las etiquetas sobre la imagen
+    watermark = False
+    if watermark:
+        from PIL import ImageDraw, ImageFont
+        # get the ImageDraw item for this image
+        draw = ImageDraw.Draw(image)
+        fontsize = 15
+        font = ImageFont.truetype("arial.ttf", fontsize)
+        #fill = (255,255,255) # blanco
+        fill = (255,255,0) # amarillo
+        fill = 255
+        draw.text((0, 0),text=str(labels[lista]),fill=fill,font=font)
+
+    if binary:
+        gray = image.convert('L')
+        # Let numpy do the heavy lifting for converting pixels to pure black or white
+        bw = numpy.asarray(gray).copy()
+        # Pixel range is 0...255, 256/2 = 128
+        bw[bw < 128] = 0    # Black
+        bw[bw >= 128] = 255 # White
+        # Now we put it back in Pillow/PIL land
+        image2 = Image.fromarray(bw)
+        image2.save(nombreArchivo + '_binary.pdf')
+
+    image.save(nombreArchivo + '.pdf')
+    return 0
+
 
 def filtrosConstructor(images, titulo, formaFiltro, nombreArchivo=None, mostrar=False, forzar=False):
         assert False, "no usar"
