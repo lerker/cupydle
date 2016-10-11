@@ -83,26 +83,6 @@ if __name__ == '__main__':
                     'toleranciaError':  [0.1]
                 }
 
-    parametros = {  'directorio':       [directorio],
-                'dataset':          [None],
-                'capas':            capas,
-                'epocasTRN':        [[3]],    # debe ser listas de listas
-                'epocasFIT':        [10],
-                'tambatch':         [100],
-                'porcentaje':       [0.8],
-                'tasaAprenTRN':     [0.01],
-                'tasaAprenFIT':     [0.1],
-                'pasosGibbs':       [1],
-                'nombre':           ['dbn'],
-                'pcd':              [True, False],
-                'regularizadorL1':  [0.0],
-                'regularizadorL2':  [0.0],
-                'momentoTRN':       [0.0],
-                'momentoFIT':       [0.0, 0.1],
-                'tipo':             ['binaria', 'gaussiana'],
-                'toleranciaError':  [0.1]
-            }
-
     #assert len(sys.argv) < 3, "cantidad incorrecta de parametros, la base de datos y una lista (opcional)"
     #parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
     parametros['dataset'] = [dataset]

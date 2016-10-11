@@ -46,7 +46,7 @@ chmod +x cupydle/test/mnist/get_data.sh
 #python3 cupydle/test/dbn_KML_gridSearch.py --directorio KML_video --dataset "all_av_features_clases_shuffled_minmax.npz" --capa1 230346 1000 6 --capa2 230346 500 6 2>&1 | tee -a ${ARCHIVO_LOG}
 
 # dbn grid search sobre MNIST
-optirun python3 cupydle/test/dbn_MNIST_gridSearch.py --directorio MNIST --dataset "mnist_minmax.npz" --capa1 784 500 10 --capa2 784 500 500 2000 10
+python3 cupydle/test/dbn_MNIST_gridSearch.py --directorio MNIST --dataset "mnist_minmax.npz" --capa1 784 500 10 --capa2 784 500 500 2000 10 2>&1 | tee -a ${ARCHIVO_LOG}
 
 
 FECHA_ARCHIVO_FIN=$(date)
