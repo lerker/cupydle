@@ -55,7 +55,7 @@ except ImportError:
     import Image
 
 # parte de las rbm
-from cupydle.dnn.rbm import RBM
+from cupydle.dnn.rbm import BRBM, GRBM
 from cupydle.dnn.unidades import UnidadBinaria
 
 # parte del ajuste fino
@@ -85,8 +85,7 @@ class rbmParams(object):
                 costo_w=None,
                 momento=0.0,
                 toleranciaError=0.0,
-                unidadesVisibles='binaria',
-                unidadesOcultas='binaria'):
+                tipo='binaria'):
         self.n_visible          = n_visible
         self.n_hidden           = n_hidden
         self.epocas             = epocas
@@ -99,8 +98,7 @@ class rbmParams(object):
         self.momento            = momento
         #self.toleranciaError    = toleranciaError
         self.tamMiniBatch       = tamMiniBatch
-        self.unidadesVisibles   = unidadesVisibles
-        self.unidadesOcultas    = unidadesOcultas
+        self.tipo               = tipo
         return
 
     def __str__(self):
@@ -115,14 +113,13 @@ class rbmParams(object):
         print("Pasos de Gibss:", self.pasosGibbs)
         print("Tamanio del minibatch:",self.tamMiniBatch)
         #print("Tolerancia del error permitido:",self.toleranciaError)
-        print("Tipo de Unidades Visibles:", self.unidadesVisibles)
-        print("Tipo de Unidades Ocultas:", self.unidadesOcultas)
+        print("Tipo de RBM:", self.tipo)
         return str("")
 
     @property
     def getParametrosEntrenamiento(self):
 
-        tmpRBM = RBM().datosAlmacenar._allowed_keys
+        tmpRBM = BRBM(n_visible=1, n_hidden=1).datosAlmacenar._allowed_keys
         retorno = {}
         for key in self.__dict__.keys():
             if key in tmpRBM:
@@ -280,11 +277,13 @@ class DBN(object):
             directorioRbm = self.ruta + 'rbm_capa{}/'.format(i+1)
             os.makedirs(directorioRbm) if not os.path.exists(directorioRbm) else None
 
-            # Construct an RBM that shared weights with this layer
-            capaRBM = RBM(n_visible=self.capas[i].n_visible,
-                          n_hidden=self.capas[i].n_hidden,
-                          w=self.capas[i].w,
-                          ruta=directorioRbm)
+            # creo la red
+            if self.capas[i].tipo == "binaria":
+                capaRBM = BRBM(n_visible=self.capas[i].n_visible, n_hidden=self.capas[i].n_hidden, w=self.capas[i].w, ruta=directorioRbm)
+            elif self.capas[i].tipo == 'gaussiana':
+                capaRBM = GRBM(n_visible=self.capas[i].n_visible, n_hidden=self.capas[i].n_hidden, w=self.capas[i].w, ruta=directorioRbm)
+            else:
+                raise NotImplementedError('RBM no implementada')
 
             # configuro la capa, la rbm
             capaRBM.setParametros(self.capas[i].getParametrosEntrenamiento)
@@ -297,7 +296,6 @@ class DBN(object):
                                   tamMiniBatch=self.capas[i].tamMiniBatch,
                                   pcd=pcd,
                                   gibbsSteps=self.capas[i].pasosGibbs,
-                                  validationData=dataVal,
                                   filtros=filtros)
 
             # en caso de debug guardo la capa entera
@@ -331,8 +329,7 @@ class DBN(object):
         return 0
     # FIN TRAIN
 
-    def ajuste(self, datos, listaPesos=None, fnActivacion='sigmoidea',
-                tambatch=10, semillaRandom=None):
+    def ajuste(self, datos, listaPesos=None, fnActivacion='sigmoidea', tambatch=10, semillaRandom=None):
         """
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.

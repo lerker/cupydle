@@ -20,10 +20,10 @@ http://yann.lecun.com/exdb/mnist/
 
 
 # version corta
-optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6 --gibbs 1 --unidadVis binaria
+optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --lepocaTRN 50 --visibles 784 --ocultas 100
 
 # version larga
-
+optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --dropout 0.5 --lepocaTRN 50 --visibles 784 --ocultas 100 --gibbs 1 --tipo 'binaria'
 """
 
 
@@ -32,7 +32,7 @@ import os, argparse, numpy as np
 
 # dependecias propias
 from cupydle.dnn.utils import temporizador
-from cupydle.dnn.rbm import RBM
+from cupydle.dnn.rbm import BRBM, GRBM
 
 
 if __name__ == "__main__":
@@ -49,13 +49,12 @@ if __name__ == "__main__":
     parser.add_argument('-lrO',               type=float, dest="tasaAprenO",     default=0.01,       required=False, help="Tasa de aprendizaje para los bias ocultos")
     parser.add_argument('-wc',                type=float, dest="weightcost",     default=0.00,       required=False, help="Tasa de castigo a los pesos (weieght cost)")
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, help="Tasa de momento para la etapa de entrenamiento")
-    parser.add_argument('--dropVis',          type=float, dest="dropVis",        default=1.0,        required=False, help="Tasa dropout para las unidades visibles, p porcentaje de activacion")
-    parser.add_argument('--dropOcu',          type=float, dest="dropOcu",        default=1.0,        required=False, help="Tasa dropout para las unidades ocultas, p porcentaje de activacion")
+    parser.add_argument('--dropout',          type=float, dest="dropout",        default=1.0,        required=False, help="Tasa dropout para las unidades ocultas, p porcentaje de activacion")
     parser.add_argument('-v', '--visibles',   type=int,   dest="visibles",       default=784,        required=True,  help="Cantidad de Unidades Visibles")
     parser.add_argument('-o', '--ocultas',    type=int,   dest="ocultas",        default=100,        required=True,  help="Cantidad de Unidades Ocultas")
     parser.add_argument('-pcd',               action="store_true",  dest="pcd",  default=False,      required=False, help="Activa el entrenamiento con Divergencia Contrastiva Persistente")
     parser.add_argument('-g', '--gibbs',      type=int,   dest="pasosGibbs",     default=1,          required=False, help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva (Persistente?)")
-    parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
+    parser.add_argument('--tipo',             type=str,   dest="tipo",           default='binaria',  required=False, help="Tipo de de RBM (binaria, gaussiana)")
     argumentos = parser.parse_args()
 
     # parametros pasados por consola
@@ -73,9 +72,8 @@ if __name__ == "__main__":
     pcd             = argumentos.pcd
     pasosGibbs      = argumentos.pasosGibbs
     weightcost      = argumentos.weightcost
-    dropVis         = argumentos.dropVis
-    dropOcu         = argumentos.dropOcu
-    unidadVis       = argumentos.unidadVis
+    dropout         = argumentos.dropout
+    tipo            = argumentos.tipo
 
     # chequeos
     tasaAprenW      = np.float32(tasaAprenW)
@@ -83,8 +81,8 @@ if __name__ == "__main__":
     tasaAprenO      = np.float32(tasaAprenO)
     momentoTRN      = np.float32(momentoTRN)
     weightcost      = np.float32(weightcost)
-    dropVis         = np.float32(dropVis)
-    dropOcu         = np.float32(dropOcu)
+    dropout         = np.float32(dropout)
+    assert tipo == 'binaria' or tipo == 'gaussiana', "Tipo de RBM no implementada"
 
     # configuraciones con respecto a los directorios
     directorioActual= os.getcwd()                                  # directorio actual de ejecucion
@@ -119,30 +117,31 @@ if __name__ == "__main__":
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datos[1][1]))
 
     # creo la red
-    red = RBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
+    if tipo == "binaria":
+        red = BRBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
+    elif tipo == 'gaussiana':
+        red = GRBM(n_visible=visibles, n_hidden=ocultas, nombre=nombre, ruta=rutaCompleta)
+    else:
+        raise NotImplementedError('RBM no implementada')
 
-    parametros = {'lr_pesos':       tasaAprenW,
-                'lr_bvis':          tasaAprenV,
-                'lr_bocu':          tasaAprenO,
-                'momento':          momentoTRN,
-                'costo_w':          weightcost,
-                'unidadesVisibles': unidadVis,
-                'unidadesOcultas':  'binaria',
-                'dropoutVisibles':  dropVis, # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
-                'dropoutOcultas':   dropOcu} # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
+    parametros={'lr_pesos': tasaAprenW,
+                'lr_bvis':  tasaAprenV,
+                'lr_bocu':  tasaAprenO,
+                'momento':  momentoTRN,
+                'costo_w':  weightcost,
+                'dropout':  dropout,    # probabilidad de actividad en la neurona, =1 todas, =0 ninguna
+                'epocas':   epocasTRN}
 
     red.setParametros(parametros)
-    red.setParametros({'epocas':epocasTRN})
 
     T = temporizador()
     inicio = T.tic()
 
-    red.entrenamiento(data=datos[0][0],
+    red.entrenamiento(data=np.concatenate((datos[0][0],datos[1][0]), axis=0),
                       tamMiniBatch=tambatch,
                       tamMacroBatch=None,
                       pcd=pcd,
                       gibbsSteps=pasosGibbs,
-                      validationData=None,
                       filtros=True)
 
     final = T.toc()
@@ -150,7 +149,7 @@ if __name__ == "__main__":
 
     print('Guardando el modelo en ...', rutaCompleta)
     inicio = T.tic()
-    red.guardarObjeto(nombreArchivo="RBM_MNIST")
+    red.guardarModelo(nombreArchivo="RBM_MNIST")
     final = T.toc()
     print("Tiempo total para guardar: {}".format(T.transcurrido(inicio, final)))
 

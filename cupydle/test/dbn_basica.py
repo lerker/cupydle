@@ -44,7 +44,7 @@ Parametros = {  'directorio':       'dbn_dir',
                 'regularizadorL2':  0.0,
                 'momentoTRN':       0.0,
                 'momentoFIT':       0.0,
-                'unidadVis':        'binaria',
+                'tipo':             'binaria',
                 'toleranciaError':  0.1
             }
 
@@ -67,7 +67,7 @@ def DBN_basica(**kwargs):
     regularizadorL2 = kwargs['regularizadorL2']
     momentoTRN      = kwargs['momentoTRN']
     momentoFIT      = kwargs['momentoFIT']
-    unidadVis       = kwargs['unidadVis']
+    tipo            = kwargs['tipo']
     toleranciaError = kwargs['toleranciaError']
 
     capas        = np.asarray(capas)
@@ -174,8 +174,7 @@ def DBN_basica(**kwargs):
                        pasosGibbs=pasosGibbs[idx],
                        w=None,
                        momento=momentoTRN[idx],
-                       unidadesVisibles=unidadVis,
-                       unidadesOcultas='binaria')
+                       tipo=tipo)
 
     #entrena la red
     miDBN.entrenar(dataTrn=datosDBN[0][0], # imagenes de entrenamiento
@@ -320,7 +319,7 @@ if __name__ == '__main__':
                     'regularizadorL2':  [0.0],
                     'momentoTRN':       [0.0],
                     'momentoFIT':       [0.0, 0.1],
-                    'unidadVis':        ['binaria', 'gaussiana'],
+                    'tipo':             ['binaria', 'gaussiana'],
                     'toleranciaError':  [0.1]
                 }
 
