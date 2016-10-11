@@ -44,7 +44,7 @@ Parametros = {  'directorio':       'dbn_dir',
                 'regularizadorL2':  0.0,
                 'momentoTRN':       0.0,
                 'momentoFIT':       0.0,
-                'unidadVis':        'binaria',
+                'tipo':             'binaria',
                 'toleranciaError':  0.1
             }
 
@@ -67,7 +67,7 @@ def DBN_basica(**kwargs):
     regularizadorL2 = kwargs['regularizadorL2']
     momentoTRN      = kwargs['momentoTRN']
     momentoFIT      = kwargs['momentoFIT']
-    unidadVis       = kwargs['unidadVis']
+    tipo            = kwargs['tipo']
     toleranciaError = kwargs['toleranciaError']
 
     capas        = np.asarray(capas)
@@ -133,16 +133,15 @@ def DBN_basica(**kwargs):
 
     # se agregan las capas
     for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
-        miDBN.addLayer(n_visible=capas[idx],
-                       n_hidden=capas[idx+1],
-                       epocas=epocasTRN[idx],
-                       tamMiniBatch=tambatch,
-                       lr_pesos=tasaAprenTRN[idx],
-                       pasosGibbs=pasosGibbs[idx],
-                       w=None,
-                       momento=momentoTRN[idx],
-                       unidadesVisibles=unidadVis,
-                       unidadesOcultas='binaria')
+        miDBN.addLayer(n_visible    = capas[idx],
+                       n_hidden     = capas[idx+1],
+                       epocas       = epocasTRN[idx],
+                       tamMiniBatch = tambatch,
+                       lr_pesos     = tasaAprenTRN[idx],
+                       pasosGibbs   = pasosGibbs[idx],
+                       w            = None,
+                       momento      = momentoTRN[idx],
+                       tipo         = tipo)
 
     #entrena la red
     miDBN.entrenar(dataTrn=datosDBN[0][0], # imagenes de entrenamiento
@@ -202,10 +201,10 @@ def DBN_basica(**kwargs):
     parametros={'tasaAprendizaje':  tasaAprenFIT,
                 'regularizadorL1':  regularizadorL1,
                 'regularizadorL2':  regularizadorL2,
-                'momento':          momentoFIT}
+                'momento':          momentoFIT,
+                'toleranciaError':  toleranciaError,
+                'epocas':           epocasFIT}
     miDBN.setParametros(parametros)
-    miDBN.setParametros({'epocas':epocasFIT})
-    miDBN.setParametros({'toleranciaError':toleranciaError})
 
     costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste( datos=datosMLP,
                                                                  listaPesos=None,
@@ -255,7 +254,7 @@ if __name__ == '__main__':
                     'regularizadorL2':  [0.0],
                     'momentoTRN':       [0.0],
                     'momentoFIT':       [0.0, 0.1],
-                    'unidadVis':        ['binaria', 'gaussiana'],
+                    'tipo':             ['binaria', 'gaussiana'],
                     'toleranciaError':  [0.1]
                 }
 
@@ -275,7 +274,7 @@ if __name__ == '__main__':
                     'regularizadorL2':  [0.0],
                     'momentoTRN':       [0.0],
                     'momentoFIT':       [0.0, 0.1],
-                    'unidadVis':        ['binaria'],
+                    'tipo':             ['binaria', 'gaussiana'],
                     'toleranciaError':  [0.1]
                 }
 

@@ -19,7 +19,7 @@ Esta es una prueba simple de una DBN completa sobre la base de datos RML
 Ejecuta el entrenamiento no supervisado y luego ajuste fino de los parametros
 por medio de un entrenamiento supervisado. VALIDACION CRUZADA
 
-optirun python3 cupydle/test/dbn_FACE_validacionCruzada.py --directorio "test_DBN_CV" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 5 --lepocaFIT 10 -lrTRN 0.01 --folds 6 --unidadVis binaria
+optirun python3 cupydle/test/dbn_FACE_validacionCruzada.py --directorio "test_DBN_CV" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 5 --lepocaFIT 10 -lrTRN 0.01 --folds 6 --tipo binaria
 
 """
 import os, argparse, numpy as np
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument('--momentoTRN',       type=float, dest="momentoTRN",     default=0.0,        required=False, nargs='+', help="Tasa de momento para la etapa de entrenamiento, si es unico se aplica igual a cada capa")
     parser.add_argument('--momentoFIT',       type=float, dest="momentoFIT",     default=0.0,        required=False, help="Tasa de momento para la etapa de ajuste")
     parser.add_argument('--folds',            type=int,   dest="folds",          default=2,          required=True,  help="Cantidad de conjuntos a barajar, como minimo 2, cada conjuntos deben poderse colocar igual cantidad de etiquetas")
-    parser.add_argument('--unidadVis',        type=str,   dest="unidadVis",      default='binaria',  required=False, help="Tipo de unidad para la capa visible (binaria, gaussiana)")
+    parser.add_argument('--tipo',             type=str,   dest="tipo",           default='binaria',  required=False, help="Tipo de RBM (binaria, gaussiana)")
 
 
     argumentos = parser.parse_args()
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     momentoTRN      = argumentos.momentoTRN
     momentoFIT      = argumentos.momentoFIT
     folds           = argumentos.folds
-    unidadVis       = argumentos.unidadVis
+    tipo       = argumentos.tipo
     toleranciaError = argumentos.toleranciaError
 
     capas        = np.asarray(capas)
@@ -88,6 +88,7 @@ if __name__ == "__main__":
     assert len(tasaAprenTRN) >= len(capas) or len(tasaAprenTRN) == 1, "Tasa de aprendizaje no coincide con la cantidad de capas (unidad aplica a todas)"
     assert len(momentoTRN) >= len(capas) or len(momentoTRN) == 1, "Tasa de momento entrenamiento no coincide con la cantidad de capas (unidad aplica a todas)"
     assert len(pasosGibbs) >= len(capas) or len(pasosGibbs) == 1, "Pasos de Gibbs no coinciden con la cantidad de capas (unidad aplica a todas)"
+    assert tipo == 'binaria' or tipo == 'gaussiana', "Tipo de RBM no implementada"
     assert porcentaje <= 1.0
 
     # ajustes
@@ -173,24 +174,23 @@ if __name__ == "__main__":
 
         # se agregan las capas
         for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
-            miDBN.addLayer(n_visible=capas[idx],
-                           n_hidden=capas[idx+1],
-                           epocas=epocasTRN[idx],
-                           tamMiniBatch=tambatch,
-                           lr_pesos=tasaAprenTRN[idx],
-                           pasosGibbs=pasosGibbs[idx],
-                           w=None,
-                           momento=momentoTRN[idx],
-                           unidadesVisibles=unidadVis,
-                           unidadesOcultas='binaria')
+            miDBN.addLayer(n_visible = capas[idx],
+                           n_hidden = capas[idx+1],
+                           epocas = epocasTRN[idx],
+                           tamMiniBatch = tambatch,
+                           lr_pesos = tasaAprenTRN[idx],
+                           pasosGibbs = pasosGibbs[idx],
+                           w = None,
+                           momento = momentoTRN[idx],
+                           tipo = tipo)
 
         # TODO corregir esto, no deberia entrenar con la validacion aparte, meter todo junto
         #entrena la red
-        miDBN.entrenar(dataTrn=datos[0][0], # imagenes de entrenamiento
-                       dataVal=datos[1][0], # imagenes de validacion
-                       pcd=pcd,
-                       guardarPesosIniciales=True,
-                       filtros=True)
+        miDBN.entrenar(dataTrn = datos[0][0], # imagenes de entrenamiento
+                       dataVal = datos[1][0], # imagenes de validacion
+                       pcd = pcd,
+                       guardarPesosIniciales = True,
+                       filtros = True)
 
         #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
@@ -206,10 +206,10 @@ if __name__ == "__main__":
         parametros={'tasaAprendizaje':  tasaAprenFIT,
                     'regularizadorL1':  regularizadorL1,
                     'regularizadorL2':  regularizadorL2,
-                    'momento':          momentoFIT}
+                    'momento':          momentoFIT,
+                    'toleranciaError':  toleranciaError,
+                    'epocas':           epocasFIT}
         miDBN.setParametros(parametros)
-        miDBN.setParametros({'epocas':epocasFIT})
-        miDBN.setParametros({'toleranciaError':toleranciaError})
 
         costoTRN, costoVAL, costoTST, costoTST_final = 0.0,0.0,0.0,0.0
         costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste(datos=datos,

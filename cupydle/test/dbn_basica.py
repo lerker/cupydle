@@ -266,10 +266,10 @@ def DBN_basica(**kwargs):
     parametros={'tasaAprendizaje':  tasaAprenFIT,
                 'regularizadorL1':  regularizadorL1,
                 'regularizadorL2':  regularizadorL2,
-                'momento':          momentoFIT}
+                'momento':          momentoFIT,
+                'toleranciaError':  toleranciaError,
+                'epocas':           epocasFIT}
     miDBN.setParametros(parametros)
-    miDBN.setParametros({'epocas':epocasFIT})
-    miDBN.setParametros({'toleranciaError':toleranciaError})
 
     costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste( datos=datosMLP,
                                                                  listaPesos=None,
@@ -300,6 +300,8 @@ def _guardar(nombreArchivo, diccionario=None):
         return 0
 
 if __name__ == '__main__':
+
+    assert False, "Esto es un modulo de testing, ejecutar o invocar. Comentar esta linea"
 
     #param_grid = {'a': [1, 2], 'b': [True, False]}
     # parametros de base

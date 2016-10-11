@@ -35,13 +35,13 @@ from cupydle.test.dbn_basica import DBN_basica, _guardar
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Prueba de una DBN sobre KML GRID SEARCH')
-    parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_DBN', required=None,  help="Carpeta donde se almacena la corrida actual")
-    parser.add_argument('--dataset',          type=str,   dest="dataset",        default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")
-    parser.add_argument('--capa1',            type=int,  dest="capa1",          default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
-    parser.add_argument('--capa2',            type=int,  dest="capa2",          default=None,       required=False,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
-    parser.add_argument('--capa3',            type=int,  dest="capa3",          default=None,       required=False,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
-    parser.add_argument('--capa4',            type=int,  dest="capa4",          default=None,       required=False,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
-    parser.add_argument('--capa5',            type=int,  dest="capa5",          default=None,       required=False,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--directorio', type=str,  dest="directorio", default='test_DBN', required=None,  help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--dataset',    type=str,  dest="dataset",    default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")
+    parser.add_argument('--capa1',      type=int,  dest="capa1",      default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--capa2',      type=int,  dest="capa2",      default=None,       required=False, nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--capa3',      type=int,  dest="capa3",      default=None,       required=False, nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--capa4',      type=int,  dest="capa4",      default=None,       required=False, nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--capa5',      type=int,  dest="capa5",      default=None,       required=False, nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
     argumentos = parser.parse_args()
     directorio = argumentos.directorio
     dataset    = argumentos.dataset
@@ -80,7 +80,7 @@ if __name__ == '__main__':
                     'regularizadorL2':  [0.0],
                     'momentoTRN':       [0.0],
                     'momentoFIT':       [0.0, 0.1],
-                    'unidadVis':        ['binaria', 'gaussiana'],
+                    'tipo':             ['binaria', 'gaussiana'],
                     'toleranciaError':  [0.1]
                 }
 

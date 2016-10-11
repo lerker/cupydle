@@ -38,7 +38,7 @@ from cupydle.dnn.unidades import UnidadBinaria
 
 
 if __name__ == "__main__":
-
+    assert False, "Esta deprecated... hay que reestructurar"
     parser = argparse.ArgumentParser(description='Prueba de una DBN sobre FACE')
     parser.add_argument('--directorio',       type=str,   dest="directorio",     default='test_DBN', required=None,  help="Carpeta donde se almacena la corrida actual")
     parser.add_argument('--dataset',          type=str,   dest="dataset",        default=None,       required=True,  help="Archivo donde esta el dataset, [videos, clases].npz")

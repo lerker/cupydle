@@ -70,18 +70,38 @@ if __name__ == '__main__':
                     'epocasFIT':        [1000,1500,2000],
                     'tambatch':         [10,100],
                     'porcentaje':       [0.8],
-                    'tasaAprenTRN':     [0.01, 0.05, 0.1],
-                    'tasaAprenFIT':     [0.9,0.1],
-                    'pasosGibbs':       [1],
+                    'tasaAprenTRN':     [0.001, 0.01, 0.05],
+                    'tasaAprenFIT':     [0.1, 0.05, 0.08],
+                    'pasosGibbs':       [1, 10],
                     'nombre':           ['dbn'],
                     'pcd':              [True, False],
-                    'regularizadorL1':  [0.0],
-                    'regularizadorL2':  [0.0],
-                    'momentoTRN':       [0.0],
-                    'momentoFIT':       [0.0, 0.1],
-                    'unidadVis':        ['binaria', 'gaussiana'],
+                    'regularizadorL1':  [0.0, 0.01],
+                    'regularizadorL2':  [0.0, 0.01],
+                    'momentoTRN':       [0.0, 0.01],
+                    'momentoFIT':       [0.0, 0.01],
+                    'tipo':             ['binaria', 'gaussiana'],
                     'toleranciaError':  [0.1]
                 }
+
+    parametros = {  'directorio':       [directorio],
+                'dataset':          [None],
+                'capas':            capas,
+                'epocasTRN':        [[3]],    # debe ser listas de listas
+                'epocasFIT':        [10],
+                'tambatch':         [100],
+                'porcentaje':       [0.8],
+                'tasaAprenTRN':     [0.01],
+                'tasaAprenFIT':     [0.1],
+                'pasosGibbs':       [1],
+                'nombre':           ['dbn'],
+                'pcd':              [True, False],
+                'regularizadorL1':  [0.0],
+                'regularizadorL2':  [0.0],
+                'momentoTRN':       [0.0],
+                'momentoFIT':       [0.0, 0.1],
+                'tipo':             ['binaria', 'gaussiana'],
+                'toleranciaError':  [0.1]
+            }
 
     #assert len(sys.argv) < 3, "cantidad incorrecta de parametros, la base de datos y una lista (opcional)"
     #parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
@@ -119,6 +139,13 @@ if __name__ == '__main__':
         print("\n\n")
 
         _guardar(nombreArchivo=nombreArchivo, diccionario={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
+
+        # esto es temporar para poder ver los cambios
+        import numpy as np
+        nombreA = 'cupydle/test/mnist/'+params['directorio']+'/'+'performance_dbn_'+ str(x) +'.npz'
+        print(nombreA)
+        np.savez(nombreA, costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST)
+
 
     final = T.toc()
     print("\n\nGRID SEARCH  FINALIZADO\n\n")
