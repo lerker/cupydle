@@ -130,6 +130,7 @@ def DBN_basica(**kwargs):
 
     # se crea el modelo
     miDBN = DBN(name=nombre, ruta=rutaCompleta)
+    DBN.DBN_custom = True
 
     # se agregan las capas
     for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima

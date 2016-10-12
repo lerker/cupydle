@@ -135,6 +135,8 @@ class DBN(object):
 
     DEBUG = False
 
+    DBN_custom = False
+
     def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None, ruta=''):
         """This class is made to support a variable number of layers.
 
@@ -266,7 +268,10 @@ class DBN(object):
         T = temporizador()
         inicio = T.tic()
 
-        for i in range(self.n_layers):
+        cantidadCapas = self.n_layers if DBN.DBN_custom else self.n_layers-1
+        print("Entrenando con metodo \'custom\'") if DBN.DBN_custom else None
+
+        for i in range(cantidadCapas):
             # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
             if i == 0:
                 layer_input = self.x
@@ -374,7 +379,9 @@ class DBN(object):
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
-        for i in range(0,len(self.pesos)-1):
+        #assert False, "aca entra para cuando es custom pero no para el caso normal de una sola capa... debe entrar siempre"
+        cantidadPesos = len(self.pesos)-1 if DBN.DBN_custom else len(self.pesos)
+        for i in range(0,cantidadPesos):
             clasificador.agregarCapa(unidadesEntrada=self.capas[i].n_visible,
                                      unidadesSalida=self.capas[i].n_hidden,
                                      clasificacion=False,
@@ -382,12 +389,23 @@ class DBN(object):
                                      pesos=self.pesos[i],
                                      biases=None)
 
-        clasificador.agregarCapa(unidadesEntrada=self.capas[-1].n_visible,
-                                 unidadesSalida=self.capas[-1].n_hidden,
-                                 clasificacion=True,
-                                 activacion=activaciones[-1],
-                                 pesos=self.pesos[-1],
-                                 biases=None)
+        if DBN.DBN_custom:
+            # en este tipo carga la red y entrena con los pesos tal cual fue preentrenada.
+            print("Ajustando con metodo \'custom\'")
+            clasificador.agregarCapa(unidadesEntrada=self.capas[-1].n_visible,
+                                     unidadesSalida=self.capas[-1].n_hidden,
+                                     clasificacion=True,
+                                     activacion=activaciones[-1],
+                                     pesos=self.pesos[-1],
+                                     biases=None)
+        else:
+            # w = numpy.zeros((self.capas[-1].n_visible, self.capas[-1].n_hidden),dtype=theanoFloat)
+            clasificador.agregarCapa(unidadesEntrada=self.capas[-1].n_visible,
+                                     unidadesSalida=self.capas[-1].n_hidden,
+                                     clasificacion=True,
+                                     activacion=activaciones[-1],
+                                     pesos=None,
+                                     biases=None)
 
         T = temporizador()
         inicio = T.tic()
