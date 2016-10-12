@@ -228,23 +228,34 @@ class MLP(object):
         trainX, trainY  = shared_dataset(trainSet)
         validX, validY  = shared_dataset(validSet)
         testX, testY    = shared_dataset(testSet)
+        del trainSet, validSet, testSet
 
         n_train_batches = trainX.get_value(borrow=True).shape[0] // batch_size
         n_valid_batches = validX.get_value(borrow=True).shape[0] // batch_size
         n_test_batches  = testX.get_value(borrow=True).shape[0] // batch_size
 
-        memoria_disponible = gpu_info('Mb')[0] * 0.8
-        memoria_dataset = 4 * n_train_batches*batch_size/1024./1024.
-        memoria_por_ejemplo = 4 * trainX.get_value(borrow=True).shape[1]/1024./1024.
-        memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
+        # si utilizo la gpu es necesario esto
+        if theano.config.device == 'gpu':
+            #memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch = calcular_memoria_requerida(cantidad_ejemplos=data.shape[0], cantidad_valores=data.shape[1], tamMiniBatch=tamMiniBatch)
+            #print("Mem. Disp.:", gpu_info('Mb')[0], "Mem. Dataset:", memoria_dataset, "Mem. x ej.:", memoria_por_ejemplo, "Mem. x Minibatch:", memoria_por_minibatch)
 
-        info = "Mem. disp.: {:> 8.5f} Mem. dataset: {:> 8.5f} Mem. x ej.: {:> 8.5f} Mem. x Minibatch: {:> 8.5f}"
-        print(info.format(memoria_disponible,memoria_dataset,memoria_por_ejemplo, memoria_por_minibatch)) if MLP.DEBUG else None
+            memoria_disponible = gpu_info('Mb')[0] * 0.8
+            memoria_dataset = 4 * n_train_batches*batch_size/1024./1024.
+            memoria_por_ejemplo = 4 * trainX.get_value(borrow=True).shape[1]/1024./1024.
+            memoria_por_minibatch = memoria_por_ejemplo * tamMiniBatch
 
-        if tamMacroBatch is None:
-            tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=n_train_batches*batch_size)
+            info = "Mem. disp.: {:> 8.5f} Mem. dataset: {:> 8.5f} Mem. x ej.: {:> 8.5f} Mem. x Minibatch: {:> 8.5f}"
+            print(info.format(memoria_disponible,memoria_dataset,memoria_por_ejemplo, memoria_por_minibatch)) if MLP.DEBUG else None
 
-        del memoria_disponible, memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch
+            if tamMacroBatch is None:
+                tamMacroBatch = calcular_chunk(memoriaDatos=memoria_dataset, tamMiniBatch=tamMiniBatch, cantidadEjemplos=n_train_batches*batch_size)
+
+            del memoria_disponible, memoria_dataset, memoria_por_ejemplo, memoria_por_minibatch
+
+        if theano.config.device == 'cpu':
+            if tamMacroBatch is None:
+                tamMacroBatch = trainX.get_value(borrow=True).shape[0]
+
 
         # necesito actualizar los costos, si no hago este paso no tengo
         # los valores requeridos
@@ -259,9 +270,9 @@ class MLP(object):
                 self._cargar(key='regularizadorL2') * self.L2_sqr)
 
         train_model, validate_model, test_model = self.construirFunciones(
-                                        datosEntrenamiento=shared_dataset(trainSet),
-                                        datosValidacion=shared_dataset(validSet),
-                                        datosTesteo=shared_dataset(testSet),
+                                        datosEntrenamiento=(trainX, trainY),
+                                        datosValidacion=(validX, validY),
+                                        datosTesteo=(testX, testY),
                                         cost=costo,
                                         batch_size=batch_size,
                                         updates=updates,
