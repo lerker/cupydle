@@ -21,11 +21,13 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
 
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
 # needs_sphinx = '1.0'
+needs_sphinx = '1.3.5'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -34,8 +36,36 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     #'sphinx.ext.imgmath',
+    #'sphinx.ext.mathjax',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.napoleon', #parser para estylo napoleon (numpy y google docs)
     'sphinx.ext.viewcode',
+    'sphinx.ext.linkcode'
 ]
+
+try:
+    from sphinx.ext import pngmath
+    extensions.append('sphinx.ext.pngmath')
+except ImportError:
+    try:
+        from sphinx.ext import mathjax
+        extensions.append('sphinx.ext.mathjax')
+    except ImportError:
+        pass
+
+# para el docstring
+# Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_private_with_doc = True #incluye _funcion_underscore
+napoleon_include_special_with_doc = True #incluye __funcionEspecial__
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+##
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -72,7 +102,7 @@ release = '20161013'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'es'
+language = 'spanish'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -120,12 +150,48 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 
+# Resolve function for the linkcode extension.
+##"""
+import inspect
+from os.path import relpath, dirname
+
+def linkcode_resolve(domain, info):
+    def find_source():
+        # try to find the file and line number, based on code from Lasagne:
+        # https://github.com/Lasagne/Lasagne/blob/master/docs/conf.py#L114
+        obj = sys.modules[info['module']]
+        for part in info['fullname'].split('.'):
+            obj = getattr(obj, part)
+        import inspect
+        import os
+        fn = inspect.getsourcefile(obj)
+        fn = os.path.relpath(fn, start=os.path.dirname(__file__))
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
+
+    if domain != 'py' or not info['module']:
+        return None
+    try:
+        filename = 'cupydle/%s#L%d-L%d' % find_source()
+    except Exception:
+        filename = info['module'].replace('.', '/') + '.py'
+    return "https://github.com/lerker/cupydle/blob/%s/%s" % ('master', filename)
+
+# Look at the first line of the docstring for function and method signatures.
+autodoc_docstring_signature = True
+
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+#html_theme = 'alabaster'
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    html_theme = 'default'
+    html_theme = 'sphinx_rtd_theme'
+else:
+    html_theme = 'nature' #verde
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -135,6 +201,8 @@ html_theme = 'alabaster'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
+import sphinx_rtd_theme
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
@@ -149,6 +217,7 @@ html_theme = 'alabaster'
 # of the sidebar.
 #
 # html_logo = None
+html_logo = "img/logo.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -177,6 +246,7 @@ html_static_path = ['_static']
 # typographically correct entities.
 #
 # html_use_smartypants = True
+html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
 #
@@ -246,11 +316,11 @@ htmlhelp_basename = 'Cupydledoc'
 latex_elements = {
      # The paper size ('letterpaper' or 'a4paper').
      #
-     # 'papersize': 'letterpaper',
+     'papersize': 'a4paper',
 
      # The font size ('10pt', '11pt' or '12pt').
      #
-     # 'pointsize': '10pt',
+     'pointsize': '11pt',
 
      # Additional stuff for the LaTeX preamble.
      #
@@ -272,7 +342,7 @@ latex_documents = [
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #
-# latex_logo = None
+latex_logo = 'img/logo.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.

@@ -11,23 +11,6 @@ Contenidos:
    cupydle.test
 
 
-Modulos:
--------------------
-
-    :class:`cupydle.dnn.rbm`
-
-    Base para las Maquinas de Bolztmann Restringidas.
-
-    :class:`cupydle.dnn.dbn`
-
-    Base para las Redes de Creencia Profunda.
-
-    :class:`cupydle.dnn.mlp`
-
-    Base para la creancion de Multilayer Perceptrons
-
-
-
 Búsqueda de contenidos
 ======================
 
