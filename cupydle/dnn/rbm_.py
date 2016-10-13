@@ -305,17 +305,85 @@ class RBM(object):
 
     def energiaLibre(self, vsample):
         """
+        http://sphinxcontrib-napoleon.readthedocs.io/en/latest/
+
+        Example NumPy style docstrings.
+
+        This module demonstrates documentation as specified by the `NumPy
+        Documentation HOWTO`_. Docstrings may extend over multiple lines. Sections
+        are created with a section header followed by an underline of equal length.
+
         Calcula la energia libre F(v) = - log sum_h exp(-E(v,h)).
 
-        Parametros
+        :math:`F(\mathbf(v))- \log \sum_h \exp(-E(v,h))`
+
+        Example
+        -------
+        Examples can be given using either the ``Example`` or ``Examples``
+        sections. Sections support any reStructuredText formatting, including
+        literal blocks::
+
+            $ python example_numpy.py
+
+
+        Section breaks are created with two blank lines. Section breaks are also
+        implicitly created anytime a new section starts. Section bodies *may* be
+        indented:
+
+        Note
+        ----
+        Do not include the `self` parameter in the ``Parameters`` section.
+
+        If a section is indented, then a section break is created by
+        resuming unindented text.
+
+
+        Parameters
         ----------
         v : array-like, shape (n_samples, n_features)
             Values of the visible layer.
 
-        Retornos
+            Either form is acceptable, but the two should not be mixed. Choose
+            one convention to document module level variables and be consistent
+            with it.
+
+        Returns
         -------
         free_energy : array-like, shape (n_samples,)
             The value of the free energy.
+
+        Example
+        --------
+        Examples should be written in doctest format, and should illustrate how
+        to use the function.
+
+        >>> print([i for i in example_generator(4)])
+        [0, 1, 2, 3]
+
+
+        Args (alias of Parameters)
+        Arguments (alias of Parameters)
+        Attributes
+        Example
+        Examples
+        Keyword Args (alias of Keyword Arguments)
+        Keyword Arguments
+        Methods
+        Note
+        Notes
+        Other Parameters
+        Parameters
+        Return (alias of Returns)
+        Returns
+        Raises
+        References
+        See Also
+        Todo
+        Warning
+        Warnings (alias of Warning)
+        Warns
+        Yield (alias of Yields)
+        Yields
         """
         wx_b = theano.tensor.dot(vsample, self.w) + self.hidbiases
         vbias_term = theano.tensor.dot(vsample, self.visbiases)
