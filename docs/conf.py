@@ -45,7 +45,7 @@ extensions = [
 
 try:
     from sphinx.ext import pngmath
-    extensions.append('sphinx.ext.pngmath')
+    extensions.append('sphinx.ext.imgmath')
 except ImportError:
     try:
         from sphinx.ext import mathjax
@@ -102,7 +102,7 @@ release = '20161013'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'spanish'
+language = 'es'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -253,6 +253,10 @@ html_use_smartypants = True
 # Custom sidebar templates, maps document names to template names.
 #
 # html_sidebars = {}
+html_sidebars = {
+   '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html'],
+   'using/windows': ['windowssidebar.html', 'searchbox.html'],
+}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -273,11 +277,11 @@ html_use_smartypants = True
 
 # If true, links to the reST sources are added to the pages.
 #
-# html_show_sourcelink = True
+html_show_sourcelink = False
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 #
-# html_show_sphinx = True
+html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 #
@@ -297,13 +301,13 @@ html_use_smartypants = True
 #   'da', 'de', 'en', 'es', 'fi', 'fr', 'h', 'it', 'ja'
 #   'nl', 'no', 'pt', 'ro', 'r', 'sv', 'tr', 'zh'
 #
-# html_search_language = 'en'
+html_search_language = 'es'
 
 # A dictionary with options for the search language support, empty by default.
 # 'ja' uses this config value.
 # 'zh' user can custom change `jieba` dictionary path.
 #
-# html_search_options = {'type': 'default'}
+html_search_options = {'type': 'default'}
 
 # The name of a javascript file (relative to the configuration directory) that
 # implements a search results scorer. If empty, the default will be used.

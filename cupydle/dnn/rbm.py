@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """Implementacion de Maquina de Boltzmann Restringidas en CPU/GP-GPU"""
@@ -41,11 +40,68 @@ except ImportError:
     import Image
 
 class RBM(ABC):
-    """Restricted Boltzmann Machine on CPU/GP-GPU"""
+    """Clase ``Abstracta`` para la implementacion de las Maquinas de Boltzmann
+    Restringidas.
+
+    Note:
+        Esta clase `NO` debe ser implementada.
+
+    Parameters:
+        n_visible (int): Cantidad de neuronas visibles.
+
+        n_hidden (int): Cantidad de neuronas ocultas.
+
+        w (Opcional[numpy.ndarray]): Matriz de pesos, conexiones psinapticas entre
+            neuronas visibles y ocultas. Forma `(n_visivles, n_hidden)`
+
+        w_init (Opcional[str]): Posibles: *uniforme*, *custom*. Default `uniforme`
+            Eleccion del tipo de inicializacion para la matriz de pesos `W`.
+
+            `uniforme`: metodo de inicializacion uniforme.
+
+            .. math:: W = [\dfrac{-1}{n\_visible}, \dfrac{1}{n\_visible}]
+
+
+            `custom`: metodo de inicializacion mejorada.
+
+            .. math:: \pm 4 \cdot \sqrt{\dfrac{6}{n\_visible + n\_hidden}}
+
+        visbiases (Opcional[shared-theano, numpy.ndarray]): Seteo de los biases visibles.
+            Forma (n_visible,).
+
+        hidbiases (Opcional[shared-theano, numpy.ndarray]): Seteo de los biases ocultos.
+            Forma (n_hidden,).
+
+        numpy_rnd (Opcional[int]): Semilla para la generacion de numeros aleatorios
+            `numpy`.
+
+        theano_rnd (opcional[int]): Semilla para la generacion de numeros aleatorios
+            theano`.
+
+        nombre (Opcional[str]): Nombre de directorio.
+
+        ruta (Opcional[str]): Directorio absoluto para el almacenamiento del modelo
+            y ejecucion.
+
+    """
 
     DEBUG=False
+    """bool: Modo de mas detalles.
+
+    Example:
+        >>> from cupydle.dnn.rbm import RBM
+        >>> R = RBM(...)
+        >>> RBM.DEBUG = True
+    """
 
     optimizacion_hinton=False
+    """bool: Modo estandar de entrenamiento para las RBM.
+
+    Example:
+        >>> from cupydle.dnn.rbm import RBM
+        >>> R = RBM(...)
+        >>> RBM.optimizacion_hinton = True
+    """
 
     def __init__(self,
                  n_visible,
@@ -58,26 +114,6 @@ class RBM(ABC):
                  theano_rng=None,
                  nombre=None,
                  ruta=''):
-        """
-        :type n_visible: int
-        :param n_visible: cantidad de neuronas visibles
-        :type n_hidden: int
-        :param n_hidden: cantidad de neuronas ocultas
-        :type w: shared variable theano, numpy.ndarray. size=(n_visible, n_hidden)
-        :param w: matriz de pesos
-        :type w_init: str
-        :param w_init: seleccion en la inicializacion de los pesos W, uniform/custom
-        :type visbiases: shared variable theano, numpy.ndarray. size=(n_visible)
-        :param visbiases: vector de bias visible
-        :type hidbiases: shared variable theano, numpy.ndarray. size=(n_hidden)
-        :param visbiases: vector de bias oculto
-        :type numpy_rnd: int
-        :param numpy_rnd: semilla para la generacion de numeros aleatorios numpy
-        :type theano_rnd: int
-        :param theano_rnd: semilla para la generacion de numeros aleatorios theano
-        :type ruta: string
-        :param ruta: ruta de almacenamiento de los datos generados
-        """
 
         self.n_visible = n_visible
         self.n_hidden  = n_hidden
@@ -257,7 +293,10 @@ class RBM(ABC):
         if driver == 'pickle':
             raise NotImplementedError("Funcion no implementada")
         elif driver == 'shelve':
-            self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+            try:
+                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+            except MemoryError:
+                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
@@ -824,18 +863,45 @@ class RBM(ABC):
 
     @abstractmethod
     def entrenamiento(self, data, tamMiniBatch=10, tamMacroBatch=None, pcd=True, gibbsSteps=1, filtros=False, printCompacto=False):
-        """
-        Metodo principal de entrenameinto para una RBM.
+        """Metodo principal de entrenameinto para una RBM.
 
-        :type tamMiniBatch: int
-        :param tamMiniBatch: cantidad de ejemplos del subconjunto para el entrenamiento BatchOnline
-        :type tamMacroBatch: int
-        :param tamMacroBatch: cantidad de ejemplos del subconjunto sobre el que itera el minibatch
-        :type pcd: bool
-        :param pcd: entrenar con el algoritmo de divergencia constrastiva persistente. Sino entrena con divergencia constrastiva
-        :type gibbsSteps: int
-        :param gibbsSteps: cantidad de pasos de gibbs para el CD/PCD
 
+        Parameters:
+            data (numpy-array): Conjunto de datos de entrada para el
+                entrenamiento. Los datos de entrada tiene la forma (n_ejemplos,
+                n_caracteristicas).
+
+            tamMiniBatch (Opcional[int]): Cantidad de ejemplos para el
+                entrenamiento del `Divergencia Cotrastiva Batch`.
+
+            tamMacroBatch (Opcional[int]): Cantidad de ejemplos para la
+                transferencia hacia la GP-GPU.
+                Si es `None` se calcula de forma automatica.
+
+            pcd (Opcional[bool]): Seleccion de entrenamiento por `Divergencia
+                Constrastiva Persistente`.
+
+            gibbsSteps (Opcional[int]): Cantidad de pasos de Gibbs a ejecutar
+                en cada cadena de CD/PCD.
+
+            filtros (Opcional[bool]): Grafica los filtros de los pesos por cada
+                unidad oculta.
+
+            printCompacto (Opcional[bool]): Imprime por consola de forma reducida,
+                mejora de lectura aunque menos detallado.
+
+
+        Example:
+            Entrenamiento de una RBM tipo binaria.
+
+        Note:
+            Implementar a traves de una
+            instancia de una clases hija, por ejemplo: :class:`.BRBM` en su
+            metodo :meth:`~BRMB.entrenamiento`.
+
+            >>> from cupydle.dnn.rbm import BRBM
+            >>> R = BRBM(...)
+            >>> R.entrenamiento(...)
 
         """
 
@@ -1094,10 +1160,10 @@ class RBM(ABC):
 
 
 class BRBM(RBM):
-    """
-    Implementacion de una Maquina de Boltzmann Restringida Binaria
-    Unidades Visibles  Binarias
-    Unidades Ocultas   Binarias
+    """Maquina de Boltzmann Restringida Binaria
+
+    Maquina de Boltzmann Restringida \"*RBM*\" Binaria; Unidades Visibles
+    Binarias y Unidades Ocultas Binarias. Funcion de activacion Sigmoidea.
     """
     def __init__(self, **kwargs):
         # inicializar la clase padre
@@ -1108,6 +1174,41 @@ class BRBM(RBM):
         return str("RBM Binaria-Binaria")
 
     def entrenamiento(self,**kwargs):
+        """Entrenamiento de para una RBM Binaria
+
+        Parameters:
+            data (numpy-array): Conjunto de datos de entrada para el
+                entrenamiento. Los datos de entrada tiene la forma (n_ejemplos,
+                n_caracteristicas).
+
+            tamMiniBatch (Opcional[int]): Cantidad de ejemplos para el
+                entrenamiento del `Divergencia Cotrastiva Batch`.
+
+            tamMacroBatch (Opcional[int]): Cantidad de ejemplos para la
+                transferencia hacia la GP-GPU.
+                Si es `None` se calcula de forma automatica.
+
+            pcd (Opcional[bool]): Seleccion de entrenamiento por `Divergencia
+                Constrastiva Persistente`.
+
+            gibbsSteps (Opcional[int]): Cantidad de pasos de Gibbs a ejecutar
+                en cada cadena de CD/PCD.
+
+            filtros (Opcional[bool]): Grafica los filtros de los pesos por cada
+                unidad oculta.
+
+            printCompacto (Opcional[bool]): Imprime por consola de forma reducida,
+                mejora de lectura aunque menos detallado.
+
+
+        Example:
+            Entrenamiento de una RBM tipo binaria.
+
+            >>> from cupydle.dnn.rbm import BRBM
+            >>> R = BRBM(...)
+            >>> R.entrenamiento(...)
+        """
+
         self.unidadesVisibles = UnidadBinaria()
         self.unidadesOcultas = UnidadBinaria()
         super().entrenamiento(**kwargs)
@@ -1166,8 +1267,9 @@ def test_rbm():
 
     rbm.setParametros(parametros)
     rbm.setParametros({'epocas':3})
+
     RBM.optimizacion_hinton=True
-    rbm.entrenamiento(data=datos[0][0], tamMiniBatch=100, pcd=True, filtros=True, gibbsSteps=3)
+    rbm.entrenamiento(data=datos[0][0], tamMiniBatch=10, pcd=True, filtros=True, gibbsSteps=1)
 
     rbm.sampleo(data=datos[0][0], labels=datos[0][1])
 
@@ -1175,7 +1277,7 @@ def test_rbm():
 
 
 if __name__ == "__main__":
-    assert False, str(__file__ + " No es un modulo")
+    #assert False, str(__file__ + " No es un modulo")
     test_rbm()
 
 

@@ -43,12 +43,6 @@ from cupydle.dnn.funciones import sigmoideaTheano
 from cupydle.dnn.utils import RestrictedDict
 
 
-"""
-
-
-
-
-"""
 try:
     import PIL.Image as Image
 except ImportError:
@@ -436,18 +430,44 @@ class DBN(object):
         save(objeto=self, filename=nombre, compression=compression)
         return 0
 
-    def _guardar(self, nombreArchivo=None, diccionario=None, sobreescribir=False):
+    def _guardar(self, driver='shelve', nombreArchivo=None, diccionario=None):
+        """
+        interfaz de almacenamiento, se eligen los metodos disponibles por el
+        driver
+
+        :type driver: str
+        :param driver: seleccion del driver para persistencia, pickle/shelve
+        :type nombreArchivo: str
+        :param nombreArchivo: nombre del archivo a persistir
+        :type diccionario: dict
+        :param diccionario: diccionario con los valores a alamacenar
+        """
+
+        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
+        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
+
+        if driver == 'pickle':
+            raise NotImplementedError("Funcion no implementada")
+        elif driver == 'shelve':
+            try:
+                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+            except MemoryError:
+                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
+        else:
+            raise NotImplementedError("No se reconoce el driver de almacenamiento")
+
+        return 0
+
+    def _guardarShelve(self, nombreArchivo, diccionario, sobreescribir=False):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
         lo cual lo hace mas sencillo procesar luego
         """
-        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
-        archivo = self.ruta + nombreArchivo + '.cupydle'
 
         permitidas = self.datosAlmacenar._allowed_keys
         assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
 
-        with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
+        with shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():
                 if isinstance(self.datosAlmacenar[key],list) and not sobreescribir:
                     tmp = shelf[key]
@@ -513,4 +533,5 @@ class DBN(object):
         return capas
 
 if __name__ == "__main__":
-    assert False, str(__file__ + " No es un modulo")
+    #assert False, str(__file__ + " No es un modulo")
+    pass

@@ -1,16 +1,15 @@
-cupydle package
-===============
+CUPYDLE
+=======
 
-Subpackages
------------
+Submodulos
+----------
 
 .. toctree::
 
     cupydle.dnn
-    cupydle.test
 
 
-Modulos:
+Modulos
 --------
 
 :mod:`dnn` -- Modulo Principal
@@ -28,14 +27,6 @@ Modulos:
 :class:`cupydle.dnn.rbm`
 
     Base para las Maquinas de Bolztmann Restringidas.
-
-
-:class:`cupydle.dnn.dbn` -- Clase principal para las DBNs.
-**********************************************************
-
-:class:`cupydle.dnn.dbn`
-
-    Base para las Redes de Creencia Profunda.
 
 
 :class:`cupydle.dnn.mlp` -- Clase principal para las MLPs.

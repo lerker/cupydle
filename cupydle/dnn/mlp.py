@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__      = "Ponzoni, Nelson"
@@ -41,6 +40,31 @@ from cupydle.dnn.graficos import dibujarCostos
 from cupydle.dnn.graficos import dibujarMatrizConfusion
 
 class MLP(object):
+    """Clase ``Abstracta`` para la implementacion de Modelos de
+    regresion/clasificacion multicapa. Tambien conocidos como `Multilayer Perceptrons`
+
+    Note:
+        Esta clase *NO* debe ser implementada.
+
+    Parameters:
+        clasificacion (Opcional[bool]): El modelo creado sera utilizado para
+            tareas de regresion o clasificacion.
+
+        rng (Opcional[int]): Semilla para el generador de nuemros aleatorios.
+            Inicializacion de los valores para los pesos psinapticos y biases.
+
+        ruta (Opcional[str]): Directorio de destino para el almacenamiento del
+            modelo y archivo temporales.
+
+        nombre (Opcional[str]): Nombre del modelo.
+
+    Example:
+        Creacion de un modelo de red para la clasificacion.
+
+        >>> from cupydle.dnn.mlp import MLP
+        >>> M = MLP(...)
+    """
+
     # atributo estatico o de la clase, unico para todas las clases instanciadas
     # para acceder a el -> MLP.verbose
     # y no una instancia de el... mi_mlp.verbose
@@ -494,19 +518,45 @@ class MLP(object):
 
         return matriz
 
-    def _guardar(self, nombreArchivo=None, diccionario=None):
+    def _guardar(self, driver='shelve', nombreArchivo=None, diccionario=None):
+        """
+        interfaz de almacenamiento, se eligen los metodos disponibles por el
+        driver
+
+        :type driver: str
+        :param driver: seleccion del driver para persistencia, pickle/shelve
+        :type nombreArchivo: str
+        :param nombreArchivo: nombre del archivo a persistir
+        :type diccionario: dict
+        :param diccionario: diccionario con los valores a alamacenar
+        """
+
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
+
+        if driver == 'pickle':
+            raise NotImplementedError("Funcion no implementada")
+        elif driver == 'shelve':
+            try:
+                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+            except MemoryError:
+                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
+        else:
+            raise NotImplementedError("No se reconoce el driver de almacenamiento")
+
+        return 0
+
+    def _guardarShelve(self, nombreArchivo, diccionario):
         """
         Almacena todos los datos en un archivo pickle que contiene un diccionario
         lo cual lo hace mas sencillo procesar luego
         """
-        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
-        archivo = self.ruta + nombreArchivo + '.cupydle'
 
         permitidas = self.datosAlmacenar._allowed_keys
         assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
         del permitidas
 
-        with shelve.open(archivo, flag='w', writeback=False, protocol=2) as shelf:
+        with shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2) as shelf:
             for key in diccionario.keys():
                 if isinstance(self.datosAlmacenar[key],list):
                     tmp = shelf[key]
@@ -539,6 +589,3 @@ class MLP(object):
         nombre = self.ruta + nombreArchivo
         save(objeto=self, filename=nombre, compression=compression)
         return 0
-
-if __name__ == '__main__':
-    assert False, str(__file__ + " No es un modulo")

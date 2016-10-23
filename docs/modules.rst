@@ -4,4 +4,4 @@ cupydle
 .. toctree::
    :maxdepth: 4
 
-   cupydle
+   cupydle.dnn
