@@ -301,8 +301,6 @@ def _guardar(nombreArchivo, diccionario=None):
 
 if __name__ == '__main__':
 
-    assert False, "Esto es un modulo de testing, ejecutar o invocar. Comentar esta linea"
-
     #param_grid = {'a': [1, 2], 'b': [True, False]}
     # parametros de base
     parametros = {  'directorio':       ['dbn_dir'],
@@ -329,6 +327,7 @@ if __name__ == '__main__':
     #parametros['dataset'] = ["all_videos_features_clases_shuffled_PCA85_minmax.npz"]
     parametros['dataset'] = [sys.argv[1]]
     parametros['capas'] = [[85, 50, 6], [85, 30, 6]]
+    #parametros['capas'] = [[230346, 100, 50, 6], [230346, 1000, 500, 100, 6]]
 
     Grid = ParameterGrid(parametros)
     #print(list(Grid))

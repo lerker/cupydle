@@ -260,5 +260,9 @@ if __name__ == "__main__":
     del datosMLP
 
     miDBN.guardarObjeto(nombreArchivo=nombre)
+
+    # FIN DEL AJUSTE FINO
+
+    return costoTRN, costoVAL, costoTST, costoTST_final
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"

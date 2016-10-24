@@ -541,6 +541,10 @@ class MLP(object):
                 self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
             except MemoryError:
                 print("Error al guardar el modelo RBM, por falta de memoria en el Host")
+            except KeyError:
+                print("Error sobre la clave... no es posible guardar")
+            except:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
