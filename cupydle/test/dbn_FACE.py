@@ -263,6 +263,6 @@ if __name__ == "__main__":
 
     # FIN DEL AJUSTE FINO
 
-    return costoTRN, costoVAL, costoTST, costoTST_final
+    #costoTRN, costoVAL, costoTST, costoTST_final
 else:
     assert False, "Esto no es un modulo, es un TEST!!!"
