@@ -139,29 +139,19 @@ if __name__ == "__main__":
         assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
     cantidad_train2 = cantidad
 
-
     datosDBN = []
-    datosMLP = []
 
     # entrena con todos los datos, test nunca los toca obvio
     datosTRN_DBN = (videos[:cantidad_train,:], clases[:cantidad_train])
-
-    # entrena el MLP con una parte para train y otra validacion
-    datosTRN = (videos[:cantidad_train2,:], clases[:cantidad_train2])
-    datosVAL = (videos[cantidad_train2:cantidad_train,:],clases[cantidad_train2:cantidad_train])
-    datosTST = (videos[cantidad_train:,:],clases[cantidad_train:])
+    del videos, clases
 
     datosDBN.append(datosTRN_DBN);
-    datosMLP.append(datosTRN); datosMLP.append(datosVAL); datosMLP.append(datosTST)
 
     print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
     print("                                               :", "-------------------")
-    print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosTRN_DBN[1]))
-    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosTRN[1]))
-    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosVAL[1]))
-    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosTST[1]))
+    print("Cantidad de clases en el conjunto Entrenamiento DBN:", np.bincount(datosTRN_DBN[1]))
     print("Entrenado la DBN con {} ejemplos".format(len(datosTRN_DBN[0])))
-    del datosTRN_DBN, datosTRN, datosVAL, datosTST
+    del datosTRN_DBN
 
     ###########################################################################
     ##
@@ -171,6 +161,7 @@ if __name__ == "__main__":
 
     # se crea el modelo
     miDBN = DBN(name=nombre, ruta=rutaCompleta)
+    DBN.DBN_custom = True
 
     # se agregan las capas
     for idx in range(len(capas[:-1])): # es -2 porque no debo tener en cuenta la primera ni la ultima
@@ -192,6 +183,10 @@ if __name__ == "__main__":
                    filtros = True)
 
     #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
+    del datosDBN
+    # FIN DEL ENTRENAMIENTO
+
+    #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
 
     ###########################################################################
     ##
@@ -200,6 +195,53 @@ if __name__ == "__main__":
     ###########################################################################
 
     #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
+
+    # se cargan  los datos, debe ser un archivo comprimido, en el cual los
+    # arreglos estan en dos keys, 'videos' y 'clases'
+    try:
+        datos = np.load(rutaDatos + dataset)
+    except:
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
+
+    videos = datos['videos']
+    clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
+    del datos # libera memoria
+
+    # modo hardcore activatedddd
+    # aplico el mismo porcentaje para dividir el conjunto de los datos en train y test
+    # y el mismo porcentaje para train propio y validacion
+
+    cantidad = int(clases.shape[0] * porcentaje)
+    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
+    # es por ello que acomodo la cantidad hasta que quepa
+    while (cantidad % tambatch):
+        cantidad += 1
+        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
+    cantidad_train = cantidad
+    cantidad = int(cantidad_train * porcentaje)
+    # la cantidad de ejemplos debe ser X partes enteras del minibatch, para que el algoritmo tome de a cachos y procese
+    # es por ello que acomodo la cantidad hasta que quepa
+    while (cantidad % tambatch):
+        cantidad += 1
+        assert cantidad != clases.shape[0], "Porcentaje trn/test muy alto, disminuir"
+    cantidad_train2 = cantidad
+
+    datosMLP = []
+
+    # entrena el MLP con una parte para train y otra validacion
+    datosTRN = (videos[:cantidad_train2,:], clases[:cantidad_train2])
+    datosVAL = (videos[cantidad_train2:cantidad_train,:],clases[cantidad_train2:cantidad_train])
+    datosTST = (videos[cantidad_train:,:],clases[cantidad_train:])
+
+    datosMLP.append(datosTRN); datosMLP.append(datosVAL); datosMLP.append(datosTST)
+
+    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
+    print("                                               :", "-------------------")
+    print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosTRN[1]))
+    print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosVAL[1]))
+    print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosTST[1]))
+    del datosTRN, datosVAL, datosTST, videos, clases
+
     print(miDBN)
 
     parametros={'tasaAprendizaje':  tasaAprenFIT,
@@ -210,11 +252,12 @@ if __name__ == "__main__":
                 'epocas':           epocasFIT }
     miDBN.setParametros(parametros)
 
-    miDBN.ajuste(datos = datosMLP,
-                 listaPesos = None,
-                 fnActivacion = "sigmoidea",
-                 semillaRandom = None,
-                 tambatch = tambatch)
+    costoTRN, costoVAL, costoTST, costoTST_final = miDBN.ajuste( datos = datosMLP,
+                                                                 listaPesos = None,
+                                                                 fnActivacion = "sigmoidea",
+                                                                 semillaRandom = None,
+                                                                 tambatch = tambatch)
+    del datosMLP
 
     miDBN.guardarObjeto(nombreArchivo=nombre)
 else:

@@ -269,6 +269,7 @@ class DBN(object):
             # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
             if i == 0:
                 layer_input = self.x
+                del dataTrn
             else:
                 layer_input = self._cargar(key='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
 
