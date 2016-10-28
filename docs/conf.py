@@ -44,7 +44,7 @@ extensions = [
 ]
 
 try:
-    from sphinx.ext import pngmath
+    from sphinx.ext import imgmath
     extensions.append('sphinx.ext.imgmath')
 except ImportError:
     try:

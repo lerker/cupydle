@@ -11,17 +11,7 @@ __version__     = "1.0.0"
 __status__      = "Production"
 
 """
-Implementacion de una red multi-capa en GP-GPU/CPU (Theano)
-
-.. math::
-
-    f(x) = G( b^{(2)} + W^{(2)}( s( b^{(1)} + W^{(1)} x))),
-
-References:
-
-    - textbooks: "Pattern Recognition and Machine Learning" -
-                 Christopher M. Bishop, section 5
-
+Implementacion de una red multi-capa en GP-GPU/CPU (Theano).
 """
 # dependencias internas
 import os, sys, time, shelve, numpy
@@ -34,19 +24,31 @@ import theano
 # dependencias propias
 from cupydle.dnn.capas import Capa, CapaClasificacion
 from cupydle.dnn.stops import criterios
+from cupydle.dnn.graficos import dibujarCostos, dibujarMatrizConfusion
+from cupydle.dnn.utils import guardarHDF5, cargarHDF5, guardarSHELVE, cargarSHELVE
 from cupydle.dnn.utils import RestrictedDict, save, load as load_utils
 from cupydle.dnn.utils_theano import shared_dataset, gpu_info, calcular_chunk
-from cupydle.dnn.graficos import dibujarCostos
-from cupydle.dnn.graficos import dibujarMatrizConfusion
 
 class MLP(object):
     """Clase ``Abstracta`` para la implementacion de Modelos de
-    regresion/clasificacion multicapa. Tambien conocidos como `Multilayer Perceptrons`
+    regresion/clasificacion multicapa. Tambien conocidos como
+    ``Multilayer Perceptrons``.
+    Para un modelo de dos capas, matematicamente se puede describir como:
+
+    .. math::
+
+        f(x) = G( b^{(2)} + W^{(2)}( s( b^{(1)} + W^{(1)} x)))
+
+    donde :math:`x` es la entrada y el superindice indica la capa, :math:`b, W` el bias y pesos respectivamente.
+    Por ultimo :math:`G, s` son las funciones de activacion para cada capa.
 
     Note:
-        Esta clase *NO* debe ser implementada.
+        Esta clase **NO** debe ser implementada. Para mas informacion acuda a
+        `aqui`_.
 
-    Parameters:
+    .. _aqui: https://en.wikipedia.org/wiki/Multilayer_perceptron
+
+    Args:
         clasificacion (Opcional[bool]): El modelo creado sera utilizado para
             tareas de regresion o clasificacion.
 
@@ -58,31 +60,50 @@ class MLP(object):
 
         nombre (Opcional[str]): Nombre del modelo.
 
-    Example:
-        Creacion de un modelo de red para la clasificacion.
-
-        >>> from cupydle.dnn.mlp import MLP
-        >>> M = MLP(...)
     """
 
-    # atributo estatico o de la clase, unico para todas las clases instanciadas
-    # para acceder a el -> MLP.verbose
-    # y no una instancia de el... mi_mlp.verbose
     DEBUG=False
+    """bool: Indica si se quiere imprimir por consola mayor inforamcion.
+
+    Util para propositos de debugging. Para acceder a el solo basta con
+
+    Example:
+        >>> from cupydle.dnn.mlp import MLP
+        >>> M = MLP(...)
+        >>> MLP.DEBUG = True
+
+    """
+
+    #DRIVER_PERSISTENCIA="shelve"
+    DRIVER_PERSISTENCIA="hdf5"
+    """str: Selecciona el driver para el almacenamiento.
+
+    Las posibles elecciones son:
+        * `shelve`_.
+        * `h5py`_.
+
+    Note:
+        La implementacion de *shelve* requiere mas memoria RAM, aunque es mas
+        sencilla y portable de entender.
+
+    Example:
+        >>> from cupydle.dnn.mlp import MLP
+        >>> M = MLP(...)
+        >>> MLP.DRIVER_PERSISTENCIA = "hdf5"
+
+    """
 
     def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
         # semilla para el random
-        self.rng = (npRandom(1234) if rng is None else npRandom(rng))
+        self.rng_seed = 1234 if rng is None else rng
+        self.rng = (npRandom(self.rng_seed) if rng is None else npRandom(self.rng_seed))
 
         # la red es para clasificacion o regresion?
         self.clasificacion = clasificacion
 
         # se almacenan las layers por la que esta compuesta la red.
         self.capas = []
-
-        # se guardan los parametros de la red a optimizar, W y b
-        #self.params = []
 
         # parametros para el entrenamiento
         self.cost   = 0.0
@@ -94,56 +115,99 @@ class MLP(object):
 
         # nombre del objeto, por si lo quiero diferenciar de otros en la misma
         # carpeta
-        self.nombre = ('mlp' if nombre is None else nombre)
+        self.nombre = 'mlp' if nombre is None else nombre
 
         # donde se alojan los datos
         self.ruta = ruta
 
-        self.datosAlmacenar = self._initParametros
+        #self.datosAlmacenar = self._initParametros
+        self._initParametros
 
 
     @property
-    def _initParametros(self):
-        """ inicializa los parametros de la red, un diccionario"""
-        archivo = self.ruta + self.nombre + '.cupydle'
+    def _initParametros(self, driver=DRIVER_PERSISTENCIA):
+        """Inicializa los parametros del modelo.
+
+        Se almacena en disco en una estructura determinada por el *driver* los
+        datos. Inicialmente y por unica vez se deben almacenar dicha estructura
+        en disco, para luego modificarla en el transcurso de la ejecucion.
+
+        Args:
+            driver (Opcional[DRIVER_PERSISTENCIA]): seleciona el motor de
+                persistencia
+
+        Return:
+            dict: estructura de los datos almacenados.
+
+        Note:
+            Siempre que se desee persistir datos para utilizarlos en el
+            transcurso de la ejecucion del modelo, deben agregarse aqui.
+
+        Note:
+            La estructura debe tener en cuenta lo siguiente para guardar:
+                * flotantes, enteros y strings
+                    * key: value
+                * listas
+                    * k: []
+                * array variables o desconocidos en longitud al inicio, se debe post-procesar
+                    * k: []
+
+        See Also:
+            Vea tambien [Xavier10]_
+
+        """
+        nombreArchivo = self.ruta + self.nombre + '.cupydle'
 
         # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
         # debe setearse aca
-        datos = {'tipo':                'mlp',
-                 'nombre':              self.nombre,
-                 'numpy_rng':           self.rng,
-                 'pesos':               [],
-                 'pesos_iniciales':     [],
-                 'bias':                [],
-                 'bias_iniciales':      [],
-                 'tasaAprendizaje':     0.0,
-                 'regularizadorL1':     0.0,
-                 'regularizadorL2':     0.0,
-                 'momento':             0.0,
-                 'epocas':              0,
-                 'toleranciaError':     0.0,
-                 'tiempoMaximo':        0,
-                 'costoTRN':            0,
-                 'costoVAL':            0,
-                 'costoTST':            0,
-                 'activacion':          'sigmoidea'
+        datos = {'tipo':            'mlp',
+                 'nombre':          self.nombre,
+                 'numpy_rng':       self.rng_seed,
+                 'activacion':      'sigmoidea',
+                 'pesos':           [],
+                 'pesos_iniciales': [],
+                 'bias':            [],
+                 'bias_iniciales':  [],
+                 'tasaAprendizaje': 0.0,
+                 'regularizadorL1': 0.0,
+                 'regularizadorL2': 0.0,
+                 'momento':         0.0,
+                 'epocas':          0.0,
+                 'toleranciaError': 0.0,
+                 'tiempoMaximo':    0.0,
+                 'costoTRN':        [],
+                 'costoVAL':        [],
+                 'costoTST':        []
                  }
 
-        # diccionario restringido en sus keys
-        almacenar = RestrictedDict(datos)
-        for k,v in datos.items():
-            almacenar[k]=v
+        # se alamcena en disco
+        self._guardar(diccionario=datos, driver=driver, nuevo=True)
 
-        with shelve.open(archivo, flag='n', writeback=False, protocol=2) as shelf:
-            for key in almacenar.keys():
-                shelf[key] = almacenar[key]
-            shelf.close()
-
-        return almacenar
+        return datos
 
     def setParametroEntrenamiento(self, parametros):
+        """Interfaz para la fijacion de los parametros del modelo.
+
+        Args:
+            parametros (dict): diccionario con los parametros del modelo.
+                Dichos parametros pueden encontrarse en :func:`_initParametros`
+
+        Ejemplos de los posibles parametros son:
+            * tasaAprendizaje
+            * regularizadorL1
+            * regularizadorL2
+            * momento
+            * epocas
+            * toleranciaError
+
+        Example:
+            >>> parametros = {'tasaAprendizaje':  0.01, 'regularizadorL1':  0.001, 'regularizadorL2':  0.0, 'momento': 0.0, 'epocas': 10, 'toleranciaError':  0.08}
+            >>> from cupydle.dnn.mlp import MLP
+            >>> M = MLP(...)
+            >>> M.setParametrosEntrenamiento(parametros)
+        """
         self._guardar(diccionario=parametros)
-        return 1
+        return 0
 
     def agregarCapa(self, unidadesSalida, clasificacion, unidadesEntrada=None,
                     activacion='sigmoidea', pesos=None, biases=None):
@@ -241,7 +305,9 @@ class MLP(object):
 
 
     def entrenar(self, trainSet, validSet, testSet, batch_size, tamMacroBatch=None, rapido=False):
-
+        #print(self._cargar(key=None))
+        #print(self._cargar(key='regularizadorL1'))
+        #assert False
         assert len(self.capas) != 0, "No hay capas, <<agregarCapa()>>"
 
         tamMiniBatch = batch_size
@@ -384,10 +450,7 @@ class MLP(object):
         del train_model, validate_model, test_model
 
         # se guardan los pesos y bias ya entrenados
-        # TODO consume mucha memoria, porque crea la lista y la deja cargada
-        #[self._guardar(diccionario={'pesos':x.getW}) for x in self.capas]
-        #[self._guardar(diccionario={'bias':x.getB}) for x in self.capas]
-        # TODO
+        # debido a que son grandes las matrices, las separo por le consumo de memoria
         for x in self.capas:
             self._guardar(diccionario={'pesos':x.getW})
             self._guardar(diccionario={'bias':x.getB})
@@ -395,16 +458,33 @@ class MLP(object):
         # se guardan los estadisticos
         self._guardar(diccionario={'costoTRN':costoTRN, 'costoVAL':costoVAL,'costoTST':costoTST})
 
-        print("reales", predictor()[1][0:25])
-        print("predic", predictor()[0][0:25])
+        #print("reales", predictor()[1][0:25])
+        #print("predic", predictor()[0][0:25])
 
         return costoTRN, costoVAL, costoTST, costoTST_final
 
     def dibujarEstadisticos(self, **kwargs):
+        """Realiza los plots sobre los costos del modelo.
 
-        costoTRN = self._cargar(key='costoTRN')
-        costoVAL = self._cargar(key='costoVAL')
-        costoTST = self._cargar(key='costoTST')
+        Args:
+            **kwargs: Argumentos que se pasan directamente a la funcion
+                :func:`~cupydle.dnn.graficos.dibujarCostos`
+
+        Note:
+            Los argumentos son para el formato del dibujo.
+
+        Example:
+            >>> M = MLP(...)
+            >>> M.dibujarEstadisticos(mostrar=False, guardar='estadisticosMLP')
+        """
+
+        # hay diferencias segun como se almacenan los datos, ya que los arrays
+        #de costos son variables (no se sabe el tamanio al crear el MLP, sino
+        #al entrenarlo a lo sumo) es por ello que se almacena dentro de un grupo
+        # para hdf5
+        costoTRN = self._cargar(key='costoTRN') if MLP.DRIVER_PERSISTENCIA == "shelve" else self._cargar(key='costoTRN')[0]
+        costoVAL = self._cargar(key='costoVAL') if MLP.DRIVER_PERSISTENCIA == "shelve" else self._cargar(key='costoVAL')[0]
+        costoTST = self._cargar(key='costoTST') if MLP.DRIVER_PERSISTENCIA == "shelve" else self._cargar(key='costoTST')[0]
         dibujarCostos(costoTRN=costoTRN, costoVAL=costoVAL, costoTST=costoTST, **kwargs)
         return 0
 
@@ -518,17 +598,32 @@ class MLP(object):
 
         return matriz
 
-    def _guardar(self, driver='shelve', nombreArchivo=None, diccionario=None):
-        """
-        interfaz de almacenamiento, se eligen los metodos disponibles por el
-        driver
+    def _guardar(self, diccionario, driver=DRIVER_PERSISTENCIA, nombreArchivo=None, nuevo=False):
+        """Interfaz de almacenamiento para la persistencia de los datos del modelo.
 
-        :type driver: str
-        :param driver: seleccion del driver para persistencia, pickle/shelve
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo a persistir
-        :type diccionario: dict
-        :param diccionario: diccionario con los valores a alamacenar
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
+
+        Entre ellos se encuentran:
+
+            * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+            * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Args:
+            diccionario (dict): clave, nombre objeto; value, dato.
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+            nuevo (Opcional[bool]): Solo para el caso de inicializacion de la estructura.
+
+        See Also:
+
+            Almacenamiento con Shelve: :func:`cupydle.dnn.utils.guardarSHELVE`
+
+            Almacenameinto con HDF5: :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Example:
+            >>> M = MLP(...)
+            >>> M._guardar({"nombre":"mlp"})
         """
 
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
@@ -538,53 +633,90 @@ class MLP(object):
             raise NotImplementedError("Funcion no implementada")
         elif driver == 'shelve':
             try:
-                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+                guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
             except MemoryError:
-                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
             except KeyError:
                 print("Error sobre la clave... no es posible guardar")
             except:
                 print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+
+        elif driver == 'hdf5':
+            try:
+                guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
+            except MemoryError as e:
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
+                print(e)
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar")
+                print(e)
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+                print(e)
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
         return 0
 
-    def _guardarShelve(self, nombreArchivo, diccionario):
+    def _cargar(self, key=None, driver=DRIVER_PERSISTENCIA, nombreArchivo=None):
+        """Interfaz de recuperacion de los datos almacenados
+
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
+
+        Entre ellos se encuentran:
+
+        * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+        * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Args:
+            key (Opcional[(str, list(str), None)]):
+                clave, nombre objeto;
+
+                * str: recupera unicamente le objeto
+                * list(str): recupera una cantidad de objetos.
+                * None: recuepra todos los objetos (precaucion MEMORIA RAM).
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+
+        Return:
+            numpy.ndarray, str, dict, list: segun la estructura de como fue almacenado.
+
+        Example:
+            >>> M = MLP(...)
+            >>> M._cargar(key='nombre')
+            >>> "mlp"
         """
-        Almacena todos los datos en un archivo pickle que contiene un diccionario
-        lo cual lo hace mas sencillo procesar luego
-        """
-
-        permitidas = self.datosAlmacenar._allowed_keys
-        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
-        del permitidas
-
-        with shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2) as shelf:
-            for key in diccionario.keys():
-                if isinstance(self.datosAlmacenar[key],list):
-                    tmp = shelf[key]
-                    tmp.append(diccionario[key])
-                    shelf[key] = tmp
-                    del tmp
-                else:
-                    shelf[key] = diccionario[key]
-            shelf.close()
-        return 0
-
-    def _cargar(self, nombreArchivo=None, key=None):
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
-        archivo = self.ruta + nombreArchivo + '.cupydle'
+        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
 
-        with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
-            if key is not None:
-                assert key in shelf.keys(), "key no almacenada " + str(key)
-                retorno = shelf[key]
-            else:
-                retorno = shelf.copy
-            shelf.close()
+        datos = None
 
-        return retorno
+        if driver == 'pickle':
+            raise NotImplementedError("Funcion no implementada")
+        elif driver == 'shelve':
+            try:
+                datos = cargarSHELVE(nombreArchivo=nombreArchivo, clave=key)
+            except MemoryError:
+                print("Error al cargar el modelo MLP, por falta de memoria en el Host")
+            except KeyError:
+                print("Error sobre la clave... no es posible cargar")
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+
+        elif driver == 'hdf5':
+            try:
+                datos = cargarHDF5(nombreArchivo=nombreArchivo, clave=key)
+            except MemoryError:
+                print("Error al cargar el modelo MLP, por falta de memoria en el Host")
+            except KeyError as e:
+                print("Error sobre la clave... no es posible cargar " +str(e))
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+        else:
+            raise NotImplementedError("No se reconoce el driver de almacenamiento")
+
+        return datos
 
     def guardarObjeto(self, nombreArchivo, compression='zip'):
         """

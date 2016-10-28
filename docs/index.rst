@@ -2,13 +2,12 @@ Bienvenido a la documentación de Cupydle!
 =========================================
 
 Contenidos:
+-----------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
    cupydle
-   cupydle.dnn
-   cupydle.test
 
 
 Búsqueda de contenidos

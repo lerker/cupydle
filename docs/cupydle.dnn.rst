@@ -1,24 +1,33 @@
 Modulo Principal: cupydle.dnn
 =============================
 
-Submodulos
-----------
+Primarios
+---------
 
-copiar desde el archivo de copias
-
+:mod:`cupydle.dnn.mlp`
 
 Modulo cupydle.dnn.mlp
-----------------------
+***********************
 
 .. automodule:: cupydle.dnn.mlp
     :members:
     :undoc-members:
     :show-inheritance:
+    :private-members:
+    :special-members:
 
-Modulo cupydle.dnn.rbm
-----------------------
 
-.. automodule:: cupydle.dnn.rbm
+Secundarios
+-----------
+
+:mod:`cupydle.dnn.utils`
+
+Modulo cupydle.dnn.utils
+************************
+
+.. automodule:: cupydle.dnn.utils
     :members:
     :undoc-members:
     :show-inheritance:
+    :private-members:
+    :special-members:

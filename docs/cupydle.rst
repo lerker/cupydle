@@ -1,37 +1,29 @@
+#######
 CUPYDLE
-=======
+#######
 
-Submodulos
-----------
-
-.. toctree::
-
-    cupydle.dnn
-
-
+*******
 Modulos
---------
+*******
 
-:mod:`dnn` -- Modulo Principal
-********************************
+:mod:`cupydle.dnn` -- Modulo Principal
+======================================
 
-.. automodule:: cupydle.dnn
-   :members:
-   :undoc-members:
-   :show-inheritance:
+:mod:`cupydle.test` -- Modulo Testeo
+====================================
 
 
-:class:`cupydle.dnn.rbm` -- Clase principal para las RBMs.
-**********************************************************
+**********
+Submodulos
+**********
 
-:class:`cupydle.dnn.rbm`
+:mod:`cupydle.dnn.mlp` -- Base para Perceptron Multi-Capa
+==========================================================
 
-    Base para las Maquinas de Bolztmann Restringidas.
+    Base para redes de regresion logistica y clasificacion. Conocidas como
+    Perceptrones Multi-Capa (*Multilayer Perceptrons*).
 
+:mod:`cupydle.dnn.utils` -- Conjunto de funciones utilitarias de proposito general
+=====================================================================================
 
-:class:`cupydle.dnn.mlp` -- Clase principal para las MLPs.
-*********************************************************
-
-:class:`cupydle.dnn.mlp`
-
-    Base para la creancion de Multilayer Perceptrons
+    Funciones varias para uso dentro y fuera de la libreria.

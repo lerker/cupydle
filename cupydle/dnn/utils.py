@@ -1,17 +1,7 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import random
-
-import sys
-import pickle
-import bz2 # bzip2
-import gzip # gzip
-
-import timeit
-
-import numbers
+import sys, random, numbers, timeit, numpy as np
+import pickle, bz2, gzip, shelve, h5py
 
 __author__      = "Ponzoni, Nelson"
 __copyright__   = "Copyright 2015"
@@ -23,9 +13,25 @@ __license__     = "GPL"
 __version__     = "1.0.0"
 __status__      = "Production"
 
+"""
+Funciones *utilitarios* para todo el software
+"""
 
 def mostrar_tamaniode(x, level=0):
-    # imprime el tamanio de cualquier objeto pasado
+    """Imprime el tamanio en memoria requerido para el objeto `x`
+
+    Args:
+        x (Object)
+        level (int): cantidad de subniveles a entrar.
+
+    Returns:
+        imprime por pantalla el tamanio del objeto pasado
+
+    Examples:
+        >>> mostrar_tamaniode(int)
+        4
+
+    """
     print("\t" * level, x.__class__, sys.getsizeof(x), x)
 
     if hasattr(x, '__iter__'):
@@ -37,17 +43,6 @@ def mostrar_tamaniode(x, level=0):
                 mostrar_tamaniode(xx, level + 1)
     return 0
 
-
-def subsample(data, size, balanced=True, seed=123):
-    """
-
-    :param data: datos a extraer un batch (ya contiene el resultado)
-    :param size: tamanio del mini_bach
-    :param balanced:
-    :param seed:
-    :return:
-    """
-    return data[np.random.choice(data.shape[0], size=(size,))]
 
 def split_data(data, fractions, seed=123):
     """
@@ -82,14 +77,14 @@ def vectorize_label(label, n_classes):
     Dada una etiqueta genera un vector de dimension (n_classes, 1) de 0 y un 1 en la posicion de la label
     e.g: si label es '5', n_classes es '8':
     return:
-     v[0]=0
-     v[1]=0
-     v[2]=0
-     v[3]=0
-     v[4]=1
-     v[5]=0
-     v[6]=0
-     v[7]=0
+    v[0]=0
+    v[1]=0
+    v[2]=0
+    v[3]=0
+    v[4]=1
+    v[5]=0
+    v[6]=0
+    v[7]=0
 
 
     :param label:
@@ -100,6 +95,324 @@ def vectorize_label(label, n_classes):
     label = int(label)
     lab[label] = 1
     return np.array(lab)
+
+def guardarHDF5(nombreArchivo, valor, nuevo=False):
+    """Metodo de almacenamiento por medio de HDF5 (h5py)
+
+    Es mas eficiente con respecto a pickle en cuanto memoria requerida.
+
+    Internamente el modulo almacena los datos como una estructura de ficheros
+    Todo se puede almacenar como *datasets*, lo cual es semejante a `numpy.ndarrays`
+    Pueden agruparse datasets en grupos.
+    Para objetos pequenios, en vez de datasets pueden almacenarse atributos del
+    dataset
+
+    Referencia:
+        * / : base
+        * /miDataset : dataset
+        * /miGrupo : grupo
+        * /miGrupo/miDataset : dataset dentro del grupo
+        * /miDataset.attrb['miAtributo']
+
+    Los dataset son para almacenar objetos grandes (ej: numpy.ndarray, listas)
+    Los atributos estan asociados a un dataset dado, y son mas eficientes
+    para objetos mas pequeños (escalares y strings)
+
+
+    Modos de apertura de los archivos:
+        * r  Solo lectura, el archivo debe existir.
+        * r+ Lectura y escritura, el archivo debe existir.
+        * w  Crea el archivo, sobre-escribe si existe.
+        * x  Crea el archivo, no sobrescribe.
+        * a  Lectura y Escritura, Crea y sobreescribe.
+
+    Note:
+        El argumento *nuevo* debe utilizarse por unica vez, persistiendo la
+        estructura de los datos, flotantes, listas, etc.
+
+    Args:
+        nombreArchivo (str): ruta + nombre del archivo a persistir los datos.
+        valor (dict): datos a almacenar contenidos en un diccionario.
+        nuevo (Opcional[bool]): Si es True, crea el archivo (sobreescribe).
+            Utilizarlo para crear la estructura inicial.
+
+    See Also:
+        La documentacion oficial de `h5py`_.
+
+        Adeḿas el la funcion :func:`cargarHDF5`.
+
+    .. _h5py: http://docs.h5py.org/en/latest/quick.html
+
+    Examples:
+        >>> import numpy as np
+        >>> datos = {'nombre': 'mlp', 'valor': 0.0, 'pesos': []}
+        >>> a = np.asarray([[7,8,9],[10,11,12]])
+        >>> guardarHDF5(nombreArchivo="prueba.cupdyle", valor=datos, nuevo=True)
+        >>> datos
+        {'nombre': 'mlp',
+        'valor': 0.0,
+        'pesos': []}
+        >>> guardarHDF5("prueba.cupdyle",{'pesos':a})
+        >>> guardarHDF5("prueba.cupdyle",{'valor':10.0, 'nombre':'mlp2'})
+        >>> cargarHDF5("prueba.cupydle",None)
+        {'nombre': 'mlp2',
+        'valor': 10.0,
+        'pesos': [array([7, 8, 9]), array([8, 9, 10])]}
+    """
+    if nuevo:
+        h5f = h5py.File(nombreArchivo, 'w')
+        h5f.create_dataset('atributos', data=0)
+    else:
+        h5f = h5py.File(nombreArchivo, 'r+')
+        for k in valor.keys():
+            assert k in h5f.keys() or k in h5f['atributos'].attrs
+
+    for k in valor.keys():
+        es_atributo=True
+        if isinstance(valor[k],np.ndarray):
+            if valor[k].shape[0]>1 or valor[k].shape[1]>1:
+                es_atributo=False
+        if isinstance(valor[k], list):
+            es_atributo=False
+
+        if es_atributo:
+            h5f['atributos'].attrs[k] = valor[k]
+            try:
+                # si se guardo como atributo, trato de borrar si hay un dataset
+                h5f.__delitem__(k)
+            except:
+                pass
+                #h5f.close()
+        else:
+            if nuevo:
+                if isinstance(valor[k], list):
+                    h5f.create_group(k)
+                else:
+                    h5f.create_dataset(str(k), data=valor[k],compression="gzip", compression_opts=9)
+            else:
+                if isinstance(h5f[k], h5py.Group):
+                    #if isinstance(valor[k], list):
+                    # es como una lista, debo determinar el indice e incrementarlo dentro del grupo (lista)
+                    dd=h5f[k].items()
+                    import collections
+                    dd = collections.OrderedDict(sorted(dd))
+                    cantidad = len(dd)
+                    #print(valor[k])
+                    #print(k+str(cantidad))
+                    #h5f[k].create_dataset(k+str(cantidad),data=valor[k][0])
+                    h5f[k].create_dataset(k+str(cantidad),data=valor[k])
+                else:
+                    h5f[k] = valor[k]
+            try:
+                # si se guardo como dataset, trato de borrar si hay un atributo
+                h5f['atributos'].attrs.__delitem__(k)
+            except:
+                pass
+                #h5f.close()
+    h5f.close()
+    return 0
+
+def cargarHDF5(nombreArchivo, clave):
+    """Recupera de disco el archivo almacenado con :func:`guardarHDF5`
+
+    La estructura debe almacenarse previamente.
+
+    Args:
+        nombreArchivo (str): ruta + nombre del archivo a cargar los datos.
+        clave (str, list(str), None): clave del objeto a cargar.
+            Debe existir previamente. Si es una lista re recuperan los objetos.
+            Si es `None` se recuperan todos los objetos en un diccionario.
+
+    Return:
+        dict, numpy.ndarray: Diccionario si clave=None o si clave=list(...).
+        numpy.ndarray si clave=str
+
+    See Also:
+        La documentacion oficial de `h5py`_.
+
+    .. _h5py: http://docs.h5py.org/en/latest/quick.html
+
+        Adeḿas el la funcion :func:`guardarHDF5`.
+
+    Examples:
+        >>> import numpy as np
+        >>> datos = {'nombre': 'mlp', 'valor': 0.0, 'pesos': []}
+        >>> a = np.asarray([[7,8,9],[10,11,12]])
+        >>> guardarHDF5(nombreArchivo="prueba.cupdyle", valor=datos, nuevo=True)
+        >>> guardarHDF5("prueba.cupdyle",{'pesos':a})
+        >>> guardarHDF5("prueba.cupdyle",{'valor':10.0, 'nombre':'mlp2'})
+        >>> cargarHDF5("prueba.cupydle",'pesos')
+        [array([7, 8, 9]), array([7, 8, 9]), array([ 8,  9, 10])]
+        >>> cargarHDF5("prueba.cupydle",['nombre', 'pesos'])
+        {'nombre': 'mlp',
+        'pesos': [array([7, 8, 9]), array([7, 8, 9]), array([ 8,  9, 10])]}
+        >>> cargarHDF5("prueba.cupydle",None)
+        {'nombre': 'mlp2',
+        'valor': 10.0,
+        'pesos': [array([7, 8, 9]), array([7, 8, 9]), array([ 8,  9, 10])]}
+
+    """
+    datos = None
+
+    h5f = h5py.File(nombreArchivo, 'r')
+
+    if clave is not None:
+        if isinstance(clave, list):
+            datos = {}
+            for k in clave:
+                # busca primero si es un atributo
+                if k in h5f["atributos"].attrs:
+                    datos[k] = h5f["atributos"].attrs[k]
+                elif isinstance(h5f[k], h5py.Group):    # busca si es un grupo (lista)
+                    #datos[k] = []
+                    #datos[k] = np.asarray(h5f[k])
+                    # guarda una lista con los arrays contenidos en el grupo, ordenado
+                    import collections
+                    datos[k] = [np.asarray(val.value, dtype=np.float32) for key, val in collections.OrderedDict(sorted(h5f[k].items())).items()]
+                else:
+                    datos[k] = np.asarray(h5f[k], dtype=np.float32)
+        else:
+            # busca primero si es un atributo
+            if clave in h5f["atributos"].attrs:
+                datos = h5f["atributos"].attrs[clave]
+            elif isinstance(h5f[clave], h5py.Group):    # busca si es un grupo (lista)
+                # guarda una lista con los arrays contenidos en el grupo, ordenado
+                import collections
+                datos = [np.asarray(val.value, dtype=np.float32) for key, val in collections.OrderedDict(sorted(h5f[clave].items())).items()]
+            else:
+                datos = np.asarray(h5f[clave], dtype=np.float32)
+    else: #clave es none, devuelvo todo, ojo
+        datos = {}
+        for k in h5f.keys():
+            if k == 'atributos':
+                for k in h5f['atributos'].attrs:
+                    datos[k] = h5f['atributos'].attrs[k]
+            elif isinstance(h5f[k], h5py.Group):
+                import collections
+                datos[k] = [np.asarray(val.value, dtype=np.float32) for key, val in collections.OrderedDict(sorted(h5f[k].items())).items()]
+            else:
+                datos[k] = np.asarray(h5f[k])
+    h5f.close()
+    return datos
+
+def guardarSHELVE(nombreArchivo, valor, nuevo=False):
+    """Metodo de almacenamiento por medio de SHELVE (pickles)
+
+    Es menos eficiente que HDF5 con respecto a la memoria requerida, pero mas
+    simple de posterior lectura
+
+    Internamente almacena los datos como *pickles* individuales.
+
+    Modos de apertura de los archivos:
+        * r  Solo lectura, el archivo debe existir.
+        * w  Lectura y escritura, el archivo debe existir.
+        * c  Lectura y escritura, crea si no existe.
+        * n  Lectura y Escritura, Crea y sobreescribe.
+
+    Note:
+        El argumento *nuevo* debe utilizarse por unica vez, persistiendo la
+        estructura de los datos, flotantes, listas, etc.
+
+    Args:
+        nombreArchivo (str): ruta + nombre del archivo a persistir los datos.
+        valor (dict): datos a almacenar contenidos en un diccionario.
+        nuevo (Opcional[bool]): Si es True, crea el archivo (sobreescribe).
+            Utilizarlo para crear la estructura inicial.
+
+    See Also:
+        La documentacion oficial de `shelve`_.
+
+        Adeḿas el la funcion :func:`cargarSHELVE`.
+
+    .. _shelve: https://docs.python.org/3.4/library/shelve.html
+
+    Examples:
+        >>> import numpy as np
+        >>> datos = {'nombre': 'mlp', 'valor': 0.0, 'pesos': []}
+        >>> a = np.asarray([[7,8,9],[10,11,12]])
+        >>> guardarSHELVE(nombreArchivo="prueba.cupdyle", valor=datos, nuevo=True)
+        >>> datos
+        {'nombre': 'mlp',
+        'valor': 0.0,
+        'pesos': []}
+        >>> guardarSHELVE("prueba.cupdyle",{'pesos':a})
+        >>> guardarSHELVE("prueba.cupdyle",{'valor':10.0, 'nombre':'mlp2'})
+        >>> cargarSHELVE("prueba.cupydle",None)
+        {'nombre': 'mlp2',
+        'valor': 10.0,
+        'pesos': [array([7, 8, 9]), array([8, 9, 10])]}
+    """
+    if nuevo:
+        shelf = shelve.open(nombreArchivo, flag='n', writeback=False, protocol=2)
+    else:
+        shelf = shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2)
+        for k in valor.keys():
+            assert k in shelf.keys(), "Clave no encontrada en el archivo"
+
+    for key in valor.keys():
+        if isinstance(valor[key] ,list):
+            if nuevo:
+                shelf[key] = valor[key]
+            else: # ya hay guardada una lista
+                tmp = shelf[key]
+                tmp.extend(valor[key])
+                shelf[key] = tmp
+                del tmp
+        else:
+            shelf[key] = valor[key]
+    shelf.close()
+    return 0
+
+def cargarSHELVE(nombreArchivo, clave):
+    """Metodo para recuperar los datos almacenados por medio de *shelve*
+
+    Es menos eficiente que HDF5 con respecto a la memoria requerida, pero mas
+    simple de posterior lectura.
+
+    Args:
+        nombreArchivo (str): ruta + nombre del archivo a cargar los datos.
+        clave (str, list(str), None): clave del objeto a cargar.
+            Debe existir previamente. Si es una lista re recuperan los objetos.
+            Si es `None` se recuperan todos los objetos en un diccionario.
+
+    Return:
+        dict, numpy.ndarray: Diccionario si clave=None o si clave=list(...).
+        numpy.ndarray si clave=str
+
+    See Also:
+        La documentacion oficial de `shelve`_.
+
+        Adeḿas el la funcion :func:`guardarSHELVE`.
+
+    .. _shelve: https://docs.python.org/3.4/library/shelve.html
+
+
+    Examples:
+        >>> import numpy as np
+        >>> datos = {'nombre': 'mlp', 'valor': 0.0, 'pesos': []}
+        >>> a = np.asarray([[7,8,9],[10,11,12]])
+        >>> guardarSHELVE(nombreArchivo="prueba.cupdyle", valor=datos, nuevo=True)
+        >>> datos
+        {'nombre': 'mlp',
+        'valor': 0.0,
+        'pesos': []}
+        >>> guardarSHELVE("prueba.cupdyle",{'pesos':a})
+        >>> guardarSHELVE("prueba.cupdyle",{'valor':10.0, 'nombre':'mlp2'})
+        >>> cargarSHELVE("prueba.cupydle",None)
+        {'nombre': 'mlp2',
+        'valor': 10.0,
+        'pesos': [array([7, 8, 9]), array([8, 9, 10])]}
+
+    """
+    datos = None
+    with shelve.open(nombreArchivo, flag='r', writeback=False, protocol=2) as shelf:
+        if clave is not None:
+            assert clave in shelf.keys(), "clave no almacenada " + str(clave)
+            datos = shelf[clave]
+        else:
+            datos = {key: shelf[key] for key in shelf.keys()}
+        shelf.close()
+    return datos
 
 def save(objeto, filename=None, compression=None):
     assert filename is not None, "Nombre del archivo a guardar NO VALIDO"
@@ -329,53 +642,51 @@ def check_random_state(seed):
                      ' instance' % seed)
 
 class RestrictedDict(dict):
-    """
-    Stores the properties of an object. It's a dictionary that's
-    restricted to a tuple of allowed keys. Any attempt to set an invalid
-    key raises an error.
+    """Es un diccionario, cualquier intento de almacenar una clave ya existente
+    se arroja un error.
 
-    >>> p = RestrictedDict(('x','y'))
-    >>> print p
-    RestrictedDict(('x', 'y'), {})
-    >>> p['x'] = 1
-    >>> p['y'] = 'item'
-    >>> print p
-    RestrictedDict(('x', 'y'), {'y': 'item', 'x': 1})
-    >>> p.update({'x': 2, 'y': 5})
-    >>> print p
-    RestrictedDict(('x', 'y'), {'y': 5, 'x': 2})
-    >>> p['x']
-    2
-    >>> p['z'] = 0
-    Traceback (most recent call last):
-    ...
-    KeyError: 'z is not allowed as key'
-    >>> q = RestrictedDict(('x', 'y'), x=2, y=5)
-    >>> p==q
-    True
-    >>> q = RestrictedDict(('x', 'y', 'z'), x=2, y=5)
-    >>> p==q
-    False
-    >>> len(q)
-    2
-    >>> q.keys()
-    ['y', 'x']
-    >>> q._allowed_keys
-    ('x', 'y', 'z')
-    >>> p._allowed_keys = ('x', 'y', 'z')
-    >>> p['z'] = 3
-    >>> print p
-    RestrictedDict(('x', 'y', 'z'), {'y': 5, 'x': 2, 'z': 3})
+    Se inicializa con una instancia, y las claves permitidas que no pueden ser modificadas.
+
+    Args:
+        allowed_keys (tuple): claves permidas
+
+    Examples:
+        >>> p = RestrictedDict(('x','y'))
+        >>> print p
+        RestrictedDict(('x', 'y'), {})
+        >>> p['x'] = 1
+        >>> p['y'] = 'item'
+        >>> print p
+        RestrictedDict(('x', 'y'), {'y': 'item', 'x': 1})
+        >>> p.update({'x': 2, 'y': 5})
+        >>> print p
+        RestrictedDict(('x', 'y'), {'y': 5, 'x': 2})
+        >>> p['x']
+        2
+        >>> p['z'] = 0
+        Traceback (most recent call last):
+        ...
+        KeyError: 'z is not allowed as key'
+        >>> q = RestrictedDict(('x', 'y'), x=2, y=5)
+        >>> p==q
+        True
+        >>> q = RestrictedDict(('x', 'y', 'z'), x=2, y=5)
+        >>> p==q
+        False
+        >>> len(q)
+        2
+        >>> q.keys()
+        ['y', 'x']
+        >>> q._allowed_keys
+        ('x', 'y', 'z')
+        >>> p._allowed_keys = ('x', 'y', 'z')
+        >>> p['z'] = 3
+        >>> print p
+        RestrictedDict(('x', 'y', 'z'), {'y': 5, 'x': 2, 'z': 3})
 
     """
 
     def __init__(self, allowed_keys, seq=(), **kwargs):
-        """
-        Initializes the class instance. The allowed_keys tuple is
-        required, and it cannot be changed later.
-        If seq and/or kwargs are provided, the values are added (just
-        like a normal dictionary).
-        """
         super(RestrictedDict, self).__init__()
         self._allowed_keys = tuple(allowed_keys)
         # normalize arguments to a (key, value) iterable
