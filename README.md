@@ -14,6 +14,8 @@ _cupydle_ es una libreria simple y sencilla, que provee todas las funcionalidade
 
 _cupydle_ posse una inteface 'pythonica', y además, el codigo puede ser ejecutado de forma transparente tanto en GPU como en CPU gracias a Theano (http://deeplearning.net/software/theano/).
 
+## Documentacion: [DOCS](http://cupydle.readthedocs.io/es/master/)
+
 
 :white_check_mark: finished
 
