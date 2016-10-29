@@ -129,7 +129,7 @@ def DBN_basica(**kwargs):
     print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
     # se crea el modelo
-    miDBN = DBN(name=nombre, ruta=rutaCompleta)
+    miDBN = DBN(nombre=nombre, ruta=rutaCompleta)
     DBN.DBN_custom = True
 
     # se agregan las capas

@@ -18,12 +18,11 @@ Aplicado a la base de datos de 'benchmark' MNIST
 
 http://yann.lecun.com/exdb/mnist/
 
-
 # version corta
-optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --lepocaTRN 50 --visibles 784 --ocultas 100
+optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM_MNIST" --dataset "mnist_minmax.npz" --batchsize 10 -lrW 0.01 -lrV 0.01 -lrO 0.01 -wc 0.0 --momentoTRN 0.0 --dropout 1.0 --lepocaTRN 50 --visibles 784 --ocultas 10 -pcd --gibbs 1 --tipo 'binaria'
 
 # version larga
-optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM" --dataset "mnist_minmax.npz" -b 100 -lrW 0.01 --dropout 0.5 --lepocaTRN 50 --visibles 784 --ocultas 100 --gibbs 1 --tipo 'binaria'
+optirun python3 cupydle/test/rbm_MNIST.py --directorio "test_RBM_MNIST" --dataset "mnist_minmax.npz"  --lepocaTRN 50 --visibles 784 --ocultas 10 -pcd
 """
 
 
@@ -111,8 +110,8 @@ if __name__ == "__main__":
     del entrenamiento, entrenamiento_clases, validacion, validacion_clases
     del testeo, testeo_clases
 
-    print("                    Clases                     :", "[c1 c2 c3 c4 c5 c6]")
-    print("                                               :", "-------------------")
+    print("                    Clases                     :", "[1     2    3    4    5    6    7    8    9    10]")
+    print("                                               :", "--------------------------------------------------")
     print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datos[0][1]))
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datos[1][1]))
 

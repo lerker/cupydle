@@ -27,8 +27,9 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 # dependecias propias
 from cupydle.dnn.unidades import UnidadBinaria, UnidadGaussiana
 from cupydle.dnn.loss import errorCuadraticoMedio
-from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
 from cupydle.dnn.utils import temporizador, RestrictedDict, save
+from cupydle.dnn.utils import guardarHDF5, cargarHDF5, guardarSHELVE, cargarSHELVE
+from cupydle.dnn.utils_theano import gpu_info, calcular_chunk, calcular_memoria_requerida
 from cupydle.dnn.graficos import imagenTiles, dibujarCostos
 
 
@@ -46,7 +47,7 @@ class RBM(ABC):
     Note:
         Esta clase `NO` debe ser implementada.
 
-    Parameters:
+    Args:
         n_visible (int): Cantidad de neuronas visibles.
 
         n_hidden (int): Cantidad de neuronas ocultas.
@@ -66,14 +67,14 @@ class RBM(ABC):
 
             .. math:: \pm 4 \cdot \sqrt{\dfrac{6}{n\_visible + n\_hidden}}
 
-        visbiases (Opcional[shared-theano, numpy.ndarray]): Seteo de los biases visibles.
-            Forma (n_visible,).
+        visbiases (Opcional[shared-theano, numpy.ndarray]): Fijacion de los
+            biases visibles. Forma (n_visible,).
 
-        hidbiases (Opcional[shared-theano, numpy.ndarray]): Seteo de los biases ocultos.
-            Forma (n_hidden,).
+        hidbiases (Opcional[shared-theano, numpy.ndarray]): Fijacion de los
+            biases ocultos. Forma (n_hidden,).
 
-        numpy_rnd (Opcional[int]): Semilla para la generacion de numeros aleatorios
-            `numpy`.
+        numpy_rnd (Opcional[int]): Semilla para la generacion de numeros
+            aleatorios `numpy`.
 
         theano_rnd (opcional[int]): Semilla para la generacion de numeros aleatorios
             theano`.
@@ -103,6 +104,25 @@ class RBM(ABC):
         >>> RBM.optimizacion_hinton = True
     """
 
+    #DRIVER_PERSISTENCIA="shelve"
+    DRIVER_PERSISTENCIA="hdf5"
+    """str: Selecciona el driver para el almacenamiento.
+
+    Las posibles elecciones son:
+        * `shelve`_.
+        * `h5py`_.
+
+    Note:
+        La implementacion de *shelve* requiere mas memoria RAM, aunque es mas
+        sencilla y portable de entender.
+
+    Example:
+        >>> from cupydle.dnn.rbm import RBM
+        >>> R = RBM(...)
+        >>> RBM.DRIVER_PERSISTENCIA = "hdf5"
+
+    """
+
     def __init__(self,
                  n_visible,
                  n_hidden,
@@ -117,15 +137,17 @@ class RBM(ABC):
 
         self.n_visible = n_visible
         self.n_hidden  = n_hidden
+        self.semilla_numpy = None
+        self.semilla_theano = None
 
         # create a number generator (fixed) for test NUMPY
         if numpy_rng is None:
-            numpy_rng = numpy.random.RandomState(1234)
+            self.semilla_numpy = 1234
 
         # create a number generator (fixed) for test THEANO
         if theano_rng is None:
             #theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
-            theano_rng = RandomStreams(seed=1234)
+            self.semilla_theano = 1234
 
         if w is None:
             w = self._initW(numpy_rng=numpy_rng, metodo=w_init)
@@ -144,8 +166,8 @@ class RBM(ABC):
         self.visbiases  = visbiases
         self.hidbiases  = hidbiases
         self.w          = w
-        self.numpy_rng  = numpy_rng
-        self.theano_rng = theano_rng
+        self.numpy_rng  = numpy.random.RandomState(self.semilla_numpy)
+        self.theano_rng = RandomStreams(seed=self.semilla_theano)
 
         # funcion de activacion sigmodea para cada neurona (porbabilidad->binomial)
         self.unidadesVisibles = None
@@ -223,11 +245,33 @@ class RBM(ABC):
         return hidbiases
 
     @property
-    def _initGuardar(self):
-        """
-        inicializa los campos para la persistencia de los datos en disco,
-        por ahora se restringen los parametros en un diccionario, luego se
-        guarda segun el driver utilizado
+    def _initGuardar(self, driver=DRIVER_PERSISTENCIA):
+        """Inicializa los parametros del modelo.
+
+        Se almacena en disco en una estructura determinada por el *driver* los
+        datos. Inicialmente y por unica vez se deben almacenar dicha estructura
+        en disco, para luego modificarla en el transcurso de la ejecucion.
+
+        Args:
+            driver (Opcional[DRIVER_PERSISTENCIA]): seleciona el motor de
+                persistencia
+
+        Return:
+            dict: estructura de los datos almacenados.
+
+        Note:
+            Siempre que se desee persistir datos para utilizarlos en el
+            transcurso de la ejecucion del modelo, deben agregarse aqui.
+
+        Note:
+            La estructura debe tener en cuenta lo siguiente para guardar:
+                * flotantes, enteros y strings
+                    * key: value
+                * listas
+                    * k: []
+                * array variables o desconocidos en longitud al inicio, se debe post-procesar
+                    * k: []
+
         """
         archivo = self.ruta + self.nombre + '.cupydle'
 
@@ -235,14 +279,14 @@ class RBM(ABC):
         # debe setearse aca
         datos = {'tipo':                self.__str__(),
                  'nombre':              self.nombre,
-                 'numpy_rng':           self.numpy_rng,
-                 'theano_rng':          self.theano_rng.rstate, # con set_value se actualiza
-                 'w':                   None,
-                 'biasVisible':         None,
-                 'biasOculto':          None,
-                 'w_inicial':           None,
-                 'biasVisible_inicial': None,
-                 'biasOculto_inicial':  None,
+                 'numpy_rng':           self.semilla_numpy,
+                 'theano_rng':          self.semilla_theano, # con set_value se actualiza
+                 'w':                   [],
+                 'biasVisible':         [],
+                 'biasOculto':          [],
+                 'w_inicial':           [],
+                 'biasVisible_inicial': [],
+                 'biasOculto_inicial':  [],
                  'lr_pesos':            0.0,
                  'lr_bvis':             0.0,
                  'lr_bocu':             0.0,
@@ -250,41 +294,41 @@ class RBM(ABC):
                  'momento':             0.0,
                  'epocas':              0.0,
                  'dropout':             1.0,
-                 'diffEnergiaTRN':      None,
-                 'errorReconsTRN':      None,
-                 'mseTRN':            None,
+                 'diffEnergiaTRN':      [],
+                 'errorReconsTRN':      [],
+                 'mseTRN':              [],
                  }
-        # diccionario restringido en sus keys
-        almacenar = RestrictedDict(datos)
-        for k,v in datos.items():
-            almacenar[k]=v
+        # se alamcena en disco
+        self._guardar(diccionario=datos, driver=driver, nuevo=True)
 
-        del datos
+        return datos
 
-        # 'r'   Open existing database for reading only (default)
-        # 'w' Open existing database for reading and writing
-        # 'c' Open database for reading and writing, creating it if it doesn’t exist
-        # 'n' Always create a new, empty database, open for reading and writing
-        with shelve.open(archivo, flag='n', writeback=False) as shelf:
-            for key in almacenar.keys():
-                shelf[key] = almacenar[key]
-            shelf.close()
+    def _guardar(self, diccionario, driver=DRIVER_PERSISTENCIA, nombreArchivo=None, nuevo=False):
+        """Interfaz de almacenamiento para la persistencia de los datos del modelo.
 
-        del shelf, archivo
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
 
-        return almacenar
+        Entre ellos se encuentran:
 
-    def _guardar(self, driver='shelve', nombreArchivo=None, diccionario=None):
-        """
-        interfaz de almacenamiento, se eligen los metodos disponibles por el
-        driver
+            * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+            * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
 
-        :type driver: str
-        :param driver: seleccion del driver para persistencia, pickle/shelve
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo a persistir
-        :type diccionario: dict
-        :param diccionario: diccionario con los valores a alamacenar
+        Args:
+            diccionario (dict): clave, nombre objeto; value, dato.
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+            nuevo (Opcional[bool]): Solo para el caso de inicializacion de la estructura.
+
+        See Also:
+
+            Almacenamiento con Shelve: :func:`cupydle.dnn.utils.guardarSHELVE`
+
+            Almacenameinto con HDF5: :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Example:
+            >>> R = RBM(...)
+            >>> R._guardar({"nombre":"rbm"})
         """
 
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
@@ -294,86 +338,90 @@ class RBM(ABC):
             raise NotImplementedError("Funcion no implementada")
         elif driver == 'shelve':
             try:
-                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
+                guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
             except MemoryError:
-                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
             except KeyError:
                 print("Error sobre la clave... no es posible guardar")
             except:
                 print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+
+        elif driver == 'hdf5':
+            try:
+                guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
+            except MemoryError as e:
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
+                print(e)
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar")
+                print(e)
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+                print(e)
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
         return 0
 
-    def _guardarShelve(self, nombreArchivo, diccionario):
+    def _cargar(self, clave=None, driver=DRIVER_PERSISTENCIA, nombreArchivo=None):
+        """Interfaz de recuperacion de los datos almacenados
+
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
+
+        Entre ellos se encuentran:
+
+        * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+        * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Args:
+            clave (Opcional[(str, list(str), None)]):
+                clave, nombre objeto;
+
+                * str: recupera unicamente le objeto
+                * list(str): recupera una cantidad de objetos.
+                * None: recuepra todos los objetos (precaucion MEMORIA RAM).
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+
+        Return:
+            numpy.ndarray, str, dict, list: segun la estructura de como fue almacenado.
+
+        Example:
+            >>> R = RBM(...)
+            >>> R._cargar(clave='nombre')
+            >>> "rbm"
         """
-        almacenamiento del siccionario en disco, no se repiten los keys de shelve
-
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo a persistir
-        :type diccionario: dict
-        :param diccionario: diccionario con los valores a alamacenar
-        """
-        permitidas = self.datosAlmacenar._allowed_keys
-        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
-
-        with shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2) as shelf:
-            for key in diccionario.keys():
-                if isinstance(self.datosAlmacenar[key],list):
-                    tmp = shelf[key]
-                    tmp.append(diccionario[key])
-                    shelf[key] = tmp
-                    del tmp
-                else:
-                    shelf[key] = diccionario[key]
-            shelf.close()
-        return 0
-
-    def _cargar(self, driver='shelve', nombreArchivo=None, clave=None):
-        """
-        interfaz de carga, se eligen los metodos disponibles por el driver
-
-        :type driver: str
-        :param driver: seleccion del driver para persistencia, pickle/shelve
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo a persistir
-        :type clave: str
-        :param clave: clave a buscar en el diccionario (almacenado)
-        """
-        retorno = None
-
         nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
         nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
+
+        datos = None
 
         if driver == 'pickle':
             raise NotImplementedError("Funcion no implementada")
         elif driver == 'shelve':
-            retorno = self._cargarShelve(nombreArchivo=nombreArchivo, clave=clave)
+            try:
+                datos = cargarSHELVE(nombreArchivo=nombreArchivo, clave=clave)
+            except MemoryError:
+                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+            except KeyError:
+                print("Error sobre la clave... no es posible cargar")
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+
+        elif driver == 'hdf5':
+            try:
+                datos = cargarHDF5(nombreArchivo=nombreArchivo, clave=clave)
+            except MemoryError:
+                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+            except KeyError as e:
+                print("Error sobre la clave... no es posible cargar " +str(e))
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
-        return retorno
-
-    def _cargarShelve(self, nombreArchivo, clave):
-        """
-        carga del diccionario almacenado en disco
-
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo en disco
-        :type clave: str
-        :param clave: clave del diccionario almacenado en disco a cargar
-        """
-
-        with shelve.open(nombreArchivo, flag='r', writeback=False, protocol=2) as shelf:
-            if clave is not None:
-                assert clave in shelf.keys(), "clave no almacenada " + str(clave)
-                retorno = shelf[clave]
-            else:
-                retorno = shelf.copy
-            shelf.close()
-
-        return retorno
+        return datos
 
     def setParametros(self, diccionario=None):
         """

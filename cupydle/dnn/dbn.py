@@ -13,17 +13,7 @@ __license__     = "GPL"
 __version__     = "1.0.0"
 __status__      = "Production"
 
-## TODO
-### las versiones de binomial... para la GPU
-# http://deeplearning.net/software/theano/tutorial/examples.html#example-other-random
-# There are 2 other implementations based on MRG31k3p and CURAND.
-# The RandomStream only work on the CPU, MRG31k3p work on the CPU and GPU. CURAND only work on the GPU.
-
-from cupydle.dnn.utils import temporizador
-
-import numpy
-import os
-import shelve
+import numpy, os
 
 ### THEANO
 # TODO mejorar los imports, ver de agregar theano.shared... etc
@@ -40,7 +30,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams  # CPU - G
 theanoFloat  = theano.config.floatX
 
 from cupydle.dnn.funciones import sigmoideaTheano
-from cupydle.dnn.utils import RestrictedDict
+from cupydle.dnn.utils import guardarHDF5, cargarHDF5, guardarSHELVE, cargarSHELVE
+from cupydle.dnn.utils import temporizador
 
 
 try:
@@ -113,7 +104,7 @@ class rbmParams(object):
     @property
     def getParametrosEntrenamiento(self):
 
-        tmpRBM = BRBM(n_visible=1, n_hidden=1).datosAlmacenar._allowed_keys
+        tmpRBM = BRBM(n_visible=1, n_hidden=1).datosAlmacenar.keys()
         retorno = {}
         for key in self.__dict__.keys():
             if key in tmpRBM:
@@ -127,11 +118,39 @@ class rbmParams(object):
 
 class DBN(object):
 
-    DEBUG = False
+    DEBUG=False
+    """bool: Indica si se quiere imprimir por consola mayor inforamcion.
+
+    Util para propositos de debugging. Para acceder a el solo basta con
+
+    Example:
+        >>> from cupydle.dnn.mlp import MLP
+        >>> M = MLP(...)
+        >>> MLP.DEBUG = True
+
+    """
+
+    DRIVER_PERSISTENCIA="shelve"
+    #DRIVER_PERSISTENCIA="hdf5"
+    """str: Selecciona el driver para el almacenamiento.
+
+    Las posibles elecciones son:
+        * `shelve`_.
+        * `h5py`_.
+
+    Note:
+        La implementacion de *shelve* requiere mas memoria RAM, aunque es mas
+        sencilla y portable de entender.
+
+    Example:
+        >>> from cupydle.dnn.mlp import MLP
+        >>> M = MLP(...)
+        >>> MLP.DRIVER_PERSISTENCIA = "hdf5"
+    """
 
     DBN_custom = False
 
-    def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, name=None, ruta=''):
+    def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, nombre=None, ruta=''):
         """This class is made to support a variable number of layers.
 
         :type numpy_rng: numpy.random.RandomState
@@ -152,14 +171,17 @@ class DBN(object):
         :type n_outs: int
         :param n_outs: dimension of the output of the network (for clasification)
 
-        :type name: string
-        :param name: name of model, for save files in disk
+        :type nombre: string
+        :param nombre: nombre of model, for save files in disk
         """
 
+        self.semilla_numpy = None
+        self.semilla_theano = None
+
         if not numpy_rng:
-            numpy_rng = numpy.random.RandomState(1234)
+            self.semilla_numpy = 1234
         if not theano_rng:
-            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+            self.semilla_theano = 1234
 
         # allocate symbolic variables for the data
         self.x = theano.tensor.matrix('samples')  # los datos de entrada son del tipo tensor de orden dos
@@ -170,31 +192,56 @@ class DBN(object):
         self.pesos = [] #pesos almacenados en una lista, una vez entrenados se guardan aca
                         # para utilizarse en el fit o prediccion...
 
-        if name is None:
-            name="dbnTest"
-        self.name = name
+        if nombre is None:
+            nombre="dbnTest"
+        self.nombre = nombre
 
-        self.numpy_rng = numpy_rng
-        self.theano_rng = theano_rng
+        self.numpy_rng  = numpy.random.RandomState(self.semilla_numpy)
+        self.theano_rng = RandomStreams(seed=self.semilla_theano)
 
         self.ruta = ruta
 
-        self.datosAlmacenar=self._initGuardar()
+        self.datosAlmacenar=self._initGuardar
 
-    def _initGuardar(self):
+    @property
+    def _initGuardar(self, driver=DRIVER_PERSISTENCIA):
+        """Inicializa los parametros del modelo.
+
+        Se almacena en disco en una estructura determinada por el *driver* los
+        datos. Inicialmente y por unica vez se deben almacenar dicha estructura
+        en disco, para luego modificarla en el transcurso de la ejecucion.
+
+        Args:
+            driver (Opcional[DRIVER_PERSISTENCIA]): seleciona el motor de
+                persistencia
+
+        Return:
+            dict: estructura de los datos almacenados.
+
+        Note:
+            Siempre que se desee persistir datos para utilizarlos en el
+            transcurso de la ejecucion del modelo, deben agregarse aqui.
+
+        Note:
+            La estructura debe tener en cuenta lo siguiente para guardar:
+                * flotantes, enteros y strings
+                    * key: value
+                * listas
+                    * k: []
+                * array variables o desconocidos en longitud al inicio, se debe post-procesar
+                    * k: []
+
         """
-        inicializa los campos para el almacenamiento
-        """
-        archivo = self.ruta + self.name + '.cupydle'
+        archivo = self.ruta + self.nombre + '.cupydle'
 
         # datos a guardar, es estatico, por lo que solo lo que se puede almacenar
         # debe setearse aca
         datos = {'tipo':                'dbn',
-                 'nombre':              self.name,
-                 'numpy_rng':           self.numpy_rng,
+                 'nombre':              self.nombre,
+                 'numpy_rng':           self.semilla_numpy,
                  'pesos':               [],
                  'pesos_iniciales':     [],
-                 'theano_rng':          self.theano_rng.rstate, # con set_value se actualiza
+                 'theano_rng':          self.semilla_theano, # con set_value se actualiza
                  'activacionesOcultas': [],
                  'tasaAprendizaje':     0.0,
                  'regularizadorL1':     0.0,
@@ -203,34 +250,19 @@ class DBN(object):
                  'epocas':              0.0,
                  'activacion':          'sigmoidea',
                  'toleranciaError':     0.0,
-                 'costoTRN':            0.0,
-                 'costoVAL':            0.0,
-                 'costoTST':            0.0
+                 'costoTRN':            [],
+                 'costoVAL':            [],
+                 'costoTST':            []
                  }
 
-        # diccionario restringido en sus keys
-        almacenar = RestrictedDict(datos)
-        for k,v in datos.items():
-            almacenar[k]=v
+        # se alamcena en disco
+        self._guardar(diccionario=datos, driver=driver, nuevo=True)
 
-        # se guarda a archivo
-        # ojo con el writeback,
-        # remuevo el archivo para comenzar desde cero
-        #os.remove(archivo)
-        # 'r'   Open existing database for reading only (default)
-        # 'w' Open existing database for reading and writing
-        # 'c' Open database for reading and writing, creating it if it doesn’t exist
-        # 'n' Always create a new, empty database, open for reading and writing
-        with shelve.open(archivo, flag='n', writeback=False) as shelf:
-            for key in almacenar.keys():
-                shelf[key] = almacenar[key]
-            shelf.close()
-
-        return almacenar
+        return datos
 
     def setParametros(self, parametros):
         self._guardar(diccionario=parametros)
-        return 1
+        return 0
 
     def addLayer(self, n_visible=None, **kwargs):
 
@@ -261,7 +293,8 @@ class DBN(object):
 
         T = temporizador()
         inicio = T.tic()
-
+        print(self._cargar(clave=None))
+        assert False
         cantidadCapas = self.n_layers if DBN.DBN_custom else self.n_layers-1
         print("Entrenando con metodo \'custom\'") if DBN.DBN_custom else None
 
@@ -271,7 +304,7 @@ class DBN(object):
                 layer_input = self.x
                 del dataTrn
             else:
-                layer_input = self._cargar(key='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
+                layer_input = self._cargar(clave='activacionesOcultas')[-1] # al entrada es la anterior, la que ya se entreno
 
             # una carpeta para alojar los datos de la capa intermedia
             directorioRbm = self.ruta + 'rbm_capa{}/'.format(i+1)
@@ -337,7 +370,7 @@ class DBN(object):
         if listaPesos is None:
             if self.pesos == []:
                 print("Cargando los pesos almacenados...") if DBN.DEBUG else None
-                self.pesos = self._cargar(key='pesos')
+                self.pesos = self._cargar(clave='pesos')
                 if self.pesos==[]:
                     print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
                     self.pesos = [None] * self.n_layers
@@ -365,7 +398,7 @@ class DBN(object):
         retorno = {}
         for key in self.datosAlmacenar._allowed_keys:
             if key in tmp and key not in ['tipo', 'pesos', 'nombre', 'numpy_rng', 'theano_rng', 'pesos_iniciales']:
-                retorno[key] = self._cargar(key=key)
+                retorno[key] = self._cargar(clave=key)
         del tmp
 
         clasificador.setParametroEntrenamiento(retorno)
@@ -423,6 +456,126 @@ class DBN(object):
 
         return costoTRN, costoVAL, costoTST, costoTST_final
 
+    def _guardar(self, diccionario, driver=DRIVER_PERSISTENCIA, nombreArchivo=None, nuevo=False):
+        """Interfaz de almacenamiento para la persistencia de los datos del modelo.
+
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
+
+        Entre ellos se encuentran:
+
+            * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+            * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Args:
+            diccionario (dict): clave, nombre objeto; value, dato.
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+            nuevo (Opcional[bool]): Solo para el caso de inicializacion de la estructura.
+
+        See Also:
+
+            Almacenamiento con Shelve: :func:`cupydle.dnn.utils.guardarSHELVE`
+
+            Almacenameinto con HDF5: :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Example:
+            >>> D = DBN(...)
+            >>> D._guardar({"nombre":"dbn"})
+        """
+
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
+
+        if driver == 'pickle':
+            raise NotImplementedError("Funcion no implementada")
+        elif driver == 'shelve':
+            try:
+                guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
+            except MemoryError:
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
+            except KeyError:
+                print("Error sobre la clave... no es posible guardar")
+            except:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+
+        elif driver == 'hdf5':
+            try:
+                guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
+            except MemoryError as e:
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
+                print(e)
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar")
+                print(e)
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+                print(e)
+        else:
+            raise NotImplementedError("No se reconoce el driver de almacenamiento")
+
+        return 0
+
+    def _cargar(self, clave=None, driver=DRIVER_PERSISTENCIA, nombreArchivo=None):
+        """Interfaz de recuperacion de los datos almacenados
+
+        En dicha intefaz se optan por los distintos metodos de alamcenamiento
+        disponibles.
+
+        Entre ellos se encuentran:
+
+        * `shelve`_ en la funcion :func:`cupydle.dnn.utils.guardarSHELVE`
+        * `h5py`_ en la funcion :func:`cupydle.dnn.utils.guardarHDF5`
+
+        Args:
+            clave (Opcional[(str, list(str), None)]):
+                clave, nombre objeto;
+
+                * str: recupera unicamente le objeto
+                * list(str): recupera una cantidad de objetos.
+                * None: recuepra todos los objetos (precaucion MEMORIA RAM).
+            driver ([Opcional[str]): seleccion del motor de persistencia.
+            nombreArchivo (Opcional[str]): ruta+nombre del archivo donde persistir.
+
+        Return:
+            numpy.ndarray, str, dict, list: segun la estructura de como fue almacenado.
+
+        Example:
+            >>> D = DBN(...)
+            >>> D._cargar(clave='nombre')
+            >>> "dbn"
+        """
+        nombreArchivo = self.nombre if nombreArchivo is None else nombreArchivo
+        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
+
+        datos = None
+
+        if driver == 'pickle':
+            raise NotImplementedError("Funcion no implementada")
+        elif driver == 'shelve':
+            try:
+                datos = cargarSHELVE(nombreArchivo=nombreArchivo, clave=clave)
+            except MemoryError:
+                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+            except KeyError:
+                print("Error sobre la clave... no es posible cargar")
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+
+        elif driver == 'hdf5':
+            try:
+                datos = cargarHDF5(nombreArchivo=nombreArchivo, clave=clave)
+            except MemoryError:
+                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+            except KeyError as e:
+                print("Error sobre la clave... no es posible cargar " +str(e))
+            except BaseException as e:
+                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+        else:
+            raise NotImplementedError("No se reconoce el driver de almacenamiento")
+
+        return datos
+
     def guardarObjeto(self, nombreArchivo, compression='zip'):
         """
         guarda la mlp, en formato comprimido, todo el objeto
@@ -430,74 +583,6 @@ class DBN(object):
         nombre = self.ruta + nombreArchivo
         save(objeto=self, filename=nombre, compression=compression)
         return 0
-
-    def _guardar(self, driver='shelve', nombreArchivo=None, diccionario=None):
-        """
-        interfaz de almacenamiento, se eligen los metodos disponibles por el
-        driver
-
-        :type driver: str
-        :param driver: seleccion del driver para persistencia, pickle/shelve
-        :type nombreArchivo: str
-        :param nombreArchivo: nombre del archivo a persistir
-        :type diccionario: dict
-        :param diccionario: diccionario con los valores a alamacenar
-        """
-
-        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
-        nombreArchivo = self.ruta + nombreArchivo + '.cupydle'
-
-        if driver == 'pickle':
-            raise NotImplementedError("Funcion no implementada")
-        elif driver == 'shelve':
-            try:
-                self._guardarShelve(nombreArchivo=nombreArchivo, diccionario=diccionario)
-            except MemoryError:
-                print("Error al guardar el modelo RBM, por falta de memoria en el Host")
-            except KeyError:
-                print("Error sobre la clave... no es posible guardar")
-            except:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
-        else:
-            raise NotImplementedError("No se reconoce el driver de almacenamiento")
-
-        return 0
-
-    def _guardarShelve(self, nombreArchivo, diccionario, sobreescribir=False):
-        """
-        Almacena todos los datos en un archivo pickle que contiene un diccionario
-        lo cual lo hace mas sencillo procesar luego
-        """
-
-        permitidas = self.datosAlmacenar._allowed_keys
-        assert False not in [k in permitidas for k in diccionario.keys()], "el diccionario contiene una key no valida"
-
-        with shelve.open(nombreArchivo, flag='w', writeback=False, protocol=2) as shelf:
-            for key in diccionario.keys():
-                if isinstance(self.datosAlmacenar[key],list) and not sobreescribir:
-                    tmp = shelf[key]
-                    tmp.append(diccionario[key])
-                    shelf[key] = tmp
-                    del tmp
-                else:
-                    shelf[key] = diccionario[key]
-            shelf.close()
-        return 0
-
-    def _cargar(self, nombreArchivo=None, key=None):
-        nombreArchivo = self.name if nombreArchivo is None else nombreArchivo
-        archivo = self.ruta + nombreArchivo + '.cupydle'
-
-        with shelve.open(archivo, flag='r', writeback=False, protocol=2) as shelf:
-            if key is not None:
-                assert key in shelf.keys(), "key no almacenada " + str(key)
-                retorno = shelf[key]
-            else:
-                retorno = shelf.copy
-            shelf.close()
-
-        return retorno
-
 
     @staticmethod
     def load(filename, compression='zip'):

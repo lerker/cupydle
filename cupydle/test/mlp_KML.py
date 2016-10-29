@@ -13,7 +13,15 @@ __status__      = "Production"
 
 
 """
-optirun python3 cupydle/test/mlp_FACE.py --directorio "test_MLP" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --tolError 0.08 --MLPrapido
+Script de pruebas sobre la base de datos KML con un modelo de regresion lineal
+
+Simplemente carga los datos y ajusta la red con los parametros pasados
+
+# rapida
+optirun python3 cupydle/test/mlp_KML.py --directorio "test_MLP_KML" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --tolError 0.08 --MLPrapido
+
+# completa
+optirun python3 cupydle/test/mlp_KML.py --directorio "test_MLP_KML" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -l 85 50 6 --lepocaTRN 50 -lrTRN 0.01 --reguL1 0.0 --reguL2 0.0 --momentoTRN 0.0 --batchsize 10 --tolError 0.08
 """
 # dependencias internas
 import os, argparse, numpy as np

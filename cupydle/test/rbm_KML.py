@@ -14,10 +14,10 @@ __status__      = "Production"
 
 """
 # version corta
-optirun python3 cupydle/test/rbm_FACE.py --directorio "test_RBM" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -p 0.8 -b 10 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6
+optirun python3 cupydle/test/rbm_KML.py --directorio "test_RBM_KML" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" --porcentaje 0.8 --batchsize 10 -lrW 0.01 -lrV 0.01 -lrO 0.01 -wc 0.0 --momentoTRN 0.0 --dropout 1.0 --lepocaTRN 50 --visibles 85 --ocultas 6 -pcd --gibbs 1 --tipo 'binaria'
 
 # version larga
-optirun python3 cupydle/test/rbm_FACE.py --directorio "test_RBM" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" -p 0.8 -b 10 -lrW 0.01 --lepocaTRN 50 --visibles 85 --ocultas 6 --gibbs 1 --tipo 'binaria'
+optirun python3 cupydle/test/rbm_KML.py --directorio "test_RBM_KML" --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz"  --lepocaTRN 50 --visibles 85 --ocultas 6 -pcd
 """
 
 # dependencias internas

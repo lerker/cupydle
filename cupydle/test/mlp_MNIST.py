@@ -19,10 +19,10 @@ Simplemente carga los datos y ajusta la red con los parametros pasados
 
 
 # version corta
-optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -lrTRN 0.01 --tolError 0.08 --MLPrapido
+optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP_MNIST" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -lrTRN 0.01 --tolError 0.08 --MLPrapido
 
 # version larga
-optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -b 100 -lrTRN 0.01 --tolError 0.01 --reguL1 0.0 --reguL2 0.0 --momentoTRN 0.0
+optirun python3 cupydle/test/mlp_MNIST.py --directorio "test_MLP_MNIST" --dataset "mnist_minmax.npz" -l 784 500 10 --lepocaTRN 10 -lrTRN 0.01 --tolError 0.01 --reguL1 0.0 --reguL2 0.0 --momentoTRN 0.0 --batchsize 100
 """
 
 # dependencias internas
@@ -122,8 +122,8 @@ if __name__ == "__main__":
     ##                 A J U S T E     F I N O    ( M L P )
     ##
     ###########################################################################
-    print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
-    print("                                               :", "-------------------------------")
+    print("                    Clases                     :", "[1     2    3    4    5    6    7    8    9    10]")
+    print("                                               :", "--------------------------------------------------")
     print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
     print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
     print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
