@@ -187,7 +187,8 @@ autodoc_docstring_signature = True
 #
 #html_theme = 'alabaster'
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if not on_rtd:
+#if not on_rtd:
+if on_rtd:
     html_theme = 'default'
     html_theme = 'sphinx_rtd_theme'
     import sphinx_rtd_theme
