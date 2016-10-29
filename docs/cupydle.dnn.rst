@@ -4,10 +4,14 @@ Modulo Principal: cupydle.dnn
 Primarios
 ---------
 
-:mod:`cupydle.dnn.mlp`
+Modulo :mod:`~cupydle.dnn.mlp`
+******************************
 
-Modulo cupydle.dnn.mlp
-***********************
+    Base para redes de regresion logistica y clasificacion. Conocidas como
+    Perceptrones Multi-Capa (*Multilayer Perceptrons*).
+
+    http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+
 
 .. automodule:: cupydle.dnn.mlp
     :members:
@@ -20,10 +24,10 @@ Modulo cupydle.dnn.mlp
 Secundarios
 -----------
 
-:mod:`cupydle.dnn.utils`
-
-Modulo cupydle.dnn.utils
+Modulo :mod:`~cupydle.dnn.utils`
 ************************
+
+    Funciones varias para uso dentro y fuera de la libreria.
 
 .. automodule:: cupydle.dnn.utils
     :members:
@@ -31,3 +35,12 @@ Modulo cupydle.dnn.utils
     :show-inheritance:
     :private-members:
     :special-members:
+
+
+Contenidos del Modulo
+----------------------
+
+.. automodule:: cupydle.dnn
+    :members:
+    :undoc-members:
+    :show-inheritance:
