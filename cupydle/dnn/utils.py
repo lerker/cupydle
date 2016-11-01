@@ -96,6 +96,20 @@ def vectorize_label(label, n_classes):
     lab[label] = 1
     return np.array(lab)
 
+def downCast(objeto):
+
+    if isinstance(objeto, np.ndarray):
+        if objeto.dtype == 'float64':
+            objeto = objeto.astype(np.float32)
+        elif objeto.dtype =='int64':
+            objeto = objeto.astype(np.int32)
+    elif isinstance(objeto, float):
+        objeto = np.float32(objeto)
+    elif isinstance(objeto, int):
+        objeto = np.int32(objeto)
+
+    return objeto
+
 def guardarHDF5(nombreArchivo, valor, nuevo=False):
     """Metodo de almacenamiento por medio de HDF5 (h5py)
 
@@ -176,7 +190,8 @@ def guardarHDF5(nombreArchivo, valor, nuevo=False):
             es_atributo=False
 
         if es_atributo:
-            h5f['atributos'].attrs[k] = valor[k]
+            #h5f['atributos'].attrs[k] = valor[k]
+            h5f['atributos'].attrs[k] = downCast(valor[k])
             try:
                 # si se guardo como atributo, trato de borrar si hay un dataset
                 h5f.__delitem__(k)
@@ -188,21 +203,16 @@ def guardarHDF5(nombreArchivo, valor, nuevo=False):
                 if isinstance(valor[k], list):
                     h5f.create_group(k)
                 else:
-                    h5f.create_dataset(str(k), data=valor[k],compression="gzip", compression_opts=9)
+                    h5f.create_dataset(str(k), data=valor[k], dtype=np.float32)
             else:
                 if isinstance(h5f[k], h5py.Group):
                     #if isinstance(valor[k], list):
                     # es como una lista, debo determinar el indice e incrementarlo dentro del grupo (lista)
                     dd=h5f[k].items()
                     import collections
-                    dd = collections.OrderedDict(sorted(dd))
-                    cantidad = len(dd)
-                    #print(valor[k])
-                    #print(k+str(cantidad))
-                    #h5f[k].create_dataset(k+str(cantidad),data=valor[k][0])
-                    h5f[k].create_dataset(k+str(cantidad),data=valor[k])
+                    h5f[k].create_dataset(k+str(len(collections.OrderedDict(sorted(dd)))),data=valor[k], dtype=np.float32)
                 else:
-                    h5f[k] = valor[k]
+                    h5f[k] = downCast(valor[k])
             try:
                 # si se guardo como dataset, trato de borrar si hay un atributo
                 h5f['atributos'].attrs.__delitem__(k)
@@ -262,7 +272,7 @@ def cargarHDF5(nombreArchivo, clave):
             for k in clave:
                 # busca primero si es un atributo
                 if k in h5f["atributos"].attrs:
-                    datos[k] = h5f["atributos"].attrs[k]
+                    datos[k] = downCast(h5f["atributos"].attrs[k])
                 elif isinstance(h5f[k], h5py.Group):    # busca si es un grupo (lista)
                     #datos[k] = []
                     #datos[k] = np.asarray(h5f[k])
@@ -274,7 +284,7 @@ def cargarHDF5(nombreArchivo, clave):
         else:
             # busca primero si es un atributo
             if clave in h5f["atributos"].attrs:
-                datos = h5f["atributos"].attrs[clave]
+                datos = downCast(h5f["atributos"].attrs[clave])
             elif isinstance(h5f[clave], h5py.Group):    # busca si es un grupo (lista)
                 # guarda una lista con los arrays contenidos en el grupo, ordenado
                 import collections
@@ -286,12 +296,14 @@ def cargarHDF5(nombreArchivo, clave):
         for k in h5f.keys():
             if k == 'atributos':
                 for k in h5f['atributos'].attrs:
-                    datos[k] = h5f['atributos'].attrs[k]
+                    datos[k] = downCast(h5f['atributos'].attrs[k])
+                    print("EL daot:", datos[k], type(datos[k]))
+                    assert False
             elif isinstance(h5f[k], h5py.Group):
                 import collections
                 datos[k] = [np.asarray(val.value, dtype=np.float32) for key, val in collections.OrderedDict(sorted(h5f[k].items())).items()]
             else:
-                datos[k] = np.asarray(h5f[k])
+                datos[k] = np.asarray(h5f[k], dtype=np.float32)
     h5f.close()
     return datos
 
@@ -342,6 +354,8 @@ def guardarSHELVE(nombreArchivo, valor, nuevo=False):
         'valor': 10.0,
         'pesos': [array([7, 8, 9]), array([8, 9, 10])]}
     """
+    assert False, "No contempla los mismos casos que HDF5"
+
     if nuevo:
         shelf = shelve.open(nombreArchivo, flag='n', writeback=False, protocol=2)
     else:

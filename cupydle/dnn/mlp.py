@@ -120,8 +120,8 @@ class MLP(object):
         # donde se alojan los datos
         self.ruta = ruta
 
-        #self.datosAlmacenar = self._initParametros
-        self._initParametros
+        self.parametrosEntrenamiento = self._initParametros
+        #self._initParametros
 
 
     @property
@@ -183,6 +183,11 @@ class MLP(object):
         # se alamcena en disco
         self._guardar(diccionario=datos, driver=driver, nuevo=True)
 
+        # necesario para ejecutar entrenamiento de la dbn... se almacena un lista
+        # con los "keys" para el entrenamiento..
+        # excluir lo que no es entrenamiento
+        excluir = ['tipo', 'nombre', 'numpy_rng', 'theano_rng', 'pesos_iniciales', 'pesos', 'bias', 'bias_iniciales', 'costoTRN', 'costoVAL', 'costoTST']
+        datos = [x for x in datos.keys() if x not in excluir]
         return datos
 
     def setParametroEntrenamiento(self, parametros):
@@ -634,25 +639,25 @@ class MLP(object):
         elif driver == 'shelve':
             try:
                 guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
-            except MemoryError:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-            except KeyError:
-                print("Error sobre la clave... no es posible guardar")
-            except:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+            except MemoryError as e:
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host " + str(e))
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar " + str(e))
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
 
         elif driver == 'hdf5':
             try:
                 guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
             except MemoryError as e:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-                print(e)
+                print("Error al guardar el modelo MLP, por falta de memoria en el Host " + str(e))
+                print(diccionario)
             except KeyError as e:
-                print("Error sobre la clave... no es posible guardar")
-                print(e)
+                print("Error sobre la clave... no es posible guardar " + str(e))
+                print(diccionario)
             except BaseException as e:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
-                print(e)
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
+                print(diccionario)
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 

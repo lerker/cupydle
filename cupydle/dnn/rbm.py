@@ -339,25 +339,25 @@ class RBM(ABC):
         elif driver == 'shelve':
             try:
                 guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
-            except MemoryError:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-            except KeyError:
-                print("Error sobre la clave... no es posible guardar")
-            except:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+            except MemoryError as e:
+                print("Error al guardar el modelo RBM, por falta de memoria en el Host " + str(e))
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar " + str(e))
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
 
         elif driver == 'hdf5':
             try:
                 guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
             except MemoryError as e:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-                print(e)
+                print("Error al guardar el modelo RBM, por falta de memoria en el Host " + str(e))
+                print(diccionario)
             except KeyError as e:
-                print("Error sobre la clave... no es posible guardar")
-                print(e)
+                print("Error sobre la clave... no es posible guardar " + str(e))
+                print(diccionario)
             except BaseException as e:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
-                print(e)
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
+                print(diccionario)
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
@@ -1052,7 +1052,8 @@ class RBM(ABC):
 
         nombreArchivo=self.ruta+'estadisticos_'+self.nombre
         dibujarCostos(guardar=nombreArchivo, diffEnergiaTRN=diffEnergiaTRN, errorReconsTRN=errorReconsTRN, mseTRN=mseTRN)
-        return 1
+
+        return 0
 
     def muestra(self, muestraV, gibbsSteps=1):
         """

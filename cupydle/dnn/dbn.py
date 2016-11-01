@@ -65,9 +65,9 @@ class rbmParams(object):
                 lr_pesos,
                 pasosGibbs=1,
                 w=None,
-                lr_bvis=None,
-                lr_bocu=None,
-                costo_w=None,
+                lr_bvis=0.0,
+                lr_bocu=0.0,
+                costo_w=0.0,
                 momento=0.0,
                 toleranciaError=0.0,
                 tipo='binaria'):
@@ -109,10 +109,6 @@ class rbmParams(object):
         for key in self.__dict__.keys():
             if key in tmpRBM:
                 retorno[key] = self.__dict__[key]
-        """
-        for k in retorno:
-            print(k, retorno[k])
-        """
         del tmpRBM
         return retorno
 
@@ -130,8 +126,8 @@ class DBN(object):
 
     """
 
-    DRIVER_PERSISTENCIA="shelve"
-    #DRIVER_PERSISTENCIA="hdf5"
+    #DRIVER_PERSISTENCIA="shelve"
+    DRIVER_PERSISTENCIA="hdf5"
     """str: Selecciona el driver para el almacenamiento.
 
     Las posibles elecciones son:
@@ -189,8 +185,6 @@ class DBN(object):
 
         self.capas = []
         self.n_layers = 0
-        self.pesos = [] #pesos almacenados en una lista, una vez entrenados se guardan aca
-                        # para utilizarse en el fit o prediccion...
 
         if nombre is None:
             nombre="dbnTest"
@@ -252,7 +246,8 @@ class DBN(object):
                  'toleranciaError':     0.0,
                  'costoTRN':            [],
                  'costoVAL':            [],
-                 'costoTST':            []
+                 'costoTST':            [],
+                 'tiempoMaximo':        0.0
                  }
 
         # se alamcena en disco
@@ -274,10 +269,9 @@ class DBN(object):
         self.capas.append(rbmParams(n_visible=n_visible, **kwargs))
         self.n_layers += 1
 
-        return
+        return 0
 
-    def entrenar(self, dataTrn, dataVal=None, pcd=True,
-                         guardarPesosIniciales=False, filtros=True):
+    def entrenar(self, dataTrn, dataVal=None, pcd=True, guardarPesosIniciales=False, filtros=True):
         """
         :type dataTrn: narray
         :param dataTrn: datos de entrenamiento
@@ -293,11 +287,8 @@ class DBN(object):
 
         T = temporizador()
         inicio = T.tic()
-        print(self._cargar(clave=None))
-        assert False
         cantidadCapas = self.n_layers if DBN.DBN_custom else self.n_layers-1
         print("Entrenando con metodo \'custom\'") if DBN.DBN_custom else None
-
         for i in range(cantidadCapas):
             # deben diferenciarse si estamos en presencia de la primer capa o de una intermedia
             if i == 0:
@@ -319,9 +310,10 @@ class DBN(object):
                 raise NotImplementedError('RBM no implementada')
 
             # configuro la capa, la rbm
-            capaRBM.setParametros(self.capas[i].getParametrosEntrenamiento)
+            # si un parametro es None lo paso como una lista vacia...
+            capaRBM.setParametros({k:v if v is not None else [] for k, v in self.capas[i].getParametrosEntrenamiento.items()})
 
-            # train it!! layer per layer
+            # se entrena capa por capa
             print("Entrenando la capa:", i+1)
             self._guardar(diccionario={'pesos_iniciales':capaRBM.getW}) if guardarPesosIniciales else None
 
@@ -368,22 +360,21 @@ class DBN(object):
         entrenamiento supervisado.
         """
         if listaPesos is None:
-            if self.pesos == []:
-                print("Cargando los pesos almacenados...") if DBN.DEBUG else None
-                self.pesos = self._cargar(clave='pesos')
-                if self.pesos==[]:
-                    print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
-                    self.pesos = [None] * self.n_layers
+            print("Cargando los pesos almacenados...") if DBN.DEBUG else None
+            pesos = self._cargar(clave='pesos')
+            if pesos==[]:
+                print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
+                pesos = [None] * self.n_layers
         else:
-            self.pesos = listaPesos
+            pesos = listaPesos
 
         activaciones = []
         if fnActivacion is not None:
             if isinstance(fnActivacion, list):
-                assert len(fnActivacion) == len(self.pesos), "No son suficientes funciones de activacion"
+                assert len(fnActivacion) == len(pesos), "No son suficientes funciones de activacion"
                 activaciones = fnActivacion
             else:
-                activaciones = [fnActivacion] * len(self.pesos)
+                activaciones = [fnActivacion] * len(pesos)
         else:
             assert False, "Debe proveer una funcion de activacion"
 
@@ -394,27 +385,21 @@ class DBN(object):
                            ruta=self.ruta)
 
         ## solo cargo las keys del ajuste cargadas en las DBN al MLP buscando coincidencias y filtrando lo que no interesa
-        tmp = clasificador.datosAlmacenar._allowed_keys
-        retorno = {}
-        for key in self.datosAlmacenar._allowed_keys:
-            if key in tmp and key not in ['tipo', 'pesos', 'nombre', 'numpy_rng', 'theano_rng', 'pesos_iniciales']:
-                retorno[key] = self._cargar(clave=key)
+        tmp = clasificador.parametrosEntrenamiento
+        clasificador.setParametroEntrenamiento({k: self._cargar(clave=k) for k in tmp})
         del tmp
-
-        clasificador.setParametroEntrenamiento(retorno)
-        del retorno
 
         # cargo en el perceptron multicapa los pesos en cada capa
         # como el fit es de clasificacion, las primeras n-1 capas son del tipo
         # 'logisticas' luego la ultima es un 'softmax'
         #assert False, "aca entra para cuando es custom pero no para el caso normal de una sola capa... debe entrar siempre"
-        cantidadPesos = len(self.pesos)-1 if DBN.DBN_custom else len(self.pesos)
+        cantidadPesos = len(pesos)-1 if DBN.DBN_custom else len(pesos)
         for i in range(0,cantidadPesos):
             clasificador.agregarCapa(unidadesEntrada=self.capas[i].n_visible,
                                      unidadesSalida=self.capas[i].n_hidden,
                                      clasificacion=False,
                                      activacion=activaciones[i],
-                                     pesos=self.pesos[i],
+                                     pesos=pesos[i],
                                      biases=None)
 
         if DBN.DBN_custom:
@@ -424,7 +409,7 @@ class DBN(object):
                                      unidadesSalida=self.capas[-1].n_hidden,
                                      clasificacion=True,
                                      activacion=activaciones[-1],
-                                     pesos=self.pesos[-1],
+                                     pesos=pesos[-1],
                                      biases=None)
         else:
             # w = numpy.zeros((self.capas[-1].n_visible, self.capas[-1].n_hidden),dtype=theanoFloat)
@@ -492,25 +477,29 @@ class DBN(object):
         elif driver == 'shelve':
             try:
                 guardarSHELVE(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
-            except MemoryError:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-            except KeyError:
-                print("Error sobre la clave... no es posible guardar")
-            except:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
+            except MemoryError as e:
+                print("Error al guardar el modelo DBN, por falta de memoria en el Host " + str(e))
+            except KeyError as e:
+                print("Error sobre la clave... no es posible guardar " + str(e))
+            except BaseException as e:
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
+                raise Exception
 
         elif driver == 'hdf5':
             try:
                 guardarHDF5(nombreArchivo=nombreArchivo, valor=diccionario, nuevo=nuevo)
             except MemoryError as e:
-                print("Error al guardar el modelo MLP, por falta de memoria en el Host")
-                print(e)
+                print("Error al guardar el modelo DBN, por falta de memoria en el Host " + str(e))
+                print(diccionario)
+                raise Exception
             except KeyError as e:
-                print("Error sobre la clave... no es posible guardar")
-                print(e)
+                print("Error sobre la clave... no es posible guardar " + str(e))
+                print(diccionario)
+                raise Exception
             except BaseException as e:
-                print("Ocurrio un error desconocido al guardar!! no se almaceno nada")
-                print(e)
+                print("Ocurrio un error desconocido al guardar!! no se almaceno nada " + str(e))
+                print(diccionario)
+                raise Exception
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
@@ -556,7 +545,7 @@ class DBN(object):
             try:
                 datos = cargarSHELVE(nombreArchivo=nombreArchivo, clave=clave)
             except MemoryError:
-                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+                print("Error al cargar el modelo DBN, por falta de memoria en el Host")
             except KeyError:
                 print("Error sobre la clave... no es posible cargar")
             except BaseException as e:
@@ -566,11 +555,13 @@ class DBN(object):
             try:
                 datos = cargarHDF5(nombreArchivo=nombreArchivo, clave=clave)
             except MemoryError:
-                print("Error al cargar el modelo RBM, por falta de memoria en el Host")
+                print("Error al cargar el modelo DBN, por falta de memoria en el Host")
             except KeyError as e:
                 print("Error sobre la clave... no es posible cargar " +str(e))
+                raise Exception
             except BaseException as e:
-                assert False, "Ocurrio un error desconocido al cargar!! " + str(e)
+                print("Ocurrio un error desconocido al cargar!! " + str(e))
+                raise Exception
         else:
             raise NotImplementedError("No se reconoce el driver de almacenamiento")
 
@@ -592,7 +583,7 @@ class DBN(object):
 
     # redefino
     def __str__(self):
-        print("Name:", self.name)
+        print("Name:", self.nombre)
         print("Cantidad de capas:", self.n_layers)
         for i in range(0,len(self.capas)):
             print("-[" + str(i+1) + "] :")
@@ -605,7 +596,7 @@ class DBN(object):
 
     @property
     def info(self):
-        print("Name:", self.name)
+        print("Name:", self.nombre)
         print("Cantidad de capas:", self.n_layers)
         return 0
 

@@ -169,7 +169,6 @@ def DBN_basica(**kwargs):
     except:
         assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
-
     entrenamiento        = datos['entrenamiento'].astype(np.float32)
     entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
     validacion           = datos['validacion'].astype(np.float32)
@@ -215,25 +214,37 @@ def DBN_basica(**kwargs):
 
     del datosMLP
 
-    miDBN.guardarObjeto(nombreArchivo=nombre)
-
-    # FIN DEL AJUSTE FINO
+    #miDBN.guardarObjeto(nombreArchivo=nombre)
 
     return costoTRN, costoVAL, costoTST, costoTST_final
+    # FIN DEL AJUSTE FINO
 
 
-def _guardar(nombreArchivo, diccionario=None):
-        """
-        Almacena todos los datos en un archivo pickle que contiene un diccionario
-        lo cual lo hace mas sencillo procesar luego
-        """
-        archivo = nombreArchivo + '.cupydle'
+def _guardar(nombreArchivo, valor):
+    from cupydle.dnn.utils import guardarHDF5
+    import os.path
 
-        with shelve.open(archivo, flag='c', writeback=False, protocol=2) as shelf:
-            for key in diccionario.keys():
-                shelf[key] = diccionario[key]
+    nombreArchivo = nombreArchivo + '.cupydle'
+
+    """
+    if not os.path.isfile(nombreArchivo):
+
+        datos={ 'parametros': [],
+                'costoTRN': [],
+                'costoVAL': [],
+                'costoTST': [],
+                'costoTST_final': []}
+        guardarHDF5(nombreArchivo=nombreArchivo, valor=datos, nuevo=True)
+
+
+    guardarHDF5(nombreArchivo=nombreArchivo, valor=valor)
+    """
+    with shelve.open(nombreArchivo, flag='c', writeback=False, protocol=2) as shelf:
+            for key in valor.keys():
+                shelf[key] = valor[key]
             shelf.close()
-        return 0
+
+    return 0
 
 if __name__ == '__main__':
 
@@ -266,7 +277,7 @@ if __name__ == '__main__':
                     'epocasFIT':        [10],
                     'tambatch':         [100],
                     'porcentaje':       [0.8],
-                    'tasaAprenTRN':     [0.01],
+                    'tasaAprenTRN':     [0.1],
                     'tasaAprenFIT':     [0.1],
                     'pasosGibbs':       [1],
                     'nombre':           ['dbn'],
@@ -314,7 +325,7 @@ if __name__ == '__main__':
         print("****************************************************")
         print("\n\n")
 
-        _guardar(nombreArchivo=nombreArchivo, diccionario={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
+        _guardar(nombreArchivo=nombreArchivo, valor={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
 
     final = T.toc()
     print("\n\nGRID SEARCH  FINALIZADO\n\n")
