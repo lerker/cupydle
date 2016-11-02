@@ -10,24 +10,27 @@ __license__     = "GPL"
 __version__     = "1.0.0"
 __status__      = "Production"
 
-import sys, os, numpy as np
+import sys, os, argparse, numpy as np
 
 from cupydle.test.dbn_base import dbn_base_test, _guardar
 from cupydle.dnn.gridSearch import ParameterGrid
-from cupydle.dnn.utils import temporizador
 from cupydle.dnn.validacion_cruzada import train_test_split
+from cupydle.dnn.utils import temporizador
 
 """
-Pruebas sobre KML con una DBN
+Pruebas sobre MNIST/KML con una DBN
 
-optirun python3 cupydle/test/dbn_KML.py "all_videos_features_clases_shuffled_PCA85_minmax.npz"
+# MNIST
+optirun python3 cupydle/test/dbn_prueba.py --dataset "mnist_minmax.npz" --directorio "test_DBN_mnist" --capa 784 500 10
+
+# KML
+optirun python3 cupydle/test/dbn_prueba.py --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" --directorio "test_DBN_kml" --capa 85 50 6
 """
 
-def test():
-    assert len(sys.argv) == 2, "cantidad incorrecta de parametros"
+def test(general, directorio, dataset, capas, archivoResultados):
 
     parametros = {}
-    parametros['general']         = ['kml']
+    parametros['general']         = [general]
     parametros['nombre']          = ['dbn']
     parametros['tipo']            = ['binaria']
     parametros['capas']           = []
@@ -44,14 +47,13 @@ def test():
     parametros['porcentaje']      = [0.8]
     parametros['toleranciaError'] = [0.0]
     parametros['pcd']             = [True]
-    parametros['directorio']      = ['dbn_kml']
-    parametros['dataset']         = [sys.argv[1]]
-    parametros['capas']           = [[85, 50, 15, 6]]
+    parametros['directorio']      = [directorio]
+    parametros['dataset']         = [dataset]
+    parametros['capas']           = capas
 
     Grid = ParameterGrid(parametros)
     parametros = Grid[0]
-    nombreArchivo = 'resultados_dbn_KML'
-    print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {}\n\n".format(nombreArchivo))
+    print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {}\n\n".format(archivoResultados))
 
     ##
     ##
@@ -75,9 +77,9 @@ def test():
     # se cargan  los datos, debe ser un archivo comprimido, en el cual los
     # arreglos estan en dos keys, 'entrenamiento' y 'entrenamiento_clases'
     try:
-        datos = np.load(rutaDatos + str(sys.argv[1]))
+        datos = np.load(rutaDatos + dataset)
     except:
-        assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
     KML = False
     if 'videos' in datos.keys():
@@ -95,18 +97,28 @@ def test():
 
         datosDBN = []; datosDBN.append((X_train, y_train))
         del X_train, y_train
+    else:
+
+        entrenamiento = datos['entrenamiento']
+        entrenamiento_clases = datos['entrenamiento_clases'] #las clases creo que arrancan bien
+        del datos # libera memoria
+
+        entrenamiento = entrenamiento.astype(np.float32)
+        entrenamiento_clases = entrenamiento_clases.astype(np.int32)
+        datosDBN = []; datosDBN.append((entrenamiento, entrenamiento_clases))
+        del entrenamiento, entrenamiento_clases
 
     ## se entrena, puede negarse con la variable de entorno "ENTRENAR"
-    tiempo_entrenar = d.entrenar(data=datosDBN)
+    #tiempo_entrenar = d.entrenar(data=datosDBN)
     del datosDBN
 
     ###########################################################################
     ##   P R E P A R A N D O   L O S   D A T O S   A J U S T E  F I N O
     ###########################################################################
     try:
-        datos = np.load(rutaDatos + str(sys.argv[1]))
+        datos = np.load(rutaDatos + dataset)
     except:
-        assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
 
     KML = False
     if 'videos' in datos.keys():
@@ -129,6 +141,19 @@ def test():
         datosMLP = []
         datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
         del X_train_sub, X_valid, y_train_sub, y_valid, X_test, y_test
+    else:
+        entrenamiento = np.asarray(datos['entrenamiento'], dtype=np.float32)
+        validacion    = np.asarray(datos['validacion'], dtype=np.float32)
+        testeo        = np.asarray(datos['testeo'], dtype=np.float32)
+        entrenamiento_clases = np.asarray(datos['entrenamiento_clases'], dtype=np.int32)
+        validacion_clases    = np.asarray(datos['validacion_clases'], dtype=np.int32)
+        testeo_clases        = np.asarray(datos['testeo_clases'], dtype=np.int32)
+        del datos
+
+        datosMLP = []
+        datosMLP.append((entrenamiento,entrenamiento_clases)); datosMLP.append((validacion,validacion_clases))
+        datosMLP.append((testeo,testeo_clases))
+        del entrenamiento,entrenamiento_clases,validacion,validacion_clases,testeo,testeo_clases
 
     ## se ajustan
     costoTRN, costoVAL, costoTST, costoTST_final, tiempo_ajustar = d.ajustar(datos=datosMLP)
@@ -136,7 +161,7 @@ def test():
     #
 
     #almaceno los resultados generales
-    _guardar(nombreArchivo=nombreArchivo, valor={'parametros':parametros, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final })
+    _guardar(nombreArchivo=archivoResultados, valor={'parametros':parametros, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final })
     print("\n\n")
 
     final = T.toc()
@@ -148,5 +173,26 @@ def test():
     print("->  Total:         {}".format(T.transcurrido(inicio, final)))
     return 0
 
+
+
 if __name__ == '__main__':
-    test()
+    parser = argparse.ArgumentParser(description='Prueba de una DBN sobre MNIST/KML')
+    parser.add_argument('--directorio', type=str,  dest="directorio", default='test_DBN', required=None,  help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--dataset',    type=str,  dest="dataset",    default=None,       required=True,  help="Archivo donde esta el dataset, .npz")
+    parser.add_argument('--capa',       type=int,  dest="capa",       default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    argumentos = parser.parse_args()
+    directorio = argumentos.directorio
+    dataset    = argumentos.dataset
+    capas = []
+    if argumentos.capa is not None:
+        capa = np.asarray(argumentos.capa)
+        capas.append(capa)
+    archivoResultados="resultadosDBN"
+
+    general = "kml"
+    # es mnist o kml? segun el dataset
+    if dataset.find("mnist") != -1:
+        general = "mnist"
+
+    test(general, directorio, dataset, capas, archivoResultados)
+

@@ -599,7 +599,7 @@ class MLP(object):
         titulo = 'Matriz de Confusion Normalizada' if normalizar else 'Matriz de Confusion'
 
         class_names = list(range(cantidad_clases))
-        dibujarMatrizConfusion(matriz, clases=class_names, titulo='Matriz de Confusion', axe=None, mostrar=True, guardar=self.ruta + guardar)
+        dibujarMatrizConfusion(matriz, clases=class_names, titulo='Matriz de Confusion', axe=None, mostrar=mostrar, guardar=self.ruta + guardar)
 
         return matriz
 

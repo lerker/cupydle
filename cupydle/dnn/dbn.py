@@ -358,9 +358,10 @@ class DBN(object):
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # [probabilidad_H1, muestra_V1, muestra_H1]
             if DBN.ACT_OCULTAS:
-                print("\n\n metodo activaciones \n\n")
+                print("Activaciones Ocultas \"Muestreo\"") if DBN.DEBUG else None
                 [_, _, hiddenAct] = capaRBM.muestra(muestraV=layer_input)
             else:
+                print("Activaciones Ocultas \"Probabilidad\"") if DBN.DEBUG else None
                 [hiddenAct, _, _] = capaRBM.muestra(muestraV=layer_input)
 
             # por ahora no lo utilizo
@@ -467,7 +468,7 @@ class DBN(object):
 
         # dibujar estadisticos
         clasificador.dibujarEstadisticos(mostrar=False, guardar=clasificador.ruta+'estadisticosMLP')
-        clasificador.score(datos=datos[2], guardar='Matriz de Confusion')
+        clasificador.score(datos=datos[2], guardar='Matriz de Confusion', mostrar=False)
 
         return costoTRN, costoVAL, costoTST, costoTST_final, final-inicio
 

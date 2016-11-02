@@ -287,9 +287,6 @@ def test():
         #
 
         _guardar(nombreArchivo=nombreArchivo, valor={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
-        #_guardar(nombreArchivo=nombreArchivo, valor={str(x):{'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
-        #from cupydle.dnn.utils import cargarSHELVE
-        #print(cargarSHELVE(nombreArchivo=nombreArchivo, clave=None))
 
         final2 = T2.toc()
         print("\n\nPaso de la grilla terminado, iteracion " + str(x+1) + "\n\n")
