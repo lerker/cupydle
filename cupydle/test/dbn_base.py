@@ -122,9 +122,10 @@ class dbn_base_test(object):
         ##
         ###########################################################################
         datosDBN = data
-        print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
-        print("                                               :", "-------------------------------------------------")
-        print("Cantidad de clases en el conjunto EntrenamieDBN:", np.bincount(datosDBN[0][1]))
+        cant_clases = len(np.bincount(datosDBN[0][1]))
+        print("                    Clases                     :", "".join("{:^6}".format(x) for x in range(0,cant_clases)))
+        print("                                               :", "".join("{:^6}".format("-----") for x in range(0,cant_clases)))
+        print("Cantidad de clases en el conjunto EntrenamieDBN:", "".join("{:^6}".format(x) for x in np.bincount(datosDBN[0][1])))
         print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
 
@@ -148,11 +149,12 @@ class dbn_base_test(object):
         ##
         ###########################################################################
         datosMLP=datos
-        print("                    Clases                     :", "[1    2    3    4    5    6    7    8    9    10]")
-        print("                                               :", "-------------------------------------------------")
-        print("Cantidad de clases en el conjunto Entrenamiento:", np.bincount(datosMLP[0][1]))
-        print("Cantidad de clases en el conjunto Validacion: \t", np.bincount(datosMLP[1][1]))
-        print("Cantidad de clases en el conjunto Test: \t", np.bincount(datosMLP[2][1]))
+        cant_clases = len(np.bincount(datosMLP[0][1]))
+        print("                    Clases                     :", "".join("{:^6}".format(x) for x in range(0,cant_clases)))
+        print("                                               :", "".join("{:^6}".format("-----") for x in range(0,cant_clases)))
+        print("Cantidad de clases en el conjunto Entrenamiento:", "".join("{:^6}".format(x) for x in np.bincount(datosMLP[0][1])))
+        print("Cantidad de clases en el conjunto Validacion: \t", "".join("{:^6}".format(x) for x in np.bincount(datosMLP[1][1])))
+        print("Cantidad de clases en el conjunto Test: \t", "".join("{:^6}".format(x) for x in np.bincount(datosMLP[2][1])))
 
         #miDBN = DBN.load(filename=rutaCompleta + "dbnMNIST", compression='zip')
         print(self.miDBN)
