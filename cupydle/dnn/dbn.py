@@ -122,9 +122,9 @@ class DBN(object):
     Util para propositos de debugging. Para acceder a el solo basta con
 
     Example:
-        >>> from cupydle.dnn.mlp import MLP
-        >>> M = MLP(...)
-        >>> MLP.DEBUG = True
+        >>> from cupydle.dnn.dbn import DBN
+        >>> D = DBN(...)
+        >>> DBN.DEBUG = True
 
     """
 
@@ -141,12 +141,37 @@ class DBN(object):
         sencilla y portable de entender.
 
     Example:
-        >>> from cupydle.dnn.mlp import MLP
-        >>> M = MLP(...)
-        >>> MLP.DRIVER_PERSISTENCIA = "hdf5"
+        >>> from cupydle.dnn.dbn import DBN
+        >>> D = DBN(...)
+        >>> DBN.DRIVER_PERSISTENCIA = "hdf5"
     """
 
-    DBN_custom = False
+    DBN_custom=False
+    """bool: Selecciona el metodo de entrenamiento.
+
+    Las posibles elecciones son:
+        * True: Se entrenan todas las capas (incluida la ultima) de forma heuristica
+        * False: Se entrena las capas y luego se agrega una ultima para
+            clasificacion sin entrenar, metodo clasico *hinton*
+
+    Example:
+        >>> from cupydle.dnn.dbn import DBN
+        >>> D = DBN(...)
+        >>> DBN.DBN_custom = True
+    """
+
+    ACT_OCULTAS=True
+    """bool: Selecciona el tipo la salida de la cada capa.
+
+    Las posibles elecciones son:
+        * True: activacion segun la probabilidad, muestreo.
+        * False: se fijan las probabilidades.
+
+    Example:
+        >>> from cupydle.dnn.dbn import DBN
+        >>> D = DBN(...)
+        >>> DBN.ACT_OCULTAS = False
+    """
 
     def __init__(self, numpy_rng=None, theano_rng=None, n_outs=None, nombre=None, ruta=''):
         """This class is made to support a variable number of layers.
@@ -332,7 +357,11 @@ class DBN(object):
 
             # ahora debo tener las entras que son las salidas del modelo anterior (activaciones de las ocultas)
             # [probabilidad_H1, muestra_V1, muestra_H1]
-            [_, _, hiddenProbAct] = capaRBM.muestra(muestraV=layer_input)
+            if DBN.ACT_OCULTAS:
+                print("\n\n metodo activaciones \n\n")
+                [_, _, hiddenAct] = capaRBM.muestra(muestraV=layer_input)
+            else:
+                [hiddenAct, _, _] = capaRBM.muestra(muestraV=layer_input)
 
             # por ahora no lo utilizo
             if dataVal is not None:
@@ -341,7 +370,8 @@ class DBN(object):
             # se guardan las activaciones ocultas para la siguiente iteracion
             # de la siguiente capa oculta
             print("Guardando las muestras para la siguiente capa..") if DBN.DEBUG else None
-            self._guardar(diccionario={'activacionesOcultas':hiddenProbAct})
+            self._guardar(diccionario={'activacionesOcultas':hiddenAct})
+            del hiddenAct
 
             # se guardan los pesos para el ajuste fino
             self._guardar(diccionario={'pesos':capaRBM.getW})

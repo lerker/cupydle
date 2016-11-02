@@ -12,121 +12,140 @@ __status__      = "Production"
 
 import sys, os, numpy as np
 
-from cupydle.test.dbn_base import dbn_base_test, parametros, _guardar
+from cupydle.test.dbn_base import dbn_base_test, _guardar
 from cupydle.dnn.gridSearch import ParameterGrid
 from cupydle.dnn.utils import temporizador
+from cupydle.dnn.validacion_cruzada import train_test_split
+
+"""
+Pruebas sobre KML con una DBN
+
+optirun python3 cupydle/test/dbn_KML.py "all_videos_features_clases_shuffled_PCA85_minmax.npz"
+"""
 
 def test():
     assert len(sys.argv) == 2, "cantidad incorrecta de parametros"
-    parametros['dataset'] = [sys.argv[1]]
-    parametros['capas'] = [[784, 100, 10]]
-    #parametros['dataset'] = ["mnist_minmax.npz"]
-    #parametros['capas'] = [[784, 100, 10], [85, 30, 6]]
+
+    parametros = {}
+    parametros['general']         = ['kml']
+    parametros['nombre']          = ['dbn']
+    parametros['tipo']            = ['binaria']
+    parametros['capas']           = []
+    parametros['epocasTRN']       = [[5]]
+    parametros['epocasFIT']       = [10]
+    parametros['tambatch']        = [10]
+    parametros['tasaAprenTRN']    = [0.01]
+    parametros['tasaAprenFIT']    = [0.1]
+    parametros['regularizadorL1'] = [0.0]
+    parametros['regularizadorL2'] = [0.0]
+    parametros['momentoTRN']      = [0.0]
+    parametros['momentoFIT']      = [0.0]
+    parametros['pasosGibbs']      = [1]
+    parametros['porcentaje']      = [0.8]
+    parametros['toleranciaError'] = [0.0]
+    parametros['pcd']             = [True]
+    parametros['directorio']      = ['dbn_kml']
+    parametros['dataset']         = [sys.argv[1]]
+    parametros['capas']           = [[85, 50, 15, 6]]
 
     Grid = ParameterGrid(parametros)
-    cantidad_combinaciones = len(Grid)
-    cantidad_a_ejecutar = cantidad_combinaciones // 2
+    parametros = Grid[0]
+    nombreArchivo = 'resultados_dbn_KML'
+    print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {}\n\n".format(nombreArchivo))
 
-    nombreArchivo = 'resultados_dbnMNIST_gridSearch'
-    print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {} QUE CONTIENE {} ITERACIONES\n\n".format(nombreArchivo, cantidad_a_ejecutar))
+    ##
+    ##
+    tiempo_entrenar = 0; tiempo_ajustar = 0; tiempo_total = 0
+    T = temporizador() ; inicio = T.tic()
+    directorioActual = os.getcwd() # directorio actual de ejecucion
+    rutaDatos = str(directorioActual) + '/cupydle/data/DB_' + str(parametros['general']) +'/' # donde se almacenan la base de datos
 
-    T = temporizador()
-    inicio = T.tic()
+    print("****************************************************")
+    print("PARAMETROS:")
+    for k in sorted(parametros.keys()):
+        print(str("{: >20} : {: <20}").format(k, str(parametros[k])))
 
-    for x in range(cantidad_a_ejecutar):
-        T2 = temporizador()
-        inicio2 = T2.tic()
+    # creo la dbn
+    d = dbn_base_test(**parametros)
 
-        print("****************************************************")
-        print("\n\n")
-        print("Iteracion {} de {}".format(x, cantidad_a_ejecutar))
-        print("PARAMETROS:")
-        # modo random la eleccion de los parametros sobre el conjunto posible
-        indice = np.random.randint(cantidad_combinaciones)
-        # no tengo implementada el __setitem__ en ParameterGrid
-        params = Grid[indice]
-        params['directorio'] = 'dbn_grid_' + str(x)
-        for k in sorted(params.keys()):
-            print(str("{: >25} : {: <50}").format(k, str(params[k])))
-        print("\n\n")
-        d = dbn_base_test(**params)
+    ###########################################################################
+    ##   P R E P A R A N D O   L O S   D A T O S   E N T R E N A M I E N T O
+    ###########################################################################
 
-        ##
-        ###########################################################################
-        ##
-        ##   P R E P A R A N D O   L O S   D A T O S   E N T R E N A M I E N T O
-        ##
-        ###########################################################################
+    # se cargan  los datos, debe ser un archivo comprimido, en el cual los
+    # arreglos estan en dos keys, 'entrenamiento' y 'entrenamiento_clases'
+    try:
+        datos = np.load(rutaDatos + str(sys.argv[1]))
+    except:
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
 
-        # se cargan  los datos, debe ser un archivo comprimido, en el cual los
-        # arreglos estan en dos keys, 'videos' y 'clases'
-        directorioActual = os.getcwd() # directorio actual de ejecucion
-        rutaDatos = str(directorioActual) + '/cupydle/data/DB_' + str(parametros['general'][0]) +'/' # donde se almacenan la base de datos
-        try:
-            datos = np.load(rutaDatos + str(sys.argv[1]))
-        except:
-            assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
+    KML = False
+    if 'videos' in datos.keys():
+        KML = True
 
-        entrenamiento        = datos['entrenamiento'].astype(np.float32)
-        entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
+    if KML:
+        videos = datos['videos']
+        clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
         del datos # libera memoria
 
-        datosDBN = []; datosDBN.append((entrenamiento, entrenamiento_clases))
-        del entrenamiento, entrenamiento_clases
-        ##
-        d.entrenar(data=datosDBN)
-        del datosDBN
+        # divido todo el conjunto con 120 ejemplos para el test
+        # separo con un 86% aprox
+        X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=42)
+        del videos, clases
 
+        datosDBN = []; datosDBN.append((X_train, y_train))
+        del X_train, y_train
 
-        ##
-        ###########################################################################
-        ##
-        ##   P R E P A R A N D O   L O S   D A T O S   A J U S T E  F I N O
-        ##
-        ###########################################################################
+    ## se entrena, puede negarse con la variable de entorno "ENTRENAR"
+    tiempo_entrenar = d.entrenar(data=datosDBN)
+    del datosDBN
 
-        # se cargan  los datos, debe ser un archivo comprimido, en el cual los
-        # arreglos estan en dos keys, 'videos' y 'clases'
-        try:
-            datos = np.load(rutaDatos + str(sys.argv[1]))
-        except:
-            assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
+    ###########################################################################
+    ##   P R E P A R A N D O   L O S   D A T O S   A J U S T E  F I N O
+    ###########################################################################
+    try:
+        datos = np.load(rutaDatos + str(sys.argv[1]))
+    except:
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + str(sys.argv[1])
 
-        entrenamiento        = datos['entrenamiento'].astype(np.float32)
-        entrenamiento_clases = datos['entrenamiento_clases'].astype(np.int32)
-        validacion           = datos['validacion'].astype(np.float32)
-        validacion_clases    = datos['validacion_clases'].astype(np.int32)
-        testeo               = datos['testeo'].astype(np.float32)
-        testeo_clases        = datos['testeo_clases'].astype(np.int32)
+    KML = False
+    if 'videos' in datos.keys():
+        KML = True
+
+    if KML:
+        videos = datos['videos']
+        clases = datos['clases'] - 1 # las clases estan desde 1..6, deben ser desde 0..5
         del datos # libera memoria
+
+        # divido todo el conjunto con 120 ejemplos para el test
+        # separo con un 86% aprox
+        X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
+        del videos, clases
+
+        # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
+        X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
+        del X_train, y_train
 
         datosMLP = []
-        datosMLP.append((entrenamiento, entrenamiento_clases))
-        datosMLP.append((validacion, validacion_clases))
-        datosMLP.append((testeo, testeo_clases))
-        del entrenamiento, entrenamiento_clases, validacion, validacion_clases
-        del testeo, testeo_clases
-        ##
-        costoTRN, costoVAL, costoTST, costoTST_final = d.ajustar(datos=datosMLP)
-        del datosMLP
-        #
+        datosMLP.append((X_train_sub,y_train_sub)); datosMLP.append((X_valid,y_valid)); datosMLP.append((X_test,y_test))
+        del X_train_sub, X_valid, y_train_sub, y_valid, X_test, y_test
 
-        _guardar(nombreArchivo=nombreArchivo, valor={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
-        #_guardar(nombreArchivo=nombreArchivo, valor={str(x):{'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
-        #from cupydle.dnn.utils import cargarSHELVE
-        #print(cargarSHELVE(nombreArchivo=nombreArchivo, clave=None))
+    ## se ajustan
+    costoTRN, costoVAL, costoTST, costoTST_final, tiempo_ajustar = d.ajustar(datos=datosMLP)
+    del datosMLP
+    #
 
-        final2 = T2.toc()
-        print("\n\nPaso de la grilla terminado, iteracion " + str(x+1) + "\n\n")
-        print("Tiempo: {}".format(T2.transcurrido(inicio2, final2)))
-        print("****************************************************")
-        print("\n\n")
+    #almaceno los resultados generales
+    _guardar(nombreArchivo=nombreArchivo, valor={'parametros':parametros, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final })
+    print("\n\n")
 
     final = T.toc()
-    print("\n\nGRID SEARCH  FINALIZADO\n\n")
-    print("Tiempo total requerido: {}".format(T.transcurrido(inicio, final)))
+    tiempo_total = T.transcurrido(inicio, final)
 
-
+    print("TIEMPOS [HH:MM:SS.ss]:")
+    print("->  Entrenamiento: {}".format(T.transcurrido(0,tiempo_entrenar)))
+    print("->  Ajuste:        {}".format(T.transcurrido(0,tiempo_ajustar)))
+    print("->  Total:         {}".format(T.transcurrido(inicio, final)))
     return 0
 
 if __name__ == '__main__':
