@@ -34,8 +34,8 @@ def test(general, directorio, dataset, capas, archivoResultados):
     parametros['nombre']          = ['dbn']
     parametros['tipo']            = ['binaria']
     parametros['capas']           = []
-    parametros['epocasTRN']       = [[5]]
-    parametros['epocasFIT']       = [10]
+    parametros['epocasTRN']       = [[50]]
+    parametros['epocasFIT']       = [100]
     parametros['tambatch']        = [10]
     parametros['tasaAprenTRN']    = [0.01]
     parametros['tasaAprenFIT']    = [0.1]
@@ -43,8 +43,8 @@ def test(general, directorio, dataset, capas, archivoResultados):
     parametros['regularizadorL2'] = [0.0]
     parametros['momentoTRN']      = [0.0]
     parametros['momentoFIT']      = [0.0]
-    parametros['pasosGibbs']      = [1]
-    parametros['porcentaje']      = [0.8]
+    parametros['pasosGibbs']      = [5]
+    parametros['porcentaje']      = [0.08]
     parametros['toleranciaError'] = [0.0]
     parametros['pcd']             = [True]
     parametros['directorio']      = [directorio]
@@ -109,7 +109,7 @@ def test(general, directorio, dataset, capas, archivoResultados):
         del entrenamiento, entrenamiento_clases
 
     ## se entrena, puede negarse con la variable de entorno "ENTRENAR"
-    #tiempo_entrenar = d.entrenar(data=datosDBN)
+    tiempo_entrenar = d.entrenar(data=datosDBN)
     del datosDBN
 
     ###########################################################################

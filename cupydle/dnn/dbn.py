@@ -331,8 +331,10 @@ class DBN(object):
             # creo la red
             if self.capas[i].tipo == "binaria":
                 capaRBM = BRBM(n_visible=self.capas[i].n_visible, n_hidden=self.capas[i].n_hidden, w=self.capas[i].w, ruta=directorioRbm)
+                BRBM.DEBUG = DBN.DEBUG
             elif self.capas[i].tipo == 'gaussiana':
                 capaRBM = GRBM(n_visible=self.capas[i].n_visible, n_hidden=self.capas[i].n_hidden, w=self.capas[i].w, ruta=directorioRbm)
+                GRBM.DEBUG = DBN.DEBUG
             else:
                 raise NotImplementedError('RBM no implementada')
             # configuro la capa, la rbm
