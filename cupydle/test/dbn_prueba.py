@@ -20,15 +20,93 @@ from cupydle.dnn.utils import temporizador
 """
 Pruebas sobre MNIST/KML con una DBN
 
-# MNIST
+#---
+# MNIST RESUMIDO
 optirun python3 cupydle/test/dbn_prueba.py --dataset "mnist_minmax.npz" --directorio "test_DBN_mnist" --capa 784 500 10
 
-# KML
-optirun python3 cupydle/test/dbn_prueba.py --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" --directorio "test_DBN_kml" --capa 85 50 6
+#---
+# MNIST COMPLETO
+python3 cupydle/test/dbn_prueba.py \
+--dataset "mnist_minmax.npz" \
+--directorio "test_DBN_mnist" \
+--capa 784 100 10 \
+--epocasTRN 10 \
+--epocasFIT 5 \
+--batchsize 10 \
+--porcentaje 0.8 \
+--lrTRN 0.1 \
+--lrFIT 0.1 \
+--gibbs 1 \
+--nombre "dbn" \
+--pcd \
+--reguL1 0.0 \
+--reguL2 0.0 \
+--tolErr 0.02 \
+--momentoTRN 0.0 \
+--momentoFIT 0.0 \
+--tipo "binaria" \
+--noEntrenar
+
+#---
+# KML RESUMIDO
+optirun python3 cupydle/test/dbn_prueba.py --dataset "all_av_features_clases_shuffled_minmax.npz" --directorio "test_DBN_kml" --capa 230300 1000 6
+
+#---
+# KML PCA COMPLETO
+python3 cupydle/test/dbn_prueba.py \
+--dataset "all_av_features_clases_shuffled_minmax.npz" \
+--directorio "test_DBN_kml" \
+--capa 230300 1000 50 6 \
+--epocasTRN 10 \
+--epocasFIT 5 \
+--batchsize 10 \
+--porcentaje 0.8 \
+--lrTRN 0.1 \
+--lrFIT 0.1 \
+--gibbs 1 \
+--nombre "dbn" \
+--pcd \
+--reguL1 0.0 \
+--reguL2 0.0 \
+--tolErr 0.02 \
+--momentoTRN 0.0 \
+--momentoFIT 0.0 \
+--tipo "binaria" \
+--noEntrenar
+
+
+#---
+# KML PCA RESUMIDO
+python3 cupydle/test/dbn_prueba.py --dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" --directorio "test_DBN_kml" --capa 85 50 6
+
+#---
+# KML PCA COMPLETO
+python3 cupydle/test/dbn_prueba.py \
+--dataset "all_videos_features_clases_shuffled_PCA85_minmax.npz" \
+--directorio "test_DBN_kml" \
+--capa 85 50 6 \
+--epocasTRN 11 \
+--epocasFIT 4 \
+--batchsize 10 \
+--porcentaje 0.8 \
+--lrTRN 0.1 \
+--lrFIT 0.1 \
+--gibbs 1 \
+--nombre "dbn" \
+--pcd \
+--reguL1 0.0 \
+--reguL2 0.0 \
+--tolErr 0.02 \
+--momentoTRN 0.0 \
+--momentoFIT 0.0 \
+--tipo "binaria" \
+--noEntrenar
+
 """
 
-def test(general, directorio, dataset, capas, archivoResultados):
-
+#def test(general, directorio, dataset, capas, archivoResultados):
+def test(archivoResultados, noEntrenar, **parametrosd):
+    """
     parametros = {}
     parametros['general']         = [general]
     parametros['nombre']          = ['dbn']
@@ -50,7 +128,8 @@ def test(general, directorio, dataset, capas, archivoResultados):
     parametros['directorio']      = [directorio]
     parametros['dataset']         = [dataset]
     parametros['capas']           = capas
-
+    """
+    parametros=parametrosd
     Grid = ParameterGrid(parametros)
     parametros = Grid[0]
     print("GUARDANDO LOS RESULTADOS EN EL ARCHIVO {}\n\n".format(archivoResultados))
@@ -109,7 +188,8 @@ def test(general, directorio, dataset, capas, archivoResultados):
         del entrenamiento, entrenamiento_clases
 
     ## se entrena, puede negarse con la variable de entorno "ENTRENAR"
-    tiempo_entrenar = d.entrenar(data=datosDBN)
+    if not noEntrenar:
+        tiempo_entrenar = d.entrenar(data=datosDBN)
     del datosDBN
 
     ###########################################################################
@@ -177,22 +257,95 @@ def test(general, directorio, dataset, capas, archivoResultados):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Prueba de una DBN sobre MNIST/KML')
-    parser.add_argument('--directorio', type=str,  dest="directorio", default='test_DBN', required=None,  help="Carpeta donde se almacena la corrida actual")
-    parser.add_argument('--dataset',    type=str,  dest="dataset",    default=None,       required=True,  help="Archivo donde esta el dataset, .npz")
-    parser.add_argument('--capa',       type=int,  dest="capa",       default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+    parser.add_argument('--directorio', type=str,   dest="directorio", default='test_DBN', required=False, help="Carpeta donde se almacena la corrida actual")
+    parser.add_argument('--dataset',    type=str,   dest="dataset",    default=None,       required=True,  help="Archivo donde esta el dataset, .npz")
+    parser.add_argument('--capa',       type=int,   dest="capa",       default=None,       required=True,  nargs='+', help="Capas de unidades [visibles, ocultas1.. ocultasn]")
+
+    parser.add_argument('--noEntrenar', action="store_true",dest="noEntrenar",default=False, required=False, help="Si esta presente, no ejecuta el entrenamiento de la DBN, solo ajusta los pesos")
+    parser.add_argument('--epocasTRN',  type=int,   dest="epocasTRN",  default=10,         required=False, nargs='+', help="Epocas de entrenamiento (no supervisado) para cada capa, si se especifica una sola se aplica para todas por igual")
+    parser.add_argument('--epocasFIT',  type=int,   dest="epocasFIT",  default=10,         required=False, help="Epocas de para el ajuste (supervisado)")
+    parser.add_argument('--batchsize',  type=int,   dest="batchsize",  default=10,         required=False, help="Tamanio del minibatch para el entrenamiento")
+    parser.add_argument('--porcentaje', type=float, dest="porcentaje", default=0.8,        required=False, help="Porcentaje en que el conjunto de entrenamiento se detina para entrenar y testeo")
+    parser.add_argument('--lrTRN',      type=float, dest="lrTRN",      default=0.1,        required=False, nargs='+', help="Tasas de aprendizaje para cada capa de entrenamiento, si se especifica una sola se aplica por igual a todas")
+    parser.add_argument('--lrFIT',      type=float, dest="lrFIT",      default=0.01,       required=False, help="Tasa de aprendizaje para el ajuste de la red")
+    parser.add_argument('--gibbs',      type=int,   dest="gibbs",      default=1,          required=False, nargs='+', help="Cantidad de pasos de Gibbs para la Divergencia Contrastiva, si es unitario se aplica para todos")
+    parser.add_argument('--nombre',     type=str,   dest="nombre",     default='dbn',      required=False, help="Nombre del modelo")
+    parser.add_argument('--pcd',        action="store_true",dest="pcd",default=False,      required=False, help="Habilita el algoritmo de entrenamiento Divergencia Contrastiva Persistente")
+    parser.add_argument('--reguL1',     type=float, dest="reguL1",     default=0.0,        required=False, help="Parametro regularizador L1 para el costo del ajuste")
+    parser.add_argument('--reguL2',     type=float, dest="reguL2",     default=0.0,        required=False, help="Parametro regularizador L2 para el costo del ajuste")
+    parser.add_argument('--tolErr',     type=float, dest="tolErr",     default=0.0,        required=False, help="Criterio de parada temprana, tolerancia al error")
+    parser.add_argument('--momentoTRN', type=float, dest="momentoTRN", default=0.0,        required=False, nargs='+', help="Tasa de momento para la etapa de entrenamiento, si es unico se aplica igual a cada capa")
+    parser.add_argument('--momentoFIT', type=float, dest="momentoFIT", default=0.0,        required=False, help="Tasa de momento para la etapa de ajuste")
+    parser.add_argument('--tipo',       type=str,   dest="tipo",       default='binaria',  required=False, help="Tipo de RBM (binaria, gaussiana)")
+
     argumentos = parser.parse_args()
     directorio = argumentos.directorio
     dataset    = argumentos.dataset
-    capas = []
-    if argumentos.capa is not None:
-        capa = np.asarray(argumentos.capa)
-        capas.append(capa)
-    archivoResultados="resultadosDBN"
+    epocasTRN  = argumentos.epocasTRN
+    epocasFIT  = argumentos.epocasFIT
+    batchsize  = argumentos.batchsize
+    porcentaje = argumentos.porcentaje
+    lrTRN      = argumentos.lrTRN
+    lrFIT      = argumentos.lrFIT
+    gibbs      = argumentos.gibbs
+    nombre     = argumentos.nombre
+    pcd        = argumentos.pcd
+    reguL1     = argumentos.reguL1
+    reguL2     = argumentos.reguL2
+    tolErr     = argumentos.tolErr
+    momentoTRN = argumentos.momentoTRN
+    momentoFIT = argumentos.momentoFIT
+    tipo       = argumentos.tipo
+    noEntrenar = argumentos.noEntrenar
 
+    capas = argumentos.capa #?
+
+    #momentoTRN   = np.asarray([momentoTRN]) if isinstance(momentoTRN, float) else np.asarray(momentoTRN)
+    #gibbs   = np.asarray([gibbs]) if isinstance(gibbs, int) else np.asarray(gibbs)
+    archivoResultados="resultadosDBN"
     general = "kml"
     # es mnist o kml? segun el dataset
     if dataset.find("mnist") != -1:
         general = "mnist"
 
-    test(general, directorio, dataset, capas, archivoResultados)
+    # chequeos
+    assert dataset.find('.npz') != -1, "El conjunto de datos debe ser del tipo '.npz'"
+    #assert len(epocasTRN) >= len(capas) or len(epocasTRN) == 1, "Epocas de entrenamiento y cantidad de capas no coinciden (unidad aplica a todas)"
+    #assert len(lrTRN) >= len(capas) or len(lrTRN) == 1, "Tasa de aprendizaje no coincide con la cantidad de capas (unidad aplica a todas)"
+    #assert len(momentoTRN) >= len(capas) or len(momentoTRN) == 1, "Tasa de momento entrenamiento no coincide con la cantidad de capas (unidad aplica a todas)"
+    #assert len(gibbs) >= len(capas) or len(gibbs) == 1, "Pasos de Gibbs no coinciden con la cantidad de capas (unidad aplica a todas)"
+    assert tipo == 'binaria' or tipo == 'gaussiana', "Tipo de RBM no implementada"
+    assert porcentaje <= 1.0
+
+    """
+    # ajustes
+    epocasTRN = epocasTRN * len(capas) if len(epocasTRN) == 1 else epocasTRN
+    tasaAprenTRN = np.resize(tasaAprenTRN, (len(capas),)) if len(tasaAprenTRN) == 1 else tasaAprenTRN
+    momentoTRN = np.resize(momentoTRN, (len(capas),)) if len(momentoTRN) == 1 else momentoTRN
+    pasosGibbs = np.resize(pasosGibbs, (len(capas),)) if len(pasosGibbs) == 1 else pasosGibbs
+    """
+
+    parametros = {}
+    parametros['general']         = [general]
+    parametros['nombre']          = [nombre]
+    parametros['tipo']            = [tipo]
+    parametros['capas']           = [capas]
+    parametros['epocasTRN']       = [epocasTRN]
+    parametros['epocasFIT']       = [epocasFIT]
+    parametros['tambatch']        = [batchsize]
+    parametros['tasaAprenTRN']    = [lrTRN]
+    parametros['tasaAprenFIT']    = [lrFIT]
+    parametros['regularizadorL1'] = [reguL1]
+    parametros['regularizadorL2'] = [reguL2]
+    parametros['momentoTRN']      = [momentoTRN]
+    parametros['momentoFIT']      = [momentoFIT]
+    parametros['pasosGibbs']      = [gibbs]
+    parametros['porcentaje']      = [porcentaje]
+    parametros['toleranciaError'] = [tolErr]
+    parametros['pcd']             = [pcd]
+    parametros['directorio']      = [directorio]
+    parametros['dataset']         = [dataset]
+
+    test(archivoResultados=archivoResultados, noEntrenar=noEntrenar, **parametros)
+
 
