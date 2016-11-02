@@ -559,14 +559,17 @@ class temporizador(object):
         return cls.fin
 
     # todo arreglar
-    def transcurrido(self, start=inicio, end=fin):
+    def transcurrido(self, start=inicio, end=fin, string=True):
         if start is None:
             return ""
         if end is None:
             end = self.toc()
         hours, rem = divmod(end-start, 3600)
         minutes, seconds = divmod(rem, 60)
-        tiempo = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+        if string:
+            tiempo = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+        else:
+            tiempo = abs(end - start)
         return tiempo
 
 

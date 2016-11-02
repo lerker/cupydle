@@ -110,6 +110,8 @@ class rbmParams(object):
             if key in tmpRBM:
                 retorno[key] = self.__dict__[key]
         del tmpRBM
+        if os.path.isfile("rbmTest.cupydle"):
+            os.remove("rbmTest.cupydle")
         return retorno
 
 class DBN(object):
@@ -308,7 +310,6 @@ class DBN(object):
                 capaRBM = GRBM(n_visible=self.capas[i].n_visible, n_hidden=self.capas[i].n_hidden, w=self.capas[i].w, ruta=directorioRbm)
             else:
                 raise NotImplementedError('RBM no implementada')
-
             # configuro la capa, la rbm
             # si un parametro es None lo paso como una lista vacia...
             capaRBM.setParametros({k:v if v is not None else [] for k, v in self.capas[i].getParametrosEntrenamiento.items()})
@@ -350,8 +351,7 @@ class DBN(object):
 
         final = T.toc()
         print("Tiempo total para pre-entrenamiento DBN: {}".format(T.transcurrido(inicio, final)))
-
-        return 0
+        return final-inicio
     # FIN TRAIN
 
     def ajuste(self, datos, listaPesos=None, fnActivacion='sigmoidea', tambatch=10, semillaRandom=None):
@@ -439,7 +439,7 @@ class DBN(object):
         clasificador.dibujarEstadisticos(mostrar=False, guardar=clasificador.ruta+'estadisticosMLP')
         clasificador.score(datos=datos[2], guardar='Matriz de Confusion')
 
-        return costoTRN, costoVAL, costoTST, costoTST_final
+        return costoTRN, costoVAL, costoTST, costoTST_final, final-inicio
 
     def _guardar(self, diccionario, driver=DRIVER_PERSISTENCIA, nombreArchivo=None, nuevo=False):
         """Interfaz de almacenamiento para la persistencia de los datos del modelo.
