@@ -136,6 +136,34 @@ python3 cupydle/test/dbn_prueba.py \
 --momentoFIT 0.0 \
 --tipo "binaria" \
 2>&1 | tee -a ${ARCHIVO_LOG}
+##
+##
+#
+echo -e "\n-\n-\n \n \n VALIDACION CRUZADA \n-\n-\n \n \n" >> ${ARCHIVO_LOG}
+#
+##
+##
+python3 cupydle/test/dbn_prueba_CV.py \
+--dataset ${DATA_KML} \
+--directorio "test_DBN_kml" \
+--capa ${UNITin} 1000 1000 100 6 \
+--epocasTRN 50 \
+--epocasFIT 200 \
+--batchsize 10 \
+--porcentaje 0.08 \
+--lrTRN 0.01 \
+--lrFIT 0.1 \
+--gibbs 3 \
+--nombre "dbn" \
+--pcd \
+--reguL1 0.0 \
+--reguL2 0.0 \
+--tolErr 0.02 \
+--momentoTRN 0.0 \
+--momentoFIT 0.0 \
+--tipo "binaria" \
+--fold 6
+2>&1 | tee -a ${ARCHIVO_LOG}
 
 
 ##

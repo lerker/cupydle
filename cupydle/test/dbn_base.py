@@ -128,19 +128,16 @@ class dbn_base_test(object):
         print("Cantidad de clases en el conjunto EntrenamieDBN:", "".join("{:^6}".format(x) for x in np.bincount(datosDBN[0][1])))
         print("Entrenado la DBN con {} ejemplos".format(len(datosDBN[0][1])))
 
-
-
         #entrena la red
-        tiempo_entrenar= self.miDBN.entrenar(dataTrn=datosDBN[0][0], # imagenes de entrenamiento
-                       dataVal=None, # imagenes de validacion
-                       pcd=self.pcd,
-                       guardarPesosIniciales=False,
-                       filtros=True)
+        tiempo_entrenar = self.miDBN.entrenar( dataTrn=datosDBN[0][0], # imagenes de entrenamiento
+                                               dataVal=None, # imagenes de validacion
+                                               pcd=self.pcd,
+                                               guardarPesosIniciales=False,
+                                               filtros=True)
 
         #miDBN.save(rutaCompleta + "dbnMNIST", compression='zip')
         del datosDBN
         return tiempo_entrenar
-        # FIN DEL ENTRENAMIENTO
 
     def ajustar(self, datos):
         ###########################################################################
