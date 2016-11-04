@@ -16,6 +16,7 @@ Implementacion de una red multi-capa en GP-GPU/CPU (Theano).
 # dependencias internas
 import os, sys, time, shelve, numpy
 from numpy.random import RandomState as npRandom
+from numpy.random import randint as npRandomInt
 from warnings import warn
 
 # dependecinas de terceros
@@ -96,7 +97,7 @@ class MLP(object):
     def __init__(self, clasificacion=True, rng=None, ruta='', nombre=None):
 
         # semilla para el random
-        self.rng_seed = 1234 if rng is None else rng
+        self.rng_seed = npRandomInt(2**30) if rng is None else rng
         self.rng = (npRandom(self.rng_seed) if rng is None else npRandom(self.rng_seed))
 
         # la red es para clasificacion o regresion?

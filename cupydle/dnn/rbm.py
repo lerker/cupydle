@@ -17,6 +17,8 @@ import sys, numpy, shelve
 from abc import ABC, abstractmethod
 from warnings import warn
 
+from numpy.random import randint as npRandomInt
+
 # dependencias de terceros
 import theano
 #from theano.tensor.shared_randomstreams import RandomStreams  #random seed CPU
@@ -123,17 +125,9 @@ class RBM(ABC):
 
     """
 
-    def __init__(self,
-                 n_visible,
-                 n_hidden,
-                 w=None,
-                 w_init='uniforme',
-                 visbiases=None,
-                 hidbiases=None,
-                 numpy_rng=None,
-                 theano_rng=None,
-                 nombre=None,
-                 ruta=''):
+    def __init__(self, n_visible, n_hidden, w=None, w_init='uniforme',
+                 visbiases=None,  hidbiases=None, numpy_rng=None, theano_rng=None,
+                 nombre=None, ruta=''):
 
         self.n_visible = n_visible
         self.n_hidden  = n_hidden
@@ -142,12 +136,12 @@ class RBM(ABC):
 
         # create a number generator (fixed) for test NUMPY
         if numpy_rng is None:
-            self.semilla_numpy = 1234
+            self.semilla_numpy = npRandomInt(2**30)
 
         # create a number generator (fixed) for test THEANO
         if theano_rng is None:
             #theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
-            self.semilla_theano = 1234
+            self.semilla_theano = npRandomInt(2**30)
 
         if w is None:
             w = self._initW(numpy_rng=numpy_rng, metodo=w_init)

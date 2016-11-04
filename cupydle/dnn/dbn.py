@@ -14,6 +14,7 @@ __version__     = "1.0.0"
 __status__      = "Production"
 
 import numpy, os
+from numpy.random import randint as npRandomInt
 
 ### THEANO
 # TODO mejorar los imports, ver de agregar theano.shared... etc
@@ -58,19 +59,9 @@ from cupydle.dnn.graficos import imagenTiles
 
 class rbmParams(object):
     # sirve para guardar el estado nomas
-    def __init__(self, n_visible,
-                n_hidden,
-                epocas,
-                tamMiniBatch,
-                lr_pesos,
-                pasosGibbs=1,
-                w=None,
-                lr_bvis=0.0,
-                lr_bocu=0.0,
-                costo_w=0.0,
-                momento=0.0,
-                toleranciaError=0.0,
-                tipo='binaria'):
+    def __init__(self, n_visible, n_hidden, epocas, tamMiniBatch, lr_pesos,
+                pasosGibbs=1, w=None, lr_bvis=0.0, lr_bocu=0.0, costo_w=0.0,
+                momento=0.0, toleranciaError=0.0, tipo='binaria'):
         self.n_visible          = n_visible
         self.n_hidden           = n_hidden
         self.epocas             = epocas
@@ -202,9 +193,9 @@ class DBN(object):
         self.semilla_theano = None
 
         if not numpy_rng:
-            self.semilla_numpy = 1234
+            self.semilla_numpy = npRandomInt(2**30)
         if not theano_rng:
-            self.semilla_theano = 1234
+            self.semilla_theano = npRandomInt(2**30)
 
         # allocate symbolic variables for the data
         self.x = theano.tensor.matrix('samples')  # los datos de entrada son del tipo tensor de orden dos
