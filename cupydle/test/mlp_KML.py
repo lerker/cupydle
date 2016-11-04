@@ -75,8 +75,8 @@ if __name__ == "__main__":
 
     # configuraciones con respecto a los directorios
     directorioActual = os.getcwd()                                  # directorio actual de ejecucion
-    rutaTest         = directorioActual + '/cupydle/test/face/'     # sobre el de ejecucion la ruta a los tests
-    rutaDatos        = directorioActual + '/cupydle/data/DB_face/'  # donde se almacenan la base de datos
+    rutaTest         = directorioActual + '/cupydle/test/kml/'     # sobre el de ejecucion la ruta a los tests
+    rutaDatos        = directorioActual + '/cupydle/data/DB_kml/'  # donde se almacenan la base de datos
     carpetaTest      = directorio + '/'                   # carpeta a crear para los tests
     rutaCompleta     = rutaTest + carpetaTest
     os.makedirs(rutaCompleta) if not os.path.exists(rutaCompleta) else None # crea la carpeta en tal caso que no exista

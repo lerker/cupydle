@@ -123,6 +123,8 @@ class MLP(object):
         self.parametrosEntrenamiento = self._initParametros
         #self._initParametros
 
+        self.incrementos=None
+
 
     @property
     def _initParametros(self, driver=DRIVER_PERSISTENCIA):
@@ -495,6 +497,17 @@ class MLP(object):
 
     def construirActualizaciones(self, costo, actualizaciones):
 
+        # el termino del momento
+        momento = self._cargar(key='momento')
+        terminoMomento = True if momento != 0.0 else False
+        incrementosXcapa = []
+        if terminoMomento:
+            for c in self.capas:
+                W = theano.shared(numpy.zeros_like(c.W.get_value()), borrow=True)
+                b = theano.shared(numpy.zeros_like(c.b.get_value()), borrow=True)
+                incrementosXcapa.extend([W, b])
+            self.incrementos = incrementosXcapa
+
         cost = (costo +
                 self._cargar(key='regularizadorL1') * self.L1 +
                 self._cargar(key='regularizadorL2') * self.L2_sqr)
@@ -516,12 +529,23 @@ class MLP(object):
         # element is a pair formed from the two lists :
         #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
         #updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(self.params, gparams) ]
-        updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(parametrosXcapa, gparams) ]
+        #updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(parametrosXcapa, gparams) ]
+        if terminoMomento:
+            updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam + momento * nu) for param, gparam, nu in zip(parametrosXcapa, gparams, self.incrementos) ]
+            #updates2 = [ (param, self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(self.incrementos, gparams) ]
+            updates2 = [ (param, self._cargar(key='tasaAprendizaje') * gparam + momento * param) for param, gparam in zip(self.incrementos, gparams) ]
+            actualizaciones.extend(updates)
+            actualizaciones.extend(updates2)
+        else:
+            updates = [ (param, param - self._cargar(key='tasaAprendizaje') * gparam) for param, gparam in zip(parametrosXcapa, gparams) ]
+            actualizaciones.extend(updates)
 
+        #updates2 = [(,)]
         # si ya vienen con actualizaciones (updates previas)
         #actualizaciones.append(updates)
         #actualizaciones += updates
-        actualizaciones.extend(updates)
+        #actualizaciones.extend(updates)
+        #actualizaciones.extend(updates2)
         return actualizaciones
 
     def construirFunciones(self, datosEntrenamiento, datosValidacion,

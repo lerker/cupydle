@@ -175,9 +175,13 @@ class RBM(ABC):
 
         # buffers para el almacenamiento temporal de las variables
         # momento-> incrementos, historicos
-        self.vishidinc   = theano.shared(value=numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=theanoFloat), name='vishidinc')
-        self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
-        self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
+        #self.vishidinc   = theano.shared(value=numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=theanoFloat), name='vishidinc')
+        #self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc')
+        #self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc')
+
+        self.vishidinc   = None
+        self.hidbiasinc  = None
+        self.visbiasinc  = None
 
         # seguimiento del grafo theano, root
         self.x = theano.tensor.matrix(name="x")
@@ -869,7 +873,14 @@ class RBM(ABC):
         lr_bvis  = theano.tensor.cast(self._cargar(clave='lr_bvis'),dtype=theanoFloat)
         lr_bocu  = theano.tensor.cast(self._cargar(clave='lr_bocu'),dtype=theanoFloat)
         updates = []
+        terrminoMomento = True if self._cargar(clave='momento') != 0.0 else False
 
+        # solo si el termino del momento existe lo creo y recervo espacion en memoria
+        if terrminoMomento:
+            if self.visbiasinc is None and self.hidbiasinc is None and self.vishidinc is None:
+                self.vishidinc   = theano.shared(value=numpy.zeros(shape=(self.n_visible, self.n_hidden), dtype=theanoFloat), name='vishidinc', borrow=True)
+                self.hidbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_hidden), dtype=theanoFloat), name='hidbiasinc', borrow=True)
+                self.visbiasinc  = theano.shared(value=numpy.zeros(shape=(self.n_visible), dtype=theanoFloat), name='visbiasinc', borrow=True)
         # las actualizaciones de hinton, en practical... utiliza solo las probabilidades y no la muestra
         # actualizacion de W
         if RBM.optimizacion_hinton:
@@ -880,11 +891,15 @@ class RBM(ABC):
             negativeDifference = theano.tensor.dot(muestra_Vk.T, muestra_Hk)
 
         delta = positiveDifference - negativeDifference
-        wUpdate = momento * self.vishidinc
-        wUpdate += lr_pesos * delta / miniBatchSize
-        #wUpdate *= (1.0/(dropout))
+        if terrminoMomento:
+            wUpdate = momento * self.vishidinc
+            wUpdate += lr_pesos * delta / miniBatchSize
+        else:
+            wUpdate = lr_pesos * delta / miniBatchSize
+
         updates.append((self.w, self.w + wUpdate))
-        updates.append((self.vishidinc, wUpdate))
+        if terrminoMomento:
+            updates.append((self.vishidinc, wUpdate))
 
         # actualizacion de los bias visibles
         if RBM.optimizacion_hinton:
@@ -892,10 +907,15 @@ class RBM(ABC):
         else:
             visibleBiasDiff = theano.tensor.sum(self.x - muestra_Vk , axis=0)
 
-        biasVisUpdate = momento * self.visbiasinc
-        biasVisUpdate += lr_bvis * visibleBiasDiff / miniBatchSize
+        if terrminoMomento:
+            biasVisUpdate = momento * self.visbiasinc
+            biasVisUpdate += lr_bvis * visibleBiasDiff / miniBatchSize
+        else:
+            biasVisUpdate = lr_bvis * visibleBiasDiff / miniBatchSize
+
         updates.append((self.visbiases, self.visbiases + biasVisUpdate))
-        updates.append((self.visbiasinc, biasVisUpdate))
+        if terrminoMomento:
+            updates.append((self.visbiasinc, biasVisUpdate))
 
         # actualizacion de los bias ocultos
         if RBM.optimizacion_hinton:
@@ -903,10 +923,14 @@ class RBM(ABC):
         else:
             hiddenBiasDiff = theano.tensor.sum(muestra_H0 - muestra_Hk, axis=0)
 
-        biasHidUpdate = momento * self.hidbiasinc
-        biasHidUpdate += lr_bocu * hiddenBiasDiff / miniBatchSize
+        if terrminoMomento:
+            biasHidUpdate = momento * self.hidbiasinc
+            biasHidUpdate += lr_bocu * hiddenBiasDiff / miniBatchSize
+        else:
+            biasHidUpdate = lr_bocu * hiddenBiasDiff / miniBatchSize
         updates.append((self.hidbiases, self.hidbiases + biasHidUpdate))
-        updates.append((self.hidbiasinc, biasHidUpdate))
+        if terrminoMomento:
+            updates.append((self.hidbiasinc, biasHidUpdate))
 
         # se concatenan todas las actualizaciones en una sola
         updates += updatesOriginal.items()
