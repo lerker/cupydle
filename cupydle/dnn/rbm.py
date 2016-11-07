@@ -1064,8 +1064,11 @@ class RBM(ABC):
         drop = self._cargar(clave='dropout')
         if drop != 0.0: # se escala segun el drop
             W = self.getW * (1.0/drop)
+            self.w.set_value(W)
         else:
             W = self.getW
+            self.w.set_value(W)
+
         self._guardar(diccionario={'w': W, 'biasVisible':self.visbiases.get_value(borrow=True), 'biasOculto': self.hidbiases.get_value(borrow=True)})
 
         nombreArchivo=self.ruta+'estadisticos_'+self.nombre

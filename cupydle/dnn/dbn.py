@@ -252,6 +252,7 @@ class DBN(object):
                  'nombre':              self.nombre,
                  'numpy_rng':           self.semilla_numpy,
                  'pesos':               [],
+                 'bias':                [],
                  'pesos_iniciales':     [],
                  'theano_rng':          self.semilla_theano, # con set_value se actualiza
                  'activacionesOcultas': [],
@@ -367,8 +368,9 @@ class DBN(object):
             self._guardar(diccionario={'activacionesOcultas':hiddenAct})
             del hiddenAct
 
-            # se guardan los pesos para el ajuste fino
+            # se guardan los pesos para el ajuste fino y los bias
             self._guardar(diccionario={'pesos':capaRBM.getW})
+            self._guardar(diccionario={'bias':capaRBM.getOculto})
 
             del capaRBM
         # FIN FOR
@@ -383,14 +385,20 @@ class DBN(object):
         construye un perceptron multicapa, y ajusta los pesos por medio de un
         entrenamiento supervisado.
         """
+        bias = None
         if listaPesos is None:
             print("Cargando los pesos almacenados...") if DBN.DEBUG else None
             pesos = self._cargar(clave='pesos')
+            bias  = self._cargar(clave='bias')
             if pesos==[]:
                 print("PRECAUCION!!!, esta ajustando la red sin entrenarla!!!") if DBN.DEBUG else None
                 pesos = [None] * self.n_layers
+                bias = [None] * self.n_layers
         else:
             pesos = listaPesos
+
+        if bias == None:
+            bias = [None] * self.n_layers
 
         activaciones = []
         if fnActivacion is not None:
@@ -424,7 +432,7 @@ class DBN(object):
                                      clasificacion=False,
                                      activacion=activaciones[i],
                                      pesos=pesos[i],
-                                     biases=None)
+                                     biases=bias[i])
 
         if DBN.DBN_custom:
             # en este tipo carga la red y entrena con los pesos tal cual fue preentrenada.
@@ -434,7 +442,7 @@ class DBN(object):
                                      clasificacion=True,
                                      activacion=activaciones[-1],
                                      pesos=pesos[-1],
-                                     biases=None)
+                                     biases=bias[-1])
         else:
             # w = numpy.zeros((self.capas[-1].n_visible, self.capas[-1].n_hidden),dtype=theanoFloat)
             clasificador.agregarCapa(unidadesEntrada=self.capas[-1].n_visible,
