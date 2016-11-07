@@ -171,7 +171,7 @@ def test(archivoResultados, noEntrenar, **parametrosd):
 
         # divido todo el conjunto con 120 ejemplos para el test
         # separo con un 86% aprox
-        X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=42)
+        X_train, _, y_train, _ = train_test_split(videos, clases, test_size=120, random_state=np.random.randint(2**30))
         del videos, clases
 
         datosDBN = []; datosDBN.append((X_train, y_train))
@@ -211,11 +211,11 @@ def test(archivoResultados, noEntrenar, **parametrosd):
 
         # divido todo el conjunto con 120 ejemplos para el test
         # separo con un 86% aprox
-        X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(videos, clases, test_size=120, random_state=np.random.randint(2**30))
         del videos, clases
 
         # me quedaron 600 ejemplos, lo divido de nuevo pero me quedo con 100 ejemplos para validacion
-        X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=42)
+        X_train_sub, X_valid, y_train_sub, y_valid = train_test_split(X_train, y_train, test_size=100, random_state=np.random.randint(2**30))
         del X_train, y_train
 
         datosMLP = []
