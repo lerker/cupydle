@@ -298,7 +298,7 @@ def cargarHDF5(nombreArchivo, clave):
                 for k in h5f['atributos'].attrs:
                     datos[k] = downCast(h5f['atributos'].attrs[k])
                     print("EL daot:", datos[k], type(datos[k]))
-                    assert False
+                    #assert False
             elif isinstance(h5f[k], h5py.Group):
                 import collections
                 datos[k] = [np.asarray(val.value, dtype=np.float32) for key, val in collections.OrderedDict(sorted(h5f[k].items())).items()]

@@ -542,6 +542,7 @@ def dibujarCostos(**kwargs):
         plt.savefig(kwargs['guardar']+'.png', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='png', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
         plt.savefig(kwargs['guardar']+'.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
 
+    plt.gcf().clear()
     return axe
 
 
@@ -588,5 +589,6 @@ def dibujarMatrizConfusion(cm, clases, normalizar=False, titulo='Matriz de Confu
         plt.savefig(guardar+'.pdf', dpi=None, facecolor='w', edgecolor='w', orientation='portrait', papertype=None, format='pdf', transparent=True, bbox_inches=None, pad_inches=0.1, frameon=None)
 
     plt.show() if mostrar else None
+    plt.gcf().clear()
 
     return axe

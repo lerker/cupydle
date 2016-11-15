@@ -156,9 +156,9 @@ def test(archivoResultados, noEntrenar, **parametrosd):
     # se cargan  los datos, debe ser un archivo comprimido, en el cual los
     # arreglos estan en dos keys, 'entrenamiento' y 'entrenamiento_clases'
     try:
-        datos = np.load(rutaDatos + dataset)
+        datos = np.load(rutaDatos + parametros['dataset'])
     except:
-        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + parametros['dataset']
 
     KML = False
     if 'videos' in datos.keys():
@@ -196,9 +196,9 @@ def test(archivoResultados, noEntrenar, **parametrosd):
     ##   P R E P A R A N D O   L O S   D A T O S   A J U S T E  F I N O
     ###########################################################################
     try:
-        datos = np.load(rutaDatos + dataset)
+        datos = np.load(rutaDatos + parametros['dataset'])
     except:
-        assert False, "El dataset no existe en la ruta: " + rutaDatos + dataset
+        assert False, "El dataset no existe en la ruta: " + rutaDatos + parametros['dataset']
 
     KML = False
     if 'videos' in datos.keys():
@@ -251,7 +251,7 @@ def test(archivoResultados, noEntrenar, **parametrosd):
     print("->  Entrenamiento: {}".format(T.transcurrido(0,tiempo_entrenar)))
     print("->  Ajuste:        {}".format(T.transcurrido(0,tiempo_ajustar)))
     print("->  Total:         {}".format(T.transcurrido(inicio, final)))
-    return 0
+    return costoTRN, costoVAL, costoTST, costoTST_final
 
 
 
