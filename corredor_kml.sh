@@ -30,7 +30,7 @@ echo -e $var > ${ARCHIVO_LOG}
 ###
 
 ##
-python3 cupydle/test/dbn_prueba.py \
+unbuffer python3 cupydle/test/dbn_prueba.py \
 --dataset ${DATA_KML_PCA} \
 --directorio "test_DBN_kml1" \
 --capa 85 50 6 \
@@ -51,7 +51,7 @@ python3 cupydle/test/dbn_prueba.py \
 --tipo "binaria"  \
 2>&1 | tee -a ${ARCHIVO_LOG}
 #
-python3 cupydle/test/dbn_prueba.py \
+unbuffer python3 cupydle/test/dbn_prueba.py \
 --dataset ${DATA_KML_PCA} \
 --directorio "test_DBN_kml2" \
 --capa 85 50 150 150 50 6 \
@@ -72,7 +72,7 @@ python3 cupydle/test/dbn_prueba.py \
 --tipo "binaria"  \
 2>&1 | tee -a ${ARCHIVO_LOG}
 #
-python3 cupydle/test/dbn_prueba.py \
+unbuffer python3 cupydle/test/dbn_prueba.py \
 --dataset ${DATA_KML_PCA} \
 --directorio "test_DBN_kml3" \
 --capa 85 6 \
@@ -93,7 +93,7 @@ python3 cupydle/test/dbn_prueba.py \
 --tipo "binaria"  \
 2>&1 | tee -a ${ARCHIVO_LOG}
 #
-python3 cupydle/test/dbn_prueba.py \
+unbuffer python3 cupydle/test/dbn_prueba.py \
 --dataset ${DATA_KML_PCA} \
 --directorio "test_DBN_kml4" \
 --capa 85 500 6 \
@@ -116,7 +116,7 @@ python3 cupydle/test/dbn_prueba.py \
 
 ##
 ## KML COMPLETO
-python3 cupydle/test/dbn_prueba.py \
+unbuffer python3 cupydle/test/dbn_prueba.py \
 --dataset ${DATA_KML} \
 --directorio "test_DBN_kml5" \
 --capa ${UNITin} 1000 50 6 \
@@ -143,7 +143,7 @@ echo -e "\n-\n-\n \n \n VALIDACION CRUZADA \n-\n-\n \n \n" >> ${ARCHIVO_LOG}
 #
 ##
 ##
-python3 cupydle/test/dbn_prueba_CV.py \
+unbuffer python3 cupydle/test/dbn_prueba_CV.py \
 --dataset ${DATA_KML} \
 --directorio "test_DBN_kml6" \
 --capa ${UNITin} 1000 1000 100 6 \

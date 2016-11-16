@@ -121,9 +121,11 @@ if __name__ == '__main__':
         for k in sorted(params.keys()):
             #print(str("{: >25} : {: <50}").format(k, str(params[k])))
             params[k] = [params[k]] # paso a lista todos los valores uno por uno
-        archivoResultados = 'cupydle/test/' + params['general'][0] + '/' + directorio + '/' + nombreArchivo
+        archivoResultados1 = 'cupydle/test/' + params['general'][0] + '/' + params['directorio'][0] + '/' + nombreArchivo
+        archivoResultados2 = 'cupydle/test/' + params['general'][0] + '/' + directorio + '/' + nombreArchivo
 
-        costoTRN, costoVAL, costoTST, costoTST_final= test(archivoResultados=archivoResultados, noEntrenar=noEntrenar, **params)
+        costoTRN, costoVAL, costoTST, costoTST_final= test(archivoResultados=archivoResultados1, noEntrenar=noEntrenar, **params)
+        _guardar(nombreArchivo=archivoResultados2, valor={str(x): {'parametros':params, 'costoTRN':costoTRN, 'costoVAL':costoVAL, 'costoTST':costoTST, 'costoTST_final':costoTST_final }})
         print("*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+")
         print("\n")
 
