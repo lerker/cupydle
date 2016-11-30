@@ -2,6 +2,11 @@
 CUPYDLE
 #######
 
+.. toctree::
+
+    cupydle.dnn
+    cupydle.test
+
 ******************
 Modulos Generales
 ******************
@@ -9,10 +14,7 @@ Modulos Generales
 :mod:`cupydle.dnn` -- Modulo Principal
 =======================================
 
-cupydle.dnn.dbn module
-----------------------
-
-.. automodule:: cupydle.dnn.dbn
+.. automodule:: cupydle
     :members:
     :undoc-members:
     :show-inheritance:
