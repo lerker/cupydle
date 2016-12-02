@@ -1,44 +1,124 @@
-Modulo Principal: cupydle.dnn
-=============================
+cupydle.dnn package
+===================
 
-Primarios
----------
+Submodules
+----------
 
-Modulo :mod:`~cupydle.dnn.mlp`
-******************************
+cupydle.dnn.capas module
+------------------------
 
-    Base para redes de regresion logistica y clasificacion. Conocidas como
-    Perceptrones Multi-Capa (*Multilayer Perceptrons*).
+.. automodule:: cupydle.dnn.capas
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-    http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+cupydle.dnn.dbn module
+----------------------
 
+.. automodule:: cupydle.dnn.dbn
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.funciones module
+----------------------------
+
+.. automodule:: cupydle.dnn.funciones
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.graficos module
+---------------------------
+
+.. automodule:: cupydle.dnn.graficos
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.gridSearch module
+-----------------------------
+
+.. automodule:: cupydle.dnn.gridSearch
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.loss module
+-----------------------
+
+.. automodule:: cupydle.dnn.loss
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.mlp module
+----------------------
 
 .. automodule:: cupydle.dnn.mlp
     :members:
     :undoc-members:
     :show-inheritance:
-    :private-members:
-    :special-members:
 
+cupydle.dnn.prueba module
+-------------------------
 
-Secundarios
------------
+.. automodule:: cupydle.dnn.prueba
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-Modulo :mod:`~cupydle.dnn.utils`
-************************
+cupydle.dnn.rbm module
+----------------------
 
-    Funciones varias para uso dentro y fuera de la libreria.
+.. automodule:: cupydle.dnn.rbm
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.stops module
+------------------------
+
+.. automodule:: cupydle.dnn.stops
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.unidades module
+---------------------------
+
+.. automodule:: cupydle.dnn.unidades
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.utils module
+------------------------
 
 .. automodule:: cupydle.dnn.utils
     :members:
     :undoc-members:
     :show-inheritance:
-    :private-members:
-    :special-members:
+
+cupydle.dnn.utils_theano module
+-------------------------------
+
+.. automodule:: cupydle.dnn.utils_theano
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+cupydle.dnn.validacion_cruzada module
+-------------------------------------
+
+.. automodule:: cupydle.dnn.validacion_cruzada
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 
-Contenidos del Modulo
-----------------------
+Module contents
+---------------
 
 .. automodule:: cupydle.dnn
     :members:
